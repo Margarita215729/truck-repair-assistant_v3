@@ -23,7 +23,7 @@ import {
 } from 'lucide-react';
 import { diagnosticsAPI, authAPI, fleetAPI, reportsAPI } from '../utils/api';
 import { env } from '../lib/env';
-import { toast } from 'sonner@2.0.3';
+import { toast } from 'sonner';
 
 interface HealthStatus {
   service: string;

@@ -21,7 +21,7 @@ import {
 } from 'lucide-react';
 import { reportsAPI } from '../utils/api';
 import { useAuth } from './AuthProvider';
-import { toast } from 'sonner@2.0.3';
+import { toast } from 'sonner';
 
 export function Reports() {
   const { user } = useAuth();

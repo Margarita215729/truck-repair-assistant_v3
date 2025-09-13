@@ -16,7 +16,7 @@ import {
 import { Textarea } from './ui/textarea';
 import { aiAPI } from '../utils/api';
 import { useAuth } from './AuthProvider';
-import { toast } from 'sonner@2.0.3';
+import { toast } from 'sonner';
 
 export function VoiceDiagnostic() {
   const { user } = useAuth();

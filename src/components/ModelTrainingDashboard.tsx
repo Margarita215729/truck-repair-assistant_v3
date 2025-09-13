@@ -28,7 +28,7 @@ import {
 import { GitHubModelsService, TrainingJob } from '../services/GitHubModelsService';
 import { DataCollectionService } from '../services/DataCollectionService';
 import { useAuth } from './AuthProvider';
-import { toast } from 'sonner@2.0.3';
+import { toast } from 'sonner';
 
 interface TrainingMetrics {
   total_samples: number;

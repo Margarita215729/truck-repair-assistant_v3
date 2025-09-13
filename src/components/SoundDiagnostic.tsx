@@ -4,7 +4,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './ui/
 import { Badge } from './ui/badge';
 import { Progress } from './ui/progress';
 import { Mic, MicOff, Play, Pause, Volume2, AlertTriangle, Wrench, Car, Settings, Droplets, Zap } from 'lucide-react';
-import { toast } from 'sonner@2.0.3';
+import { toast } from 'sonner';
 
 interface DiagnosticResult {
   component: string;
