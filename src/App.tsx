@@ -1,97 +1,118 @@
-import { useState, useEffect } from 'react';
-import { Header } from './components/Header';
-import { DiagnosticAnalysis } from './components/DiagnosticAnalysis';
-import { SmartReports } from './components/SmartReports';
-import { ServiceLocations } from './components/ServiceLocations';
-import { MapTestingDashboard } from './components/MapTestingDashboard';
-import { ModelTrainingDashboard } from './components/ModelTrainingDashboard';
-import { APITestDashboard } from './components/APITestDashboard';
-import { PWAInstaller } from './components/PWAInstaller';
-import { PWAShortcuts } from './components/PWAShortcuts';
-import { AuthProvider } from './components/AuthProvider';
-import { ErrorBoundary } from './components/ErrorBoundary';
-import { Toaster } from './components/ui/sonner';
+// Minimal App.tsx for testing deployment issues
+import { useState } from 'react';
 
-function AppContent() {
-  const [activeTab, setActiveTab] = useState('analysis');
-  const [darkMode, setDarkMode] = useState(false);
-
-  useEffect(() => {
-    if (darkMode) {
-      document.documentElement.classList.add('dark');
-    } else {
-      document.documentElement.classList.remove('dark');
-    }
-  }, [darkMode]);
-
-  useEffect(() => {
-    const handleNavigateToMapsTest = () => {
-      setActiveTab('maps-test');
-    };
-
-    window.addEventListener('navigate-to-maps-test', handleNavigateToMapsTest);
-    return () => {
-      window.removeEventListener('navigate-to-maps-test', handleNavigateToMapsTest);
-    };
-  }, []);
-
-  const renderActiveTab = () => {
-    switch (activeTab) {
-      case 'analysis':
-        return <DiagnosticAnalysis />;
-      case 'reports':
-        return <SmartReports />;
-      case 'locations':
-        return <ServiceLocations />;
-      case 'maps-test':
-        return <MapTestingDashboard />;
-      case 'training':
-        return <ModelTrainingDashboard />;
-      case 'api-tests':
-        return <APITestDashboard />;
-      default:
-        return <DiagnosticAnalysis />;
-    }
-  };
+function App() {
+  const [message] = useState('AI-Powered Truck Diagnostic System v2');
 
   return (
-    <div className="min-h-screen relative overflow-x-hidden">
-      {/* PWA Components */}
-      <PWAShortcuts setActiveTab={setActiveTab} />
-      <PWAInstaller />
+    <div style={{ 
+      padding: '20px', 
+      fontFamily: 'Arial, sans-serif',
+      minHeight: '100vh',
+      backgroundColor: '#f5f5f5'
+    }}>
+      <header style={{ 
+        backgroundColor: '#2563eb', 
+        color: 'white', 
+        padding: '20px', 
+        borderRadius: '8px',
+        marginBottom: '20px'
+      }}>
+        <h1>🚛 {message}</h1>
+        <p>Status: Running successfully!</p>
+      </header>
       
-      {/* Animated Background */}
-      <div className="fixed inset-0 -z-10">
-        <div className="absolute inset-0 bg-gradient-to-br from-slate-900 via-blue-900 to-slate-800 dark:from-black dark:via-slate-900 dark:to-black" />
-        <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_50%,rgba(139,69,19,0.1),transparent_50%)]" />
-        <div className="absolute top-0 left-1/4 w-48 h-48 sm:w-96 sm:h-96 bg-blue-500/10 rounded-full blur-3xl animate-pulse" />
-        <div className="absolute bottom-0 right-1/4 w-48 h-48 sm:w-96 sm:h-96 bg-orange-500/10 rounded-full blur-3xl animate-pulse delay-1000" />
-        <div className="absolute top-1/2 left-1/2 w-32 h-32 sm:w-64 sm:h-64 bg-amber-500/5 rounded-full blur-2xl animate-bounce" style={{ animationDuration: '3s' }} />
-      </div>
-      
-      {/* Main Content */}
-      <div className="relative min-h-screen flex flex-col">
-        <Header 
-          activeTab={activeTab}
-          setActiveTab={setActiveTab}
-          darkMode={darkMode}
-          setDarkMode={setDarkMode}
-        />
-        <main className="flex-1 w-full max-w-full">
-          {renderActiveTab()}
-        </main>
-      </div>
-      <Toaster />
+      <main style={{ 
+        backgroundColor: 'white', 
+        padding: '20px', 
+        borderRadius: '8px',
+        boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
+      }}>
+        <h2>✅ Deployment Test Successful</h2>
+        <p>This minimal version proves that:</p>
+        <ul>
+          <li>✅ React is working</li>
+          <li>✅ TypeScript compilation is successful</li>
+          <li>✅ Vite bundling is working</li>
+          <li>✅ The app can render to the DOM</li>
+        </ul>
+        
+        <div style={{ 
+          marginTop: '20px', 
+          padding: '15px', 
+          backgroundColor: '#e6f3ff', 
+          borderRadius: '4px' 
+        }}>
+          <h3>🔧 Next Steps</h3>
+          <p>If you see this page instead of a white screen, the deployment infrastructure is working.</p>
+          <p>The white screen issue is likely caused by a runtime error in one of the complex components.</p>
+        </div>
+        
+        <div style={{ 
+          marginTop: '20px', 
+          padding: '15px', 
+          backgroundColor: '#f0f9ff', 
+          borderRadius: '4px' 
+        }}>
+          <h3>🧪 Component Loading Test</h3>
+          <ComponentLoadTest />
+        </div>
+      </main>
     </div>
   );
 }
 
-export default function App() {
+function ComponentLoadTest() {
+  const [testResults, setTestResults] = useState<string[]>([]);
+  
+  const testComponent = async (name: string, importFn: () => Promise<any>) => {
+    try {
+      await importFn();
+      setTestResults(prev => [...prev, `✅ ${name} - OK`]);
+    } catch (error) {
+      setTestResults(prev => [...prev, `❌ ${name} - Error: ${error.message}`]);
+    }
+  };
+
+  const runTests = async () => {
+    setTestResults(['🔍 Testing component imports...']);
+    
+    // Test critical components one by one
+    await testComponent('Header', () => import('./components/Header'));
+    await testComponent('ErrorBoundary', () => import('./components/ErrorBoundary'));
+    await testComponent('AuthProvider', () => import('./components/AuthProvider'));
+    await testComponent('DiagnosticAnalysis', () => import('./components/DiagnosticAnalysis'));
+    await testComponent('SmartReports', () => import('./components/SmartReports'));
+    await testComponent('ServiceLocations', () => import('./components/ServiceLocations'));
+    
+    setTestResults(prev => [...prev, '🏁 Component testing completed']);
+  };
+
   return (
-    <ErrorBoundary>
-      <AuthProvider>
-        <AppContent />
-      </AuthProvider>
-    </ErrorBoundary>
+    <div>
+      <button 
+        onClick={runTests}
+        style={{
+          backgroundColor: '#2563eb',
+          color: 'white',
+          padding: '10px 20px',
+          border: 'none',
+          borderRadius: '4px',
+          cursor: 'pointer'
+        }}
+      >
+        Test Component Loading
+      </button>
+      
+      <div style={{ marginTop: '10px' }}>
+        {testResults.map((result, index) => (
+          <div key={index} style={{ margin: '5px 0', fontFamily: 'monospace' }}>
+            {result}
+          </div>
+        ))}
+      </div>
+    </div>
   );
 }
+
+export default App;
