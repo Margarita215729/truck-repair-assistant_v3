@@ -73,12 +73,11 @@ models/
 
 # API keys and secrets (backup safety)
 *secret*
-*key*
-*token*
 credentials.json
 theoryofeverything-*.json
 service-account-*.json
 # Note: package.json and other config files should NOT be ignored
+# Note: ApiKeySetup.tsx and GithubTokenSetup.tsx are components, not secret files
 
 # Vercel
 .vercel
