@@ -1,0 +1,12 @@
+# Vercel ignore file
+node_modules
+.git
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+tests/
+run-tests.cjs
+test-app.html
+src/App.original.tsx
+src/App.minimal.tsx
