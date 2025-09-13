@@ -25,7 +25,7 @@ import {
 } from 'lucide-react';
 import { APITestSuite } from '../tests/APITestSuite';
 import { APIHealthCheck } from './APIHealthCheck';
-import { toast } from 'sonner@2.0.3';
+import { toast } from 'sonner';
 
 interface TestResult {
   service: string;

@@ -22,7 +22,7 @@ export default defineConfig({
       }
     },
     chunkSizeWarningLimit: 1000,
-    minify: 'terser'
+    minify: 'esbuild'
   },
   server: {
     port: 3000,

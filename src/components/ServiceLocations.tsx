@@ -215,7 +215,9 @@ export function ServiceLocations() {
             transmission: { service: '$1200-2000', newPart: '$3000-5000', ebayPart: '$1500-3000' }
           }
         }
-      },
+      }
+    ];
+  };
 
   const handleGetDirections = (address: string) => {
     // Open Google Maps directions
@@ -1019,4 +1021,5 @@ export function ServiceLocations() {
       </Tabs>
     </div>
   );
+}
 }

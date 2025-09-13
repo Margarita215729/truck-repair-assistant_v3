@@ -23,7 +23,7 @@ import {
 import { fleetAPI, diagnosticsAPI } from '../utils/api';
 import { useAuth } from './AuthProvider';
 import { GoogleMapsStatusIndicator } from './GoogleMapsStatusIndicator';
-import { toast } from 'sonner@2.0.3';
+import { toast } from 'sonner';
 
 interface DashboardProps {
   setActiveTab: (tab: string) => void;

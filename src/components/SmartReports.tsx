@@ -26,7 +26,7 @@ import {
 } from 'lucide-react';
 import { useAuth } from './AuthProvider';
 import { reportsAPI } from '../utils/api';
-import { toast } from 'sonner@2.0.3';
+import { toast } from 'sonner';
 
 interface DiagnosticReport {
   id: string;

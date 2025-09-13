@@ -39,7 +39,7 @@ import { useAuth } from './AuthProvider';
 import { OfflineSupport } from './OfflineSupport';
 import { isStandalone } from '../utils/pwa';
 import { AudioAnalysisService, ComponentAnalysis } from '../services/AudioAnalysisService';
-import { toast } from 'sonner@2.0.3';
+import { toast } from 'sonner';
 
 // AI API function with inline implementation
 const aiAPI = {

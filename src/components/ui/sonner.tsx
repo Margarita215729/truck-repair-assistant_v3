@@ -1,6 +1,6 @@
 "use client";
 
-import { Toaster as Sonner, ToasterProps } from "sonner@2.0.3";
+import { Toaster as Sonner, ToasterProps } from "sonner";
 
 const Toaster = ({ ...props }: ToasterProps) => {
   // Use dark theme based on document class instead of next-themes
