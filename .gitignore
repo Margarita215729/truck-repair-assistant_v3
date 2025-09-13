@@ -76,9 +76,9 @@ models/
 *key*
 *token*
 credentials.json
-*.json
 theoryofeverything-*.json
 service-account-*.json
+# Note: package.json and other config files should NOT be ignored
 
 # Vercel
 .vercel
