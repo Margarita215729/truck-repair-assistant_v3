@@ -1,0 +1,22 @@
+# Environment Variables for Truck Diagnostic AI
+# Copy these variables to your Vercel project environment settings
+
+# Supabase Configuration
+VITE_SUPABASE_URL=your_supabase_project_url
+VITE_SUPABASE_ANON_KEY=your_supabase_anon_key
+
+# Google Maps API (for location services)
+VITE_GOOGLE_MAPS_API_KEY=your_google_maps_api_key
+
+# GitHub Models API (for AI analysis)
+VITE_GITHUB_TOKEN=your_github_personal_access_token
+
+# Optional: Production optimizations
+VITE_APP_ENV=production
+VITE_ENABLE_ANALYTICS=true
+VITE_SENTRY_DSN=your_sentry_dsn_for_error_tracking
+
+# Development only
+VITE_DEBUG_MODE=false
+VITE_MOCK_DATA=false
+
