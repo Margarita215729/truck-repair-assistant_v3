@@ -1,4 +1,16 @@
-# 🚛 AI-Powered Truck Diagnostic System
+# 🚛 AI-Powered Truck Diagnostic System v2
+
+**Modern React + TypeScript + Vite Application**
+
+## Tech Stack
+- ⚡ **Vite** - Build tool and dev server  
+- ⚛️ **React 18** - UI framework
+- 🔷 **TypeScript** - Type safety
+- 🎨 **Tailwind CSS** - Styling
+- 🧩 **Radix UI** - Component primitives
+
+## Deployment
+This project is built with **Vite** and deployed on **Vercel**.
 
 Production-ready AI system for comprehensive truck diagnostics with real-time audio analysis and emergency roadside assistance.
 
