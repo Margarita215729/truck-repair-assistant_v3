@@ -78,19 +78,52 @@ export class GitHubModelsService {
     this.apiKey = apiKey || this.getApiKey();
     // Check if we have a fine-tuned model available
     this.loadFineTunedModel();
+    
+    // Validate API key format and setup
+    this.validateApiKey();
   }
 
   private getApiKey(): string {
-    // Try multiple sources for API key
+    // Try multiple sources for API key with enhanced validation
     if (typeof process !== 'undefined' && process.env?.GITHUB_TOKEN) {
       return process.env.GITHUB_TOKEN;
     }
     
-    if (typeof window !== 'undefined' && (window as any).__ENV__?.GITHUB_TOKEN) {
-      return (window as any).__ENV__.GITHUB_TOKEN;
+    if (typeof window !== 'undefined') {
+      // Check window environment variables
+      if ((window as any).__ENV__?.GITHUB_TOKEN) {
+        return (window as any).__ENV__.GITHUB_TOKEN;
+      }
+      
+      // Check localStorage for development/testing
+      const storedKey = localStorage.getItem('github_models_api_key');
+      if (storedKey && storedKey !== 'your_token_here') {
+        return storedKey;
+      }
     }
     
-    throw new Error('GitHub API key not found. Please set GITHUB_TOKEN environment variable.');
+    // Check import.meta.env for Vite
+    try {
+      if (import.meta?.env?.VITE_GITHUB_TOKEN) {
+        return import.meta.env.VITE_GITHUB_TOKEN;
+      }
+    } catch (error) {
+      // Silent fail for environments without import.meta
+    }
+    
+    throw new Error('GitHub API key not found. Please set GITHUB_TOKEN environment variable or configure in settings.');
+  }
+
+  private validateApiKey(): void {
+    if (!this.apiKey || this.apiKey.length < 10) {
+      console.warn('GitHub Models API key appears to be invalid or missing');
+      return;
+    }
+    
+    // Basic format validation for GitHub tokens
+    if (!this.apiKey.startsWith('ghp_') && !this.apiKey.startsWith('github_pat_')) {
+      console.warn('GitHub API key format may be invalid. Expected format: ghp_... or github_pat_...');
+    }
   }
 
   private async loadFineTunedModel(): Promise<void> {
@@ -252,13 +285,16 @@ This analysis is based on extensive truck diagnostic expertise and real-world re
   }
 
   /**
-   * Enhanced diagnostic analysis using fine-tuned model
+   * Enhanced diagnostic analysis using fine-tuned model with retry logic and error handling
    */
-  async analyzeTruckDiagnostic(prompt: DiagnosticPrompt): Promise<DiagnosticResponse> {
-    try {
-      const modelToUse = this.fineTunedModel || 'gpt-4o-mini';
-      
-      const systemPrompt = `You are a specialized truck diagnostic AI expert with access to:
+  async analyzeTruckDiagnostic(prompt: DiagnosticPrompt, retryCount: number = 3): Promise<DiagnosticResponse> {
+    let lastError: Error | null = null;
+    
+    for (let attempt = 1; attempt <= retryCount; attempt++) {
+      try {
+        const modelToUse = this.fineTunedModel || 'gpt-4o-mini';
+        
+        const systemPrompt = `You are a specialized truck diagnostic AI expert with access to:
 - 50,000+ diagnostic cases from American truck forums
 - Technical manuals from Cummins, Caterpillar, Detroit Diesel
 - Real-world repair data from service centers nationwide
@@ -268,17 +304,13 @@ Provide comprehensive diagnostic analysis with focus on:
 1. Immediate safety assessment
 2. Accurate cost estimation
 3. Practical roadside solutions
-4. Component-specific failure patterns`;
+4. Component-specific failure patterns
 
-      const userPrompt = this.buildEnhancedPrompt(prompt);
+IMPORTANT: Always respond with structured information including diagnosis, component, urgency level, and safety assessment.`;
 
-      const response = await fetch(`${this.BASE_URL}/chat/completions`, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${this.apiKey}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
+        const userPrompt = this.buildEnhancedPrompt(prompt);
+
+        const requestBody = {
           model: modelToUse,
           messages: [
             { role: 'system', content: systemPrompt },
@@ -287,24 +319,209 @@ Provide comprehensive diagnostic analysis with focus on:
           temperature: 0.3,
           max_tokens: 2000,
           top_p: 0.95
-        })
+        };
+
+        console.log(`🔄 Attempt ${attempt}/${retryCount}: Calling GitHub Models API with model: ${modelToUse}`);
+
+        const response = await this.makeAPIRequest('/chat/completions', requestBody, attempt);
+
+        if (!response.ok) {
+          const errorText = await response.text();
+          throw new Error(`API request failed: ${response.status} - ${errorText}`);
+        }
+
+        const result = await response.json();
+        
+        if (!result.choices || !result.choices[0] || !result.choices[0].message) {
+          throw new Error('Invalid response format from API');
+        }
+
+        const analysisText = result.choices[0].message.content;
+
+        // Parse the structured response
+        const parsedResponse = this.parseAnalysisResponse(analysisText);
+        
+        // Validate the parsed response
+        this.validateDiagnosticResponse(parsedResponse);
+        
+        console.log('✅ GitHub Models API call successful');
+        return parsedResponse;
+
+      } catch (error) {
+        lastError = error as Error;
+        console.error(`❌ Attempt ${attempt}/${retryCount} failed:`, error.message);
+        
+        // Don't retry on authentication errors
+        if (error.message.includes('401') || error.message.includes('403')) {
+          throw new Error(`Authentication failed: ${error.message}. Please check your GitHub API key.`);
+        }
+        
+        // Don't retry on rate limit errors beyond retryCount
+        if (error.message.includes('429') && attempt === retryCount) {
+          throw new Error(`Rate limit exceeded after ${retryCount} attempts. Please try again later.`);
+        }
+        
+        // Wait before retrying (exponential backoff)
+        if (attempt < retryCount) {
+          const delay = Math.min(1000 * Math.pow(2, attempt - 1), 10000); // Max 10 seconds
+          console.log(`⏳ Waiting ${delay}ms before retry...`);
+          await new Promise(resolve => setTimeout(resolve, delay));
+        }
+      }
+    }
+
+    // If all retries failed, provide fallback response
+    console.warn('All API attempts failed, providing fallback diagnostic response');
+    return this.generateFallbackResponse(prompt, lastError);
+  }
+
+  /**
+   * Make API request with proper headers and error handling
+   */
+  private async makeAPIRequest(endpoint: string, body: any, attempt: number): Promise<Response> {
+    const url = `${this.BASE_URL}${endpoint}`;
+    
+    const headers: Record<string, string> = {
+      'Authorization': `Bearer ${this.apiKey}`,
+      'Content-Type': 'application/json',
+      'User-Agent': 'TruckDiagnosticAI/1.0',
+      'X-GitHub-Api-Version': this.API_VERSION
+    };
+
+    // Add retry information to headers
+    if (attempt > 1) {
+      headers['X-Retry-Attempt'] = attempt.toString();
+    }
+
+    try {
+      const response = await fetch(url, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify(body),
+        signal: AbortSignal.timeout(30000) // 30 second timeout
       });
 
-      if (!response.ok) {
-        const errorText = await response.text();
-        throw new Error(`API request failed: ${response.status} - ${errorText}`);
-      }
-
-      const result = await response.json();
-      const analysisText = result.choices[0].message.content;
-
-      // Parse the structured response
-      return this.parseAnalysisResponse(analysisText);
-
+      return response;
     } catch (error) {
-      console.error('Diagnostic analysis failed:', error);
-      throw new Error(`Diagnostic analysis failed: ${error.message}`);
+      if (error.name === 'AbortError') {
+        throw new Error('Request timeout - GitHub Models API did not respond within 30 seconds');
+      }
+      throw error;
     }
+  }
+
+  /**
+   * Validate diagnostic response has required fields
+   */
+  private validateDiagnosticResponse(response: DiagnosticResponse): void {
+    const requiredFields = ['diagnosis', 'component', 'failure_type', 'urgency'];
+    const missingFields = requiredFields.filter(field => !response[field]);
+    
+    if (missingFields.length > 0) {
+      throw new Error(`Invalid diagnostic response: missing fields ${missingFields.join(', ')}`);
+    }
+
+    // Validate urgency level
+    const validUrgencies = ['low', 'medium', 'high', 'critical'];
+    if (!validUrgencies.includes(response.urgency)) {
+      console.warn(`Invalid urgency level: ${response.urgency}, defaulting to medium`);
+      response.urgency = 'medium';
+    }
+
+    // Ensure safety assessment exists
+    if (!response.safety_assessment) {
+      response.safety_assessment = {
+        can_continue: response.urgency !== 'critical',
+        max_distance: response.urgency === 'critical' ? 0 : 50,
+        speed_limit: response.urgency === 'critical' ? 0 : 45,
+        warnings: ['Professional diagnosis recommended']
+      };
+    }
+  }
+
+  /**
+   * Generate fallback response when API fails
+   */
+  private generateFallbackResponse(prompt: DiagnosticPrompt, error: Error | null): DiagnosticResponse {
+    const component = this.inferComponentFromPrompt(prompt);
+    const urgency = this.assessUrgencyFromSymptoms(prompt.symptoms);
+    
+    return {
+      diagnosis: `Based on symptoms "${prompt.symptoms}", preliminary assessment suggests ${component} system requires attention. Professional diagnosis recommended due to API unavailability.`,
+      component,
+      failure_type: 'requires_professional_diagnosis',
+      urgency,
+      safety_assessment: {
+        can_continue: urgency !== 'critical',
+        max_distance: urgency === 'critical' ? 0 : 25,
+        speed_limit: urgency === 'critical' ? 0 : 35,
+        warnings: [
+          'Professional diagnosis required',
+          'API service temporarily unavailable',
+          'Exercise caution while driving'
+        ]
+      },
+      repair_information: {
+        estimated_cost: 'Professional assessment needed',
+        repair_time: 'To be determined',
+        difficulty_level: 'professional',
+        required_tools: ['Professional diagnostic equipment'],
+        parts_needed: ['Professional assessment required']
+      },
+      immediate_actions: [
+        'Schedule professional diagnosis',
+        'Monitor symptoms closely',
+        'Avoid aggressive driving',
+        'Check fluid levels and visible components'
+      ],
+      preventive_measures: [
+        'Regular maintenance schedule',
+        'Professional inspections',
+        'Quality parts and fluids'
+      ],
+      confidence_score: 0.4 // Lower confidence due to fallback
+    };
+  }
+
+  /**
+   * Helper methods for fallback response generation
+   */
+  private inferComponentFromPrompt(prompt: DiagnosticPrompt): string {
+    const symptoms = prompt.symptoms.toLowerCase();
+    
+    if (symptoms.includes('engine') || symptoms.includes('motor') || symptoms.includes('knock')) {
+      return 'engine';
+    } else if (symptoms.includes('brake') || symptoms.includes('stop')) {
+      return 'brakes';
+    } else if (symptoms.includes('transmission') || symptoms.includes('gear') || symptoms.includes('shift')) {
+      return 'transmission';
+    } else if (symptoms.includes('air') || symptoms.includes('pressure') || symptoms.includes('hiss')) {
+      return 'air_system';
+    } else if (symptoms.includes('steering') || symptoms.includes('suspension') || symptoms.includes('vibrat')) {
+      return 'suspension';
+    } else if (symptoms.includes('electrical') || symptoms.includes('battery') || symptoms.includes('light')) {
+      return 'electrical';
+    }
+    
+    return 'engine'; // Default
+  }
+
+  private assessUrgencyFromSymptoms(symptoms: string): 'low' | 'medium' | 'high' | 'critical' {
+    const criticalKeywords = ['stop', 'immediately', 'dangerous', 'smoke', 'fire', 'leak', 'grinding metal'];
+    const highKeywords = ['loud', 'grinding', 'knocking', 'failing', 'emergency'];
+    const mediumKeywords = ['noise', 'vibration', 'rough', 'concern'];
+    
+    const lowerSymptoms = symptoms.toLowerCase();
+    
+    if (criticalKeywords.some(keyword => lowerSymptoms.includes(keyword))) {
+      return 'critical';
+    } else if (highKeywords.some(keyword => lowerSymptoms.includes(keyword))) {
+      return 'high';
+    } else if (mediumKeywords.some(keyword => lowerSymptoms.includes(keyword))) {
+      return 'medium';
+    }
+    
+    return 'low';
   }
 
   private buildEnhancedPrompt(prompt: DiagnosticPrompt): string {
