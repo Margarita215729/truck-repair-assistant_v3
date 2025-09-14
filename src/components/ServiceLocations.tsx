@@ -684,6 +684,9 @@ export function ServiceLocations() {
     }
   ];
 
+    return baseServices;
+  };
+
   // Combine all locations for map
   const allLocations = [
     ...mockServiceCenters,
