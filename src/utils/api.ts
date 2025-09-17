@@ -39,10 +39,19 @@ async function apiRequest(endpoint: string, options: RequestInit = {}) {
 // Auth API
 const authAPI = {
   signup: async (email: string, password: string, name: string) => {
-    return apiRequest('/auth/signup', {
-      method: 'POST',
-      body: JSON.stringify({ email, password, name }),
+    const { data, error } = await supabase.auth.signUp({
+      email,
+      password,
+      options: {
+        data: {
+          display_name: name,
+          role: 'technician'
+        }
+      }
     });
+    
+    if (error) throw new Error(getErrorMessage(error));
+    return data;
   },
 
   signIn: async (email: string, password: string) => {
