@@ -134,6 +134,178 @@ export function ServiceLocations() {
     }
   }, [userLocation]);
 
+  // Define mock service centers data
+  const mockServiceCenters = [
+    {
+      id: 1,
+      name: 'TruckMaster Repair Center',
+      address: '1245 Industrial Blvd, Houston, TX 77032',
+      lat: 29.7704,
+      lng: -95.3598,
+      type: 'repair' as const,
+      distance: '1.8 miles',
+      rating: 4.8,
+      reviews: 156,
+      services: ['Engine Repair', 'Brake Service', 'Transmission', 'Electrical'],
+      phone: '(713) 555-0123',
+      hours: 'Mon-Fri: 6AM-10PM, Sat-Sun: 8AM-6PM',
+      specialties: ['Heavy Duty', '24/7 Emergency'],
+      estimatedTime: '15 min drive',
+      available: true,
+      pricing: {
+        laborRate: '$120/hr',
+        diagnosticFee: '$150',
+        commonRepairs: {
+          brake: { service: '$450-650', newPart: '$280-420', ebayPart: '$150-280' },
+          engine: { service: '$800-1200', newPart: '$1200-2400', ebayPart: '$600-1500' },
+          transmission: { service: '$1200-2000', newPart: '$3000-5000', ebayPart: '$1500-3000' }
+        }
+      }
+    },
+    {
+      id: 2,
+      name: 'Highway Express Service',
+      address: '890 Freeway Dr, Houston, TX 77015',
+      lat: 29.7372,
+      lng: -95.2618,
+      type: 'repair' as const,
+      distance: '2.1 miles',
+      rating: 4.6,
+      reviews: 89,
+      services: ['Oil Change', 'Tires', 'Diagnostics', 'Preventive Maintenance'],
+      phone: '(713) 555-0189',
+      hours: 'Mon-Fri: 7AM-8PM, Sat: 8AM-5PM',
+      specialties: ['Quick Service', 'Fleet Maintenance'],
+      estimatedTime: '22 min drive',
+      available: true,
+      pricing: {
+        laborRate: '$95/hr',
+        diagnosticFee: '$120',
+        commonRepairs: {
+          brake: { service: '$380-550', newPart: '$240-380', ebayPart: '$120-240' },
+          engine: { service: '$650-950', newPart: '$800-1800', ebayPart: '$400-1200' },
+          transmission: { service: '$950-1600', newPart: '$2200-4000', ebayPart: '$1100-2500' }
+        }
+      }
+    },
+    {
+      id: 3,
+      name: 'Metro Truck Solutions',
+      address: '567 Commerce St, Houston, TX 77002',
+      lat: 29.7633,
+      lng: -95.3632,
+      type: 'repair' as const,
+      distance: '3.4 miles',
+      rating: 4.9,
+      reviews: 234,
+      services: ['Complete Overhaul', 'Fabrication', 'Paint & Body', 'Parts'],
+      phone: '(713) 555-0567',
+      hours: 'Mon-Fri: 6AM-9PM, Sat: 7AM-4PM',
+      specialties: ['Certified Dealer', 'Warranty Work'],
+      estimatedTime: '28 min drive',
+      available: false,
+      pricing: {
+        laborRate: '$150/hr',
+        diagnosticFee: '$200',
+        commonRepairs: {
+          brake: { service: '$550-750', newPart: '$350-520', ebayPart: '$180-320' },
+          engine: { service: '$1000-1500', newPart: '$1500-3200', ebayPart: '$750-2000' },
+          transmission: { service: '$1500-2500', newPart: '$3500-6000', ebayPart: '$1800-3500' }
+        }
+      }
+    }
+  ];
+
+  // Define mock parts suppliers data
+  const mockPartsSuppliers = [
+    {
+      id: 5,
+      name: 'Houston Truck Parts',
+      address: '2100 Navigation Blvd, Houston, TX 77003',
+      lat: 29.7511,
+      lng: -95.3447,
+      type: 'parts' as const,
+      distance: '1.2 miles',
+      phone: '(713) 555-PARTS',
+      rating: 4.5,
+      services: ['OEM Parts', 'Same Day Delivery'],
+      specialties: ['OEM Parts', 'Same Day Delivery'],
+      inventory: 'High',
+      hours: 'Mon-Fri: 7AM-7PM, Sat: 8AM-4PM',
+      available: true,
+      pricing: {
+        markup: '15-25% over cost',
+        delivery: '$25 same-day',
+        commonParts: {
+          brakepad: { oem: '$85-150', aftermarket: '$45-85', ebay: '$25-60' },
+          filter: { oem: '$25-45', aftermarket: '$15-30', ebay: '$8-20' },
+          battery: { oem: '$180-280', aftermarket: '$120-200', ebay: '$80-150' },
+          alternator: { oem: '$420-680', aftermarket: '$250-420', ebay: '$150-300' }
+        }
+      }
+    },
+    {
+      id: 6,
+      name: 'Fleet Supply Solutions',
+      address: '456 Industrial Way, Houston, TX 77020',
+      lat: 29.7328,
+      lng: -95.3089,
+      type: 'parts' as const,
+      distance: '2.8 miles',
+      phone: '(713) 555-FLEET',
+      rating: 4.3,
+      services: ['Bulk Orders', 'Fleet Discounts'],
+      specialties: ['Bulk Orders', 'Fleet Discounts'],
+      inventory: 'Medium',
+      hours: 'Mon-Fri: 6AM-6PM',
+      available: true,
+      pricing: {
+        markup: '10-20% over cost',
+        delivery: '$35 same-day',
+        commonParts: {
+          brakepad: { oem: '$90-160', aftermarket: '$50-90', ebay: '$30-65' },
+          filter: { oem: '$30-50', aftermarket: '$18-35', ebay: '$10-25' },
+          battery: { oem: '$200-300', aftermarket: '$140-220', ebay: '$90-170' },
+          alternator: { oem: '$450-720', aftermarket: '$280-450', ebay: '$180-350' }
+        }
+      }
+    }
+  ];
+
+  // Define mock towing services data
+  const mockTowingServices = [
+    {
+      id: 7,
+      name: 'Houston Heavy Duty Towing',
+      address: '3400 Airline Dr, Houston, TX 77022',
+      lat: 29.8011,
+      lng: -95.3556,
+      type: 'towing' as const,
+      distance: '4.2 miles',
+      phone: '(713) 555-TOWS',
+      rating: 4.4,
+      services: ['Heavy Duty Towing', 'Equipment Transport', 'Recovery'],
+      specialties: ['24/7 Service', 'Heavy Equipment'],
+      hours: '24/7 Available',
+      available: true,
+    },
+    {
+      id: 8,
+      name: 'Express Roadside Assistance',
+      address: '5200 Westheimer Rd, Houston, TX 77056',
+      lat: 29.7370,
+      lng: -95.4284,
+      type: 'towing' as const,
+      distance: '6.1 miles',
+      phone: '(713) 555-ROAD',
+      rating: 4.6,
+      services: ['Quick Response', 'Jump Start', 'Lockout Service', 'Tire Change'],
+      specialties: ['Fast Response', 'Interstate Coverage'],
+      hours: '24/7 Available',
+      available: true,
+    }
+  ];
+
   /**
    * Calculate distance between two points using Haversine formula
    */
@@ -593,95 +765,6 @@ export function ServiceLocations() {
           tireChange: { service: '$100-200', newTire: '$200-400', usedTire: '$80-180' }
         }
       }
-    }
-  ];
-
-  const mockPartsSuppliers = [
-    {
-      id: 5,
-      name: 'Houston Truck Parts',
-      address: '2100 Navigation Blvd, Houston, TX 77003',
-      lat: 29.7511,
-      lng: -95.3447,
-      type: 'parts' as const,
-      distance: '1.2 miles',
-      phone: '(713) 555-PARTS',
-      rating: 4.5,
-      services: ['OEM Parts', 'Same Day Delivery'],
-      specialties: ['OEM Parts', 'Same Day Delivery'],
-      inventory: 'High',
-      hours: 'Mon-Fri: 7AM-7PM, Sat: 8AM-4PM',
-      available: true,
-      pricing: {
-        markup: '15-25% over cost',
-        delivery: '$25 same-day',
-        commonParts: {
-          brakepad: { oem: '$85-150', aftermarket: '$45-85', ebay: '$25-60' },
-          filter: { oem: '$25-45', aftermarket: '$15-30', ebay: '$8-20' },
-          battery: { oem: '$180-280', aftermarket: '$120-200', ebay: '$80-150' },
-          alternator: { oem: '$420-680', aftermarket: '$250-420', ebay: '$150-300' }
-        }
-      }
-    },
-    {
-      id: 6,
-      name: 'Fleet Supply Solutions',
-      address: '456 Industrial Way, Houston, TX 77020',
-      lat: 29.7328,
-      lng: -95.3089,
-      type: 'parts' as const,
-      distance: '2.8 miles',
-      phone: '(713) 555-FLEET',
-      rating: 4.3,
-      services: ['Bulk Orders', 'Fleet Discounts'],
-      specialties: ['Bulk Orders', 'Fleet Discounts'],
-      inventory: 'Medium',
-      hours: 'Mon-Fri: 6AM-6PM',
-      available: true,
-      pricing: {
-        markup: '10-20% over cost',
-        delivery: '$35 same-day',
-        commonParts: {
-          brakepad: { oem: '$90-160', aftermarket: '$50-90', ebay: '$30-65' },
-          filter: { oem: '$30-50', aftermarket: '$18-35', ebay: '$10-25' },
-          battery: { oem: '$200-300', aftermarket: '$140-220', ebay: '$90-170' },
-          alternator: { oem: '$450-720', aftermarket: '$280-450', ebay: '$180-350' }
-        }
-      }
-    }
-  ];
-
-  // Additional towing services
-  const mockTowingServices = [
-    {
-      id: 7,
-      name: 'Houston Heavy Duty Towing',
-      address: '3400 Airline Dr, Houston, TX 77022',
-      lat: 29.8011,
-      lng: -95.3556,
-      type: 'towing' as const,
-      distance: '4.2 miles',
-      phone: '(713) 555-TOWS',
-      rating: 4.4,
-      services: ['Heavy Duty Towing', 'Equipment Transport', 'Recovery'],
-      specialties: ['24/7 Service', 'Heavy Equipment'],
-      hours: '24/7 Available',
-      available: true,
-    },
-    {
-      id: 8,
-      name: 'Express Roadside Assistance',
-      address: '5200 Westheimer Rd, Houston, TX 77056',
-      lat: 29.7370,
-      lng: -95.4284,
-      type: 'towing' as const,
-      distance: '6.1 miles',
-      phone: '(713) 555-ROAD',
-      rating: 4.6,
-      services: ['Quick Response', 'Jump Start', 'Lockout Service', 'Tire Change'],
-      specialties: ['Fast Response', 'Interstate Coverage'],
-      hours: '24/7 Available',
-      available: true,
     }
   ];
 
