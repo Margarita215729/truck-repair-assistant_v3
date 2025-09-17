@@ -82,3 +82,5 @@ service-account-*.json
 # Vercel
 .vercel
 
+/tmp/
+test-db.js

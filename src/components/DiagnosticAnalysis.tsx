@@ -758,15 +758,15 @@ export function DiagnosticAnalysis() {
                   </h4>
                   <div className="grid grid-cols-2 gap-3 text-sm">
                     <div>
-                      <span className="text-white/70">Component:</span>
+                      <span className="text-white/90">Component:</span>
                       <div className="text-white capitalize">{audioAnalysisResult.component}</div>
                     </div>
                     <div>
-                      <span className="text-white/70">Confidence:</span>
+                      <span className="text-white/90">Confidence:</span>
                       <div className="text-white">{Math.round(audioAnalysisResult.confidence * 100)}%</div>
                     </div>
                     <div>
-                      <span className="text-white/70">Severity:</span>
+                      <span className="text-white/90">Severity:</span>
                       <Badge variant={
                         audioAnalysisResult.severity === 'critical' ? 'destructive' :
                         audioAnalysisResult.severity === 'severe' ? 'default' : 'secondary'
@@ -775,7 +775,7 @@ export function DiagnosticAnalysis() {
                       </Badge>
                     </div>
                     <div>
-                      <span className="text-white/70">Issue Type:</span>
+                      <span className="text-white/90">Issue Type:</span>
                       <div className="text-white text-xs">{audioAnalysisResult.failure_type}</div>
                     </div>
                   </div>

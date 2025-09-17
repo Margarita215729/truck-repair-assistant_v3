@@ -553,11 +553,25 @@ export function ServiceLocations() {
   const determineServiceType = (name: string, types: string[]): 'repair' | 'parts' | 'towing' => {
     const nameAndTypes = (name + ' ' + types.join(' ')).toLowerCase();
     
-    if (nameAndTypes.includes('tow') || nameAndTypes.includes('wreck')) {
+    // Towing and recovery services
+    if (nameAndTypes.includes('tow') || 
+        nameAndTypes.includes('wreck') || 
+        nameAndTypes.includes('recovery') || 
+        nameAndTypes.includes('roadside') ||
+        nameAndTypes.includes('emergency assistance')) {
       return 'towing';
-    } else if (nameAndTypes.includes('parts') || nameAndTypes.includes('supply')) {
+    } 
+    // Parts suppliers and warehouses
+    else if (nameAndTypes.includes('parts') || 
+             nameAndTypes.includes('supply') ||
+             nameAndTypes.includes('warehouse') ||
+             nameAndTypes.includes('distributor') ||
+             nameAndTypes.includes('auto parts') ||
+             nameAndTypes.includes('truck parts')) {
       return 'parts';
-    } else {
+    } 
+    // Repair shops, workshops, garages
+    else {
       return 'repair';
     }
   };
@@ -569,15 +583,63 @@ export function ServiceLocations() {
     
     const services = [];
     
+    // Engine and powertrain services
     if (combined.includes('diesel')) services.push('Diesel Repair');
-    if (combined.includes('brake')) services.push('Brake Service');
-    if (combined.includes('transmission')) services.push('Transmission');
     if (combined.includes('engine')) services.push('Engine Repair');
+    if (combined.includes('transmission')) services.push('Transmission');
+    if (combined.includes('clutch')) services.push('Clutch Service');
+    if (combined.includes('turbo')) services.push('Turbo Repair');
+    
+    // Brake and suspension
+    if (combined.includes('brake')) services.push('Brake Service');
+    if (combined.includes('suspension')) services.push('Suspension');
+    if (combined.includes('alignment')) services.push('Wheel Alignment');
+    
+    // Tire services
     if (combined.includes('tire')) services.push('Tire Service');
-    if (combined.includes('oil')) services.push('Oil Change');
+    if (combined.includes('wheel')) services.push('Wheel Service');
+    
+    // Electrical and electronic
     if (combined.includes('electric')) services.push('Electrical');
+    if (combined.includes('battery')) services.push('Battery Service');
+    if (combined.includes('alternator')) services.push('Alternator');
+    if (combined.includes('starter')) services.push('Starter Motor');
+    
+    // Maintenance services
+    if (combined.includes('oil')) services.push('Oil Change');
+    if (combined.includes('filter')) services.push('Filter Replacement');
+    if (combined.includes('maintenance')) services.push('Preventive Maintenance');
+    if (combined.includes('inspection')) services.push('Safety Inspection');
+    
+    // Specialized truck services
+    if (combined.includes('air brake')) services.push('Air Brake System');
+    if (combined.includes('hydraulic')) services.push('Hydraulic Systems');
+    if (combined.includes('exhaust')) services.push('Exhaust Systems');
+    if (combined.includes('cooling')) services.push('Cooling System');
+    if (combined.includes('fuel')) services.push('Fuel System');
+    
+    // Body and structural
+    if (combined.includes('body')) services.push('Body Repair');
+    if (combined.includes('paint')) services.push('Paint & Body');
+    if (combined.includes('welding')) services.push('Welding');
+    if (combined.includes('frame')) services.push('Frame Repair');
+    
+    // Emergency and towing
     if (combined.includes('tow')) services.push('Towing');
+    if (combined.includes('recovery')) services.push('Recovery Service');
+    if (combined.includes('roadside')) services.push('Roadside Assistance');
+    if (combined.includes('emergency')) services.push('Emergency Service');
+    
+    // Parts and sales
     if (combined.includes('parts')) services.push('Parts Sales');
+    if (combined.includes('supply')) services.push('Parts Supply');
+    if (combined.includes('warehouse')) services.push('Parts Warehouse');
+    
+    // Workshop types
+    if (combined.includes('workshop')) services.push('Workshop Service');
+    if (combined.includes('garage')) services.push('Garage Service');
+    if (combined.includes('mechanic')) services.push('Mechanical Service');
+    if (combined.includes('auto')) services.push('Automotive Service');
     
     return services.length > 0 ? services : ['General Repair'];
   };
@@ -586,17 +648,56 @@ export function ServiceLocations() {
     const nameAndTypes = (name + ' ' + types.join(' ')).toLowerCase();
     const specialties = [];
     
+    // Service availability
     if (nameAndTypes.includes('24') || nameAndTypes.includes('emergency')) {
       specialties.push('24/7 Service');
     }
+    if (nameAndTypes.includes('mobile')) {
+      specialties.push('Mobile Service');
+    }
+    
+    // Vehicle type specialization
     if (nameAndTypes.includes('heavy') || nameAndTypes.includes('truck')) {
       specialties.push('Heavy Duty');
     }
+    if (nameAndTypes.includes('fleet')) {
+      specialties.push('Fleet Service');
+    }
+    if (nameAndTypes.includes('commercial')) {
+      specialties.push('Commercial Vehicles');
+    }
+    
+    // Certifications and quality
     if (nameAndTypes.includes('certified') || nameAndTypes.includes('authorized')) {
       specialties.push('Certified');
     }
-    if (nameAndTypes.includes('mobile')) {
-      specialties.push('Mobile Service');
+    if (nameAndTypes.includes('warranty')) {
+      specialties.push('Warranty Work');
+    }
+    if (nameAndTypes.includes('oem') || nameAndTypes.includes('genuine')) {
+      specialties.push('OEM Parts');
+    }
+    
+    // Special services
+    if (nameAndTypes.includes('diagnostic')) {
+      specialties.push('Diagnostic Services');
+    }
+    if (nameAndTypes.includes('custom')) {
+      specialties.push('Custom Work');
+    }
+    if (nameAndTypes.includes('performance')) {
+      specialties.push('Performance Tuning');
+    }
+    if (nameAndTypes.includes('fabrication')) {
+      specialties.push('Custom Fabrication');
+    }
+    
+    // Workshop types
+    if (nameAndTypes.includes('workshop')) {
+      specialties.push('Full Service Workshop');
+    }
+    if (nameAndTypes.includes('garage')) {
+      specialties.push('Professional Garage');
     }
     
     return specialties.length > 0 ? specialties : ['Professional Service'];
