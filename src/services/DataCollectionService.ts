@@ -586,7 +586,8 @@ export class DataCollectionService {
       ]
     }));
 
-    return formattedData.map(item => JSON.stringify(item)).join('\n');
+    // Return proper JSON array format for validation
+    return JSON.stringify(formattedData, null, 2);
   }
 
   /**
