@@ -309,7 +309,7 @@ export function ModelTrainingDashboard() {
         backdropFilter: 'blur(10px)',
         WebkitBackdropFilter: 'blur(10px)'
       }}>
-        <h2 className="text-2xl md:text-3xl font-bold text-white mb-2">AI Model Training Dashboard</h2>
+        <h2 className="text-2xl md:text-3xl font-bold text-white mb-2">AI Diagnostic</h2>
         <p className="text-white/90 text-sm md:text-base leading-relaxed">
           Train specialized truck diagnostic AI model using data from forums, manuals, and real-world cases
         </p>
@@ -345,7 +345,7 @@ export function ModelTrainingDashboard() {
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                   <div className="p-4 bg-white/5 rounded-lg border border-white/10">
                     <h4 className="text-white font-medium mb-2">Forum Data</h4>
-                    <p className="text-white/70 text-sm mb-3">
+                    <p className="text-white/90 text-sm mb-3">
                       TruckersReport, BigRigTalk, and other driver communities
                     </p>
                     <Badge variant="outline" className="border-blue-400/30 text-blue-300">
@@ -355,7 +355,7 @@ export function ModelTrainingDashboard() {
                   
                   <div className="p-4 bg-white/5 rounded-lg border border-white/10">
                     <h4 className="text-white font-medium mb-2">Technical Manuals</h4>
-                    <p className="text-white/70 text-sm mb-3">
+                    <p className="text-white/90 text-sm mb-3">
                       Cummins, Caterpillar, Detroit Diesel service manuals
                     </p>
                     <Badge variant="outline" className="border-green-400/30 text-green-300">
@@ -365,7 +365,7 @@ export function ModelTrainingDashboard() {
                   
                   <div className="p-4 bg-white/5 rounded-lg border border-white/10">
                     <h4 className="text-white font-medium mb-2">Audio Datasets</h4>
-                    <p className="text-white/70 text-sm mb-3">
+                    <p className="text-white/90 text-sm mb-3">
                       MIMII, ToyADMOS, and custom truck sound recordings
                     </p>
                     <Badge variant="outline" className="border-purple-400/30 text-purple-300">
@@ -413,7 +413,7 @@ export function ModelTrainingDashboard() {
                       <span className="font-bold">{collectedSamples.toLocaleString()}</span>
                     </div>
                     <Progress value={Math.min(collectedSamples / 1000 * 100, 100)} className="h-2" />
-                    <p className="text-white/70 text-sm">
+                    <p className="text-white/90 text-sm">
                       Target: 1,000+ high-quality diagnostic cases
                     </p>
                   </div>
@@ -446,19 +446,19 @@ export function ModelTrainingDashboard() {
                   <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
                     <div className="text-center p-3 bg-white/5 rounded-lg">
                       <div className="text-2xl font-bold text-white">{trainingMetrics.total_samples}</div>
-                      <div className="text-sm text-white/70">Total Samples</div>
+                      <div className="text-sm text-white/90">Total Samples</div>
                     </div>
                     <div className="text-center p-3 bg-white/5 rounded-lg">
                       <div className="text-2xl font-bold text-green-400">${trainingMetrics.estimated_cost}</div>
-                      <div className="text-sm text-white/70">Estimated Cost</div>
+                      <div className="text-sm text-white/90">Estimated Cost</div>
                     </div>
                     <div className="text-center p-3 bg-white/5 rounded-lg">
                       <div className="text-2xl font-bold text-blue-400">{trainingMetrics.estimated_time}</div>
-                      <div className="text-sm text-white/70">Training Time</div>
+                      <div className="text-sm text-white/90">Training Time</div>
                     </div>
                     <div className="text-center p-3 bg-white/5 rounded-lg">
                       <div className="text-2xl font-bold text-purple-400">{trainingMetrics.data_quality_score}%</div>
-                      <div className="text-sm text-white/70">Data Quality</div>
+                      <div className="text-sm text-white/90">Data Quality</div>
                     </div>
                   </div>
                 )}
@@ -558,7 +558,7 @@ export function ModelTrainingDashboard() {
                 <CardContent className="text-center py-12">
                   <Settings className="h-12 w-12 text-white/50 mx-auto mb-4" />
                   <h3 className="text-white text-lg font-medium mb-2">No Training Job Active</h3>
-                  <p className="text-white/70">Start data collection and training to monitor progress here.</p>
+                  <p className="text-white/90">Start data collection and training to monitor progress here.</p>
                 </CardContent>
               </Card>
             )}
@@ -586,19 +586,19 @@ export function ModelTrainingDashboard() {
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                   <div className="text-center p-4 bg-white/5 rounded-lg">
                     <div className="text-2xl font-bold text-green-400">94.2%</div>
-                    <div className="text-sm text-white/70">Diagnostic Accuracy</div>
+                    <div className="text-sm text-white/90">Diagnostic Accuracy</div>
                   </div>
                   <div className="text-center p-4 bg-white/5 rounded-lg">
                     <div className="text-2xl font-bold text-blue-400">91.8%</div>
-                    <div className="text-sm text-white/70">Safety Assessment</div>
+                    <div className="text-sm text-white/90">Safety Assessment</div>
                   </div>
                   <div className="text-center p-4 bg-white/5 rounded-lg">
                     <div className="text-2xl font-bold text-purple-400">87.5%</div>
-                    <div className="text-sm text-white/70">Cost Estimation</div>
+                    <div className="text-sm text-white/90">Cost Estimation</div>
                   </div>
                   <div className="text-center p-4 bg-white/5 rounded-lg">
                     <div className="text-2xl font-bold text-orange-400">2.3s</div>
-                    <div className="text-sm text-white/70">Avg Response Time</div>
+                    <div className="text-sm text-white/90">Avg Response Time</div>
                   </div>
                 </div>
 
