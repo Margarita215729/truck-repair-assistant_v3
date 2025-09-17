@@ -1,3 +1,4 @@
+import { getErrorMessage } from "../utils/error-handling";
 import { useState, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './ui/card';
 import { Button } from './ui/button';
@@ -115,7 +116,7 @@ export function MapTestingDashboard() {
         
         switch (error.code) {
           case error.PERMISSION_DENIED:
-            if (error.message.includes('permissions policy')) {
+            if (getErrorMessage(error).includes('permissions policy')) {
               errorMessage = 'Location blocked by browser permissions policy. Please enable location access in browser settings or use HTTPS.';
             } else {
               errorMessage = 'Location access denied. Please allow location access in your browser and try again.';
@@ -128,7 +129,7 @@ export function MapTestingDashboard() {
             errorMessage = 'Location request timed out. Please try again or check your connection.';
             break;
           default:
-            errorMessage = error.message || 'Unknown geolocation error occurred';
+            errorMessage = getErrorMessage(error) || 'Unknown geolocation error occurred';
             break;
         }
         
@@ -140,7 +141,7 @@ export function MapTestingDashboard() {
         setIsTestingLocation(false);
         DEBUG.error('Location Test Failed:', {
           code: error.code,
-          message: error.message,
+          message: getErrorMessage(error),
           finalMessage: errorMessage
         });
       },

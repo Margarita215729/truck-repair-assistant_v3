@@ -1,3 +1,4 @@
+import { getErrorMessage } from "../utils/error-handling";
 /**
  * Advanced Audio Analysis Service for Truck Diagnostic System
  * Implements real-time audio processing and ML-based component failure detection
@@ -116,7 +117,7 @@ export class AudioAnalysisService {
       
     } catch (error) {
       console.error('Audio analysis failed:', error);
-      throw new Error('Failed to analyze audio: ' + error.message);
+      throw new Error('Failed to analyze audio: ' + getErrorMessage(error));
     }
   }
 

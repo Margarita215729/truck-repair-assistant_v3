@@ -1,3 +1,4 @@
+import { getErrorMessage } from "../utils/error-handling";
 import { useState, useRef, useEffect } from 'react';
 import { Button } from './ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './ui/card';
@@ -148,7 +149,7 @@ export function SoundDiagnostic() {
       
     } catch (error) {
       console.error('Audio analysis failed:', error);
-      toast.error('Audio analysis failed: ' + error.message);
+      toast.error('Audio analysis failed: ' + getErrorMessage(error));
       
       // Fallback to basic analysis
       const fallbackResults: DiagnosticResult[] = [

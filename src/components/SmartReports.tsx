@@ -1,3 +1,4 @@
+import { getErrorMessage } from "../utils/error-handling";
 import { useState, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './ui/card';
 import { Button } from './ui/button';
@@ -414,7 +415,7 @@ export function SmartReports() {
       
     } catch (error) {
       console.error('Error generating report:', error);
-      toast.error('Failed to generate report: ' + error.message);
+      toast.error('Failed to generate report: ' + getErrorMessage(error));
       
       // Fallback to generating a basic report from current data
       await generateFallbackReport();
