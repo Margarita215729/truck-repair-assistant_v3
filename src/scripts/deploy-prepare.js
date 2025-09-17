@@ -11,7 +11,7 @@ import { fileURLToPath } from 'url';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
-const rootDir = path.resolve(__dirname, '..');
+const rootDir = path.resolve(__dirname, '../..');
 
 console.log('🚀 Подготовка к деплою Truck Diagnostic AI на Vercel...\n');
 
@@ -21,13 +21,13 @@ const requiredFiles = [
   'vite.config.ts',
   'vercel.json',
   'tsconfig.json',
-  'App.tsx',
-  'main.tsx', 
-  'styles/globals.css',
-  'supabase/functions/server/index.tsx',
-  'lib/env.ts',
-  'lib/env-init.ts',
-  'types/global.d.ts'
+  'src/App.tsx',
+  'src/main.tsx', 
+  'src/styles/globals.css',
+  'src/supabase/functions/server/index.tsx',
+  'src/lib/env.ts',
+  'src/lib/env-init.ts',
+  'src/types/global.d.ts'
 ];
 
 let allFilesExist = true;
@@ -57,7 +57,7 @@ try {
   }
   
   // Проверка основных зависимостей
-  const requiredDeps = ['react', 'react-dom', '@vitejs/plugin-react', 'vite'];
+  const requiredDeps = ['react', 'react-dom', '@vitejs/plugin-react-swc', 'vite'];
   requiredDeps.forEach(dep => {
     if (packageJson.dependencies?.[dep] || packageJson.devDependencies?.[dep]) {
       console.log(`   ✅ ${dep}`);
@@ -89,11 +89,11 @@ if (fs.existsSync(envLocalFile)) {
 }
 
 // Проверка lib/env.ts
-const envLibFile = path.join(rootDir, 'lib/env.ts');
+const envLibFile = path.join(rootDir, 'src/lib/env.ts');
 if (fs.existsSync(envLibFile)) {
-  console.log('   ✅ lib/env.ts создан');
+  console.log('   ✅ src/lib/env.ts создан');
 } else {
-  console.log('   ❌ lib/env.ts отсутствует!');
+  console.log('   ❌ src/lib/env.ts отсутствует!');
   allFilesExist = false;
 }
 

@@ -40,6 +40,7 @@ import { OfflineSupport } from './OfflineSupport';
 import { isStandalone } from '../utils/pwa';
 import { AudioAnalysisService, ComponentAnalysis } from '../services/AudioAnalysisService';
 import { toast } from 'sonner';
+import { getErrorMessage } from '../utils/error-handling';
 
 // AI API function with inline implementation
 const aiAPI = {
@@ -560,7 +561,7 @@ export function DiagnosticAnalysis() {
       toast.success('AI diagnostic analysis completed and saved!');
     } catch (error) {
       console.error('Error during AI analysis:', error);
-      toast.error(`AI analysis failed: ${error.message}`);
+      toast.error(`AI analysis failed: ${getErrorMessage(error)}`);
       
       // Fallback to mock results if AI fails
       const results = mockDiagnosticResults;
@@ -918,7 +919,7 @@ export function DiagnosticAnalysis() {
                 </CardHeader>
                 <CardContent>
                   <div className="space-y-3">
-                    {analysisResults.secondaryIssues.map((issue, index) => (
+                    {analysisResults.secondaryIssues.map((issue: any, index: number) => (
                       <div key={index} className="flex items-center justify-between p-3 border rounded-lg">
                         <div>
                           <div className="font-medium">{issue.component}</div>

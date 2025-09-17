@@ -1,3 +1,4 @@
+import { getErrorMessage } from "../utils/error-handling";
 import { Hono } from 'npm:hono';
 import { cors } from 'npm:hono/cors';
 import { logger } from 'npm:hono/logger';
@@ -53,7 +54,7 @@ app.post(`${PREFIX}/auth/signup`, async (c) => {
     
     if (error) {
       console.log('Signup error:', error);
-      return c.json({ error: error.message }, 400);
+      return c.json({ error: getErrorMessage(error) }, 400);
     }
     
     return c.json({ user: data.user });

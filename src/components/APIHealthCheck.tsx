@@ -24,6 +24,7 @@ import {
 import { diagnosticsAPI, authAPI, fleetAPI, reportsAPI } from '../utils/api';
 import { env } from '../lib/env';
 import { toast } from 'sonner';
+import { getErrorMessage } from '../utils/error-handling';
 
 interface HealthStatus {
   service: string;
@@ -156,7 +157,7 @@ export function APIHealthCheck() {
           status: 'unhealthy',
           responseTime: Date.now() - startTime,
           lastChecked: new Date(),
-          error: error.message
+          error: error instanceof Error ? getErrorMessage(error) : String(error)
         };
         updatedStatuses.push(errorResult);
         
@@ -195,7 +196,7 @@ export function APIHealthCheck() {
         status: 'unhealthy',
         responseTime: Date.now() - startTime,
         lastChecked: new Date(),
-        error: error.message
+        error: getErrorMessage(error)
       };
     }
   };
@@ -212,7 +213,7 @@ export function APIHealthCheck() {
       };
     } catch (error) {
       // If it's an auth error, the API is still healthy
-      if (error.message.includes('Unauthorized') || error.message.includes('401')) {
+      if (getErrorMessage(error).includes('Unauthorized') || getErrorMessage(error).includes('401')) {
         return {
           ...check,
           status: 'healthy',
@@ -226,7 +227,7 @@ export function APIHealthCheck() {
         status: 'unhealthy',
         responseTime: Date.now() - startTime,
         lastChecked: new Date(),
-        error: error.message
+        error: getErrorMessage(error)
       };
     }
   };
@@ -241,7 +242,7 @@ export function APIHealthCheck() {
         lastChecked: new Date()
       };
     } catch (error) {
-      if (error.message.includes('Unauthorized') || error.message.includes('401')) {
+      if (getErrorMessage(error).includes('Unauthorized') || getErrorMessage(error).includes('401')) {
         return {
           ...check,
           status: 'healthy',
@@ -255,7 +256,7 @@ export function APIHealthCheck() {
         status: 'unhealthy',
         responseTime: Date.now() - startTime,
         lastChecked: new Date(),
-        error: error.message
+        error: getErrorMessage(error)
       };
     }
   };
@@ -279,7 +280,7 @@ export function APIHealthCheck() {
         status: 'unhealthy',
         responseTime: Date.now() - startTime,
         lastChecked: new Date(),
-        error: error.message
+        error: getErrorMessage(error)
       };
     }
   };
@@ -312,7 +313,7 @@ export function APIHealthCheck() {
         status: 'unhealthy',
         responseTime: Date.now() - startTime,
         lastChecked: new Date(),
-        error: error.message
+        error: getErrorMessage(error)
       };
     }
   };
@@ -343,7 +344,7 @@ export function APIHealthCheck() {
         status: 'unhealthy',
         responseTime: Date.now() - startTime,
         lastChecked: new Date(),
-        error: error.message
+        error: getErrorMessage(error)
       };
     }
   };
@@ -351,7 +352,7 @@ export function APIHealthCheck() {
   const checkAudioAPI = async (check: HealthStatus, startTime: number): Promise<HealthStatus> => {
     try {
       // Check if MediaDevices API is available
-      if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
+      if (navigator.mediaDevices && typeof navigator.mediaDevices.getUserMedia === 'function') {
         return {
           ...check,
           status: 'healthy',
@@ -374,7 +375,7 @@ export function APIHealthCheck() {
         status: 'unhealthy',
         responseTime: Date.now() - startTime,
         lastChecked: new Date(),
-        error: error.message
+        error: getErrorMessage(error)
       };
     }
   };

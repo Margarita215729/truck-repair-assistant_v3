@@ -2,6 +2,7 @@
  * Real Logic Validator
  * Validates that all stub functions have been replaced with real implementations
  */
+import { getErrorMessage } from '../utils/error-handling';
 
 export class RealLogicValidator {
   private validationResults: Array<{
@@ -80,7 +81,7 @@ export class RealLogicValidator {
       
     } catch (error) {
       this.addValidation('AudioAnalysisService', 'Service Validation', false, 
-        `Validation failed: ${error.message}`);
+        `Validation failed: ${getErrorMessage(error)}`);
     }
   }
 
@@ -147,7 +148,7 @@ export class RealLogicValidator {
       
     } catch (error) {
       this.addValidation('GitHubModelsService', 'Service Validation', false,
-        `Validation failed: ${error.message}`);
+        `Validation failed: ${getErrorMessage(error)}`);
     }
   }
 
@@ -198,7 +199,7 @@ export class RealLogicValidator {
       
     } catch (error) {
       this.addValidation('DataCollectionService', 'Service Validation', false,
-        `Validation failed: ${error.message}`);
+        `Validation failed: ${getErrorMessage(error)}`);
     }
   }
 
@@ -235,7 +236,7 @@ export class RealLogicValidator {
       
     } catch (error) {
       this.addValidation('SmartReports', 'Validation', false,
-        `Validation failed: ${error.message}`);
+        `Validation failed: ${getErrorMessage(error)}`);
     }
   }
 
@@ -263,7 +264,7 @@ export class RealLogicValidator {
       
     } catch (error) {
       this.addValidation('ServiceLocations', 'Validation', false,
-        `Validation failed: ${error.message}`);
+        `Validation failed: ${getErrorMessage(error)}`);
     }
   }
 

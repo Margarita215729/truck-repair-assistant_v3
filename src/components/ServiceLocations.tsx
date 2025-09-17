@@ -1,3 +1,4 @@
+import { getErrorMessage } from "../utils/error-handling";
 import { useState, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './ui/card';
 import { Button } from './ui/button';
@@ -73,7 +74,7 @@ export function ServiceLocations() {
         // Enhanced error logging with detailed information
         DEBUG.error('Geolocation error details:', {
           code: error.code,
-          message: error.message,
+          message: getErrorMessage(error),
           PERMISSION_DENIED: error.PERMISSION_DENIED,
           POSITION_UNAVAILABLE: error.POSITION_UNAVAILABLE,
           TIMEOUT: error.TIMEOUT
@@ -83,7 +84,7 @@ export function ServiceLocations() {
         
         switch(error.code) {
           case error.PERMISSION_DENIED:
-            if (error.message && error.message.includes('permissions policy')) {
+            if (getErrorMessage(error) && getErrorMessage(error).includes('permissions policy')) {
               errorMessage += 'Location access is disabled by the browser or website policy. This is common in embedded frames.';
             } else {
               errorMessage += 'Location access was denied. Please allow location access and try again.';
@@ -96,7 +97,7 @@ export function ServiceLocations() {
             errorMessage += 'Location request timed out. Please try again or check your connection.';
             break;
           default:
-            errorMessage += `Unknown error (${error.code}): ${error.message || 'No additional details available'}.`;
+            errorMessage += `Unknown error (${error.code}): ${getErrorMessage(error) || 'No additional details available'}.`;
             break;
         }
         
