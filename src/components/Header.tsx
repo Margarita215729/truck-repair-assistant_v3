@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { Button } from './ui/button';
 import { Avatar, AvatarFallback } from './ui/avatar';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from './ui/dropdown-menu';
-import { Moon, Sun, Menu, Mic, Home, MapPin, FileText, LogOut, User, Volume2, BarChart3, Truck, Brain, Bug } from 'lucide-react';
+import { Moon, Sun, Menu, Mic, Home, MapPin, FileText, LogOut, User, Volume2, BarChart3, Truck, Brain } from 'lucide-react';
 import { Sheet, SheetContent, SheetTrigger, SheetTitle, SheetDescription } from './ui/sheet';
 import { VisuallyHidden } from './ui/visually-hidden';
 import { useAuth } from './AuthProvider';
@@ -22,8 +22,7 @@ export function Header({ activeTab, setActiveTab, darkMode, setDarkMode }: Heade
     { id: 'analysis', label: 'Intelligent Diagnostic Analysis', icon: BarChart3, shortText: 'ANALYSIS' },
     { id: 'reports', label: 'Smart Reports', icon: FileText, shortText: 'REPORTS' },
     { id: 'locations', label: 'Service Locator', icon: MapPin, shortText: 'HELP' },
-    { id: 'training', label: 'AI Model Training', icon: Brain, shortText: 'TRAINING' },
-    { id: 'api-tests', label: 'API Testing', icon: Bug, shortText: 'TESTS' },
+    { id: 'training', label: 'AI Diagnostic', icon: Brain, shortText: 'TRAINING' },
   ];
 
   return (
@@ -125,7 +124,7 @@ export function Header({ activeTab, setActiveTab, darkMode, setDarkMode }: Heade
                 <div className="flex items-center justify-start gap-2 p-3">
                   <div className="flex flex-col space-y-1 leading-none">
                     <p className="font-medium text-white">{user.user_metadata?.name || 'User'}</p>
-                    <p className="w-[200px] truncate text-sm text-white/70">
+                    <p className="w-[200px] truncate text-sm text-white/90">
                       {user.email}
                     </p>
                   </div>
