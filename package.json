@@ -8,7 +8,9 @@
     "build": "vite build",
     "preview": "vite preview",
     "lint": "echo 'Linting skipped for now'",
-    "type-check": "tsc --noEmit"
+    "type-check": "tsc --noEmit",
+    "deploy-prepare": "node src/scripts/deploy-prepare.js",
+    "test": "node run-tests.js"
   },
   "engines": {
     "node": ">=18.0.0"
