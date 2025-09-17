@@ -134,6 +134,88 @@ export function ServiceLocations() {
     }
   }, [userLocation]);
 
+  // Define mock service centers data
+  const mockServiceCenters = [
+    {
+      id: 1,
+      name: 'TruckMaster Repair Center',
+      address: '1245 Industrial Blvd, Houston, TX 77032',
+      lat: 29.7704,
+      lng: -95.3598,
+      type: 'repair' as const,
+      distance: '1.8 miles',
+      rating: 4.8,
+      reviews: 156,
+      services: ['Engine Repair', 'Brake Service', 'Transmission', 'Electrical'],
+      phone: '(713) 555-0123',
+      hours: 'Mon-Fri: 6AM-10PM, Sat-Sun: 8AM-6PM',
+      specialties: ['Heavy Duty', '24/7 Emergency'],
+      estimatedTime: '15 min drive',
+      available: true,
+      pricing: {
+        laborRate: '$120/hr',
+        diagnosticFee: '$150',
+        commonRepairs: {
+          brake: { service: '$450-650', newPart: '$280-420', ebayPart: '$150-280' },
+          engine: { service: '$800-1200', newPart: '$1200-2400', ebayPart: '$600-1500' },
+          transmission: { service: '$1200-2000', newPart: '$3000-5000', ebayPart: '$1500-3000' }
+        }
+      }
+    },
+    {
+      id: 2,
+      name: 'Highway Express Service',
+      address: '890 Freeway Dr, Houston, TX 77015',
+      lat: 29.7372,
+      lng: -95.2618,
+      type: 'repair' as const,
+      distance: '2.1 miles',
+      rating: 4.6,
+      reviews: 89,
+      services: ['Oil Change', 'Tires', 'Diagnostics', 'Preventive Maintenance'],
+      phone: '(713) 555-0189',
+      hours: 'Mon-Fri: 7AM-8PM, Sat: 8AM-5PM',
+      specialties: ['Quick Service', 'Fleet Maintenance'],
+      estimatedTime: '22 min drive',
+      available: true,
+      pricing: {
+        laborRate: '$95/hr',
+        diagnosticFee: '$120',
+        commonRepairs: {
+          brake: { service: '$380-550', newPart: '$240-380', ebayPart: '$120-240' },
+          engine: { service: '$650-950', newPart: '$800-1800', ebayPart: '$400-1200' },
+          transmission: { service: '$950-1600', newPart: '$2200-4000', ebayPart: '$1100-2500' }
+        }
+      }
+    },
+    {
+      id: 3,
+      name: 'Metro Truck Solutions',
+      address: '567 Commerce St, Houston, TX 77002',
+      lat: 29.7633,
+      lng: -95.3632,
+      type: 'repair' as const,
+      distance: '3.4 miles',
+      rating: 4.9,
+      reviews: 234,
+      services: ['Complete Overhaul', 'Fabrication', 'Paint & Body', 'Parts'],
+      phone: '(713) 555-0567',
+      hours: 'Mon-Fri: 6AM-9PM, Sat: 7AM-4PM',
+      specialties: ['Certified Dealer', 'Warranty Work'],
+      estimatedTime: '28 min drive',
+      available: false,
+      pricing: {
+        laborRate: '$150/hr',
+        diagnosticFee: '$200',
+        commonRepairs: {
+          brake: { service: '$550-750', newPart: '$350-520', ebayPart: '$180-320' },
+          engine: { service: '$1000-1500', newPart: '$1500-3200', ebayPart: '$750-2000' },
+          transmission: { service: '$1500-2500', newPart: '$3500-6000', ebayPart: '$1800-3500' }
+        }
+      }
+    }
+  ];
+
   /**
    * Calculate distance between two points using Haversine formula
    */
