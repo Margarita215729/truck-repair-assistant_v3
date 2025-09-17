@@ -170,7 +170,7 @@ export function SoundDiagnostic() {
   /**
    * Generate human-readable description based on analysis
    */
-  private generateDescription(analysis: any): string {
+  const generateDescription = (analysis: any): string => {
     const { component, failure_type, severity, confidence } = analysis;
     
     const descriptions = {
@@ -208,7 +208,7 @@ export function SoundDiagnostic() {
   /**
    * Generate recommendations based on analysis
    */
-  private generateRecommendation(analysis: any): string {
+  const generateRecommendation = (analysis: any): string => {
     const { component, failure_type, severity } = analysis;
     
     const recommendations = {
@@ -246,7 +246,7 @@ export function SoundDiagnostic() {
   /**
    * Get appropriate icon for component
    */
-  private getComponentIcon(component: string): any {
+  const getComponentIcon = (component: string): any => {
     const iconMap = {
       engine: Car,
       transmission: Settings,
@@ -263,7 +263,7 @@ export function SoundDiagnostic() {
   /**
    * Analyze additional components based on frequency patterns
    */
-  private analyzeAdditionalComponents(primaryAnalysis: any): DiagnosticResult[] {
+  const analyzeAdditionalComponents = (primaryAnalysis: any): DiagnosticResult[] => {
     const additionalResults: DiagnosticResult[] = [];
     const { frequency_patterns } = primaryAnalysis;
     
