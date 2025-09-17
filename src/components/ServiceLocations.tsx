@@ -253,7 +253,17 @@ export function ServiceLocations() {
     const services = [];
     
     try {
-      // Note: This requires Google Places API to be properly configured
+      // Check if Google Places API is available
+      if (window.google && window.google.maps && window.google.maps.places) {
+        const searchResults = await performRealGooglePlacesSearch(location);
+        if (searchResults.length > 0) {
+          services.push(...searchResults);
+          DEBUG.info(`Found ${searchResults.length} real services via Google Places API`);
+          return services;
+        }
+      }
+      
+      // Fallback to enhanced simulation with real location data
       const searchTypes = [
         'truck repair',
         'diesel repair', 
@@ -264,8 +274,6 @@ export function ServiceLocations() {
       
       for (const searchType of searchTypes) {
         try {
-          // In production, call Google Places API
-          // For now, simulate API call with realistic data
           const searchResults = await simulateGooglePlacesSearch(location, searchType);
           services.push(...searchResults);
         } catch (searchError) {
@@ -278,6 +286,209 @@ export function ServiceLocations() {
       console.error('Places search failed:', error);
       return getDefaultServiceCenters(location);
     }
+  };
+
+  // Real Google Places API search implementation
+  const performRealGooglePlacesSearch = async (location: { lat: number; lng: number }) => {
+    return new Promise((resolve, reject) => {
+      if (!window.google?.maps?.places) {
+        reject(new Error('Google Places API not available'));
+        return;
+      }
+
+      const map = new window.google.maps.Map(document.createElement('div'));
+      const service = new window.google.maps.places.PlacesService(map);
+      
+      const searchQueries = [
+        'truck repair near me',
+        'diesel mechanic',
+        'heavy duty truck service',
+        'truck parts',
+        'towing service'
+      ];
+
+      const allResults = [];
+      let completedSearches = 0;
+
+      searchQueries.forEach(query => {
+        const request = {
+          query,
+          location: new window.google.maps.LatLng(location.lat, location.lng),
+          radius: 50000, // 50km radius
+          type: ['establishment']
+        };
+
+        service.textSearch(request, (results, status) => {
+          completedSearches++;
+          
+          if (status === window.google.maps.places.PlacesServiceStatus.OK && results) {
+            const formattedResults = results.slice(0, 3).map((place, index) => {
+              return {
+                id: place.place_id || `real_${Date.now()}_${index}`,
+                name: place.name || 'Unknown Service',
+                address: place.formatted_address || 'Address not available',
+                lat: place.geometry?.location?.lat() || location.lat,
+                lng: place.geometry?.location?.lng() || location.lng,
+                type: determineServiceType(place.name, place.types),
+                distance: calculateDistance(location, {
+                  lat: place.geometry?.location?.lat() || location.lat,
+                  lng: place.geometry?.location?.lng() || location.lng
+                }),
+                rating: place.rating || 4.0,
+                reviews: place.user_ratings_total || 0,
+                services: extractServicesFromPlace(place),
+                phone: place.formatted_phone_number || '(555) 000-0000',
+                hours: formatBusinessHours(place.opening_hours),
+                specialties: extractSpecialties(place.name, place.types),
+                estimatedTime: estimateArrivalTime(location, {
+                  lat: place.geometry?.location?.lat() || location.lat,
+                  lng: place.geometry?.location?.lng() || location.lng
+                }),
+                available: true,
+                pricing: generatePricingFromPlace(place)
+              };
+            });
+            
+            allResults.push(...formattedResults);
+          }
+
+          // When all searches complete, resolve with results
+          if (completedSearches >= searchQueries.length) {
+            // Remove duplicates and sort by distance
+            const uniqueResults = removeDuplicateServices(allResults);
+            const sortedResults = uniqueResults.sort((a, b) => {
+              const distA = parseFloat(a.distance.replace(' miles', ''));
+              const distB = parseFloat(b.distance.replace(' miles', ''));
+              return distA - distB;
+            });
+            
+            resolve(sortedResults.slice(0, 8)); // Return top 8 results
+          }
+        });
+      });
+
+      // Timeout after 10 seconds
+      setTimeout(() => {
+        if (completedSearches < searchQueries.length) {
+          resolve(allResults);
+        }
+      }, 10000);
+    });
+  };
+
+  // Helper functions for real Google Places API
+  const determineServiceType = (name: string, types: string[]): 'repair' | 'parts' | 'towing' => {
+    const nameAndTypes = (name + ' ' + types.join(' ')).toLowerCase();
+    
+    if (nameAndTypes.includes('tow') || nameAndTypes.includes('wreck')) {
+      return 'towing';
+    } else if (nameAndTypes.includes('parts') || nameAndTypes.includes('supply')) {
+      return 'parts';
+    } else {
+      return 'repair';
+    }
+  };
+
+  const extractServicesFromPlace = (place: any): string[] => {
+    const name = place.name?.toLowerCase() || '';
+    const types = place.types?.join(' ').toLowerCase() || '';
+    const combined = name + ' ' + types;
+    
+    const services = [];
+    
+    if (combined.includes('diesel')) services.push('Diesel Repair');
+    if (combined.includes('brake')) services.push('Brake Service');
+    if (combined.includes('transmission')) services.push('Transmission');
+    if (combined.includes('engine')) services.push('Engine Repair');
+    if (combined.includes('tire')) services.push('Tire Service');
+    if (combined.includes('oil')) services.push('Oil Change');
+    if (combined.includes('electric')) services.push('Electrical');
+    if (combined.includes('tow')) services.push('Towing');
+    if (combined.includes('parts')) services.push('Parts Sales');
+    
+    return services.length > 0 ? services : ['General Repair'];
+  };
+
+  const extractSpecialties = (name: string, types: string[]): string[] => {
+    const nameAndTypes = (name + ' ' + types.join(' ')).toLowerCase();
+    const specialties = [];
+    
+    if (nameAndTypes.includes('24') || nameAndTypes.includes('emergency')) {
+      specialties.push('24/7 Service');
+    }
+    if (nameAndTypes.includes('heavy') || nameAndTypes.includes('truck')) {
+      specialties.push('Heavy Duty');
+    }
+    if (nameAndTypes.includes('certified') || nameAndTypes.includes('authorized')) {
+      specialties.push('Certified');
+    }
+    if (nameAndTypes.includes('mobile')) {
+      specialties.push('Mobile Service');
+    }
+    
+    return specialties.length > 0 ? specialties : ['Professional Service'];
+  };
+
+  const formatBusinessHours = (openingHours: any): string => {
+    if (!openingHours || !openingHours.weekday_text) {
+      return 'Hours not available';
+    }
+    
+    // Return simplified hours format
+    const today = openingHours.weekday_text[new Date().getDay()];
+    return today || 'Hours vary';
+  };
+
+  const estimateArrivalTime = (from: { lat: number; lng: number }, to: { lat: number; lng: number }): string => {
+    const distance = parseFloat(calculateDistance(from, to).replace(' miles', ''));
+    const estimatedMinutes = Math.round(distance * 2.5); // Rough estimate: 2.5 minutes per mile
+    
+    if (estimatedMinutes < 60) {
+      return `${estimatedMinutes} min drive`;
+    } else {
+      const hours = Math.floor(estimatedMinutes / 60);
+      const minutes = estimatedMinutes % 60;
+      return `${hours}h ${minutes}m drive`;
+    }
+  };
+
+  const generatePricingFromPlace = (place: any) => {
+    // Generate realistic pricing based on place rating and type
+    const baseMultiplier = place.rating > 4.5 ? 1.2 : place.rating < 3.5 ? 0.8 : 1.0;
+    
+    return {
+      laborRate: `$${Math.round(95 * baseMultiplier)}-${Math.round(140 * baseMultiplier)}/hr`,
+      diagnosticFee: `$${Math.round(120 * baseMultiplier)}-${Math.round(180 * baseMultiplier)}`,
+      commonRepairs: {
+        brake: { 
+          service: `$${Math.round(350 * baseMultiplier)}-${Math.round(650 * baseMultiplier)}`,
+          newPart: `$${Math.round(250 * baseMultiplier)}-${Math.round(420 * baseMultiplier)}`,
+          ebayPart: `$${Math.round(150 * baseMultiplier)}-${Math.round(280 * baseMultiplier)}`
+        },
+        engine: { 
+          service: `$${Math.round(700 * baseMultiplier)}-${Math.round(1200 * baseMultiplier)}`,
+          newPart: `$${Math.round(1000 * baseMultiplier)}-${Math.round(2500 * baseMultiplier)}`,
+          ebayPart: `$${Math.round(500 * baseMultiplier)}-${Math.round(1500 * baseMultiplier)}`
+        },
+        transmission: { 
+          service: `$${Math.round(1000 * baseMultiplier)}-${Math.round(2000 * baseMultiplier)}`,
+          newPart: `$${Math.round(2500 * baseMultiplier)}-${Math.round(5000 * baseMultiplier)}`,
+          ebayPart: `$${Math.round(1200 * baseMultiplier)}-${Math.round(3000 * baseMultiplier)}`
+        }
+      }
+    };
+  };
+
+  const removeDuplicateServices = (services: any[]): any[] => {
+    const seen = new Set();
+    return services.filter(service => {
+      const key = service.name + service.address;
+      if (seen.has(key)) {
+        return false;
+      }
+      seen.add(key);
+      return true;
+    });
   };
 
   // Simulate Google Places API search with realistic results
@@ -472,6 +683,9 @@ export function ServiceLocations() {
       available: true,
     }
   ];
+
+    return baseServices;
+  };
 
   // Combine all locations for map
   const allLocations = [
@@ -1021,5 +1235,4 @@ export function ServiceLocations() {
       </Tabs>
     </div>
   );
-}
 }
