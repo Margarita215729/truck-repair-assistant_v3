@@ -26,6 +26,7 @@ import {
 import { APITestSuite } from '../tests/APITestSuite';
 import { APIHealthCheck } from './APIHealthCheck';
 import { toast } from 'sonner';
+import { getErrorMessage } from '../utils/error-handling';
 
 interface TestResult {
   service: string;
@@ -92,7 +93,7 @@ export function APITestDashboard() {
       
     } catch (error) {
       console.error('Test suite error:', error);
-      toast.error('Test suite encountered an error: ' + error.message);
+      toast.error('Test suite encountered an error: ' + getErrorMessage(error));
     } finally {
       setIsRunningTests(false);
       setCurrentTest('');
