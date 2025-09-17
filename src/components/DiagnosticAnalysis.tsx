@@ -40,6 +40,7 @@ import { OfflineSupport } from './OfflineSupport';
 import { isStandalone } from '../utils/pwa';
 import { AudioAnalysisService, ComponentAnalysis } from '../services/AudioAnalysisService';
 import { toast } from 'sonner';
+import { getErrorMessage } from '../utils/error-handling';
 
 // AI API function with inline implementation
 const aiAPI = {
@@ -85,7 +86,7 @@ export function DiagnosticAnalysis() {
   const [soundLocation, setSoundLocation] = useState('');
   const [truckMake, setTruckMake] = useState('');
   const [truckModel, setTruckModel] = useState('');
-  const [analysisResults, setAnalysisResults] = useState(null);
+  const [analysisResults, setAnalysisResults] = useState<any>(null);
   
   // Audio recording states
   const [isRecording, setIsRecording] = useState(false);
@@ -560,7 +561,7 @@ export function DiagnosticAnalysis() {
       toast.success('AI diagnostic analysis completed and saved!');
     } catch (error) {
       console.error('Error during AI analysis:', error);
-      toast.error(`AI analysis failed: ${error.message}`);
+      toast.error(`AI analysis failed: ${getErrorMessage(error)}`);
       
       // Fallback to mock results if AI fails
       const results = mockDiagnosticResults;
@@ -918,7 +919,7 @@ export function DiagnosticAnalysis() {
                 </CardHeader>
                 <CardContent>
                   <div className="space-y-3">
-                    {analysisResults.secondaryIssues.map((issue, index) => (
+                    {analysisResults.secondaryIssues.map((issue: any: any, index: number: number) => (
                       <div key={index} className="flex items-center justify-between p-3 border rounded-lg">
                         <div>
                           <div className="font-medium">{issue.component}</div>
@@ -982,7 +983,7 @@ export function DiagnosticAnalysis() {
               </CardHeader>
               <CardContent>
                 <div className="space-y-4">
-                  {analysisResults.recommendations.map((rec, index) => (
+                  {analysisResults.recommendations.map((rec: any, index: number) => (
                     <div key={index} className="border rounded-lg p-4">
                       <div className="flex items-start justify-between mb-2">
                         <h4>{rec.action}</h4>
@@ -1021,7 +1022,7 @@ export function DiagnosticAnalysis() {
               </CardHeader>
               <CardContent>
                 <div className="space-y-4">
-                  {analysisResults.predictiveInsights.map((insight, index) => (
+                  {analysisResults.predictiveInsights.map((insight: any, index: number) => (
                     <div key={index} className="flex items-start gap-3 p-3 bg-muted rounded-lg">
                       <Lightbulb className="h-5 w-5 text-yellow-600 mt-0.5" />
                       <p className="text-sm">{insight}</p>
@@ -1045,7 +1046,7 @@ export function DiagnosticAnalysis() {
               </CardHeader>
               <CardContent>
                 <div className="space-y-4">
-                  {analysisResults.repairShops?.map((shop, index) => (
+                  {analysisResults.repairShops?.map((shop: any, index: number) => (
                     <div key={index} className="border rounded-lg p-4 hover:bg-muted/50 transition-colors">
                       <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
                         <div className="flex-1">
@@ -1071,7 +1072,7 @@ export function DiagnosticAnalysis() {
                             </div>
                           </div>
                           <div className="flex flex-wrap gap-1 mt-2">
-                            {shop.specialties.map((specialty, idx) => (
+                            {shop.specialties.map((specialty: any, idx: number) => (
                               <Badge key={idx} variant="secondary" className="text-xs">
                                 {specialty}
                               </Badge>
@@ -1109,7 +1110,7 @@ export function DiagnosticAnalysis() {
               </CardHeader>
               <CardContent>
                 <div className="space-y-4">
-                  {analysisResults.partsAndCosts?.map((item, index) => (
+                  {analysisResults.partsAndCosts?.map((item: any, index: number) => (
                     <div key={index} className="border rounded-lg p-4">
                       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                         <div className="flex-1">
@@ -1172,7 +1173,7 @@ export function DiagnosticAnalysis() {
               </CardHeader>
               <CardContent>
                 <div className="space-y-4">
-                  {analysisResults.towTrucks?.map((tow, index) => (
+                  {analysisResults.towTrucks?.map((tow: any, index: number) => (
                     <div key={index} className="border rounded-lg p-4 hover:bg-muted/50 transition-colors">
                       <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
                         <div className="flex-1">
@@ -1202,7 +1203,7 @@ export function DiagnosticAnalysis() {
                             </div>
                           </div>
                           <div className="flex flex-wrap gap-1 mt-2">
-                            {tow.capabilities.map((capability, idx) => (
+                            {tow.capabilities.map((capability: any, idx: number) => (
                               <Badge key={idx} variant="secondary" className="text-xs">
                                 {capability}
                               </Badge>

@@ -1,3 +1,4 @@
+import { getErrorMessage } from "../utils/error-handling";
 import { Component, ErrorInfo, ReactNode } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
 import { Button } from './ui/button';
@@ -32,7 +33,7 @@ export class ErrorBoundary extends Component<Props, State> {
 
   public componentDidCatch(error: Error, errorInfo: ErrorInfo) {
     DEBUG.error('ErrorBoundary caught an error:', {
-      error: error.message,
+      error: getErrorMessage(error),
       stack: error.stack,
       componentStack: errorInfo.componentStack
     });
@@ -83,7 +84,7 @@ export class ErrorBoundary extends Component<Props, State> {
               {this.state.error && (
                 <div className="p-3 bg-red-500/10 border border-red-500/20 rounded-lg">
                   <p className="text-red-300 text-xs font-mono">
-                    {this.state.error.message}
+                    {this.state.getErrorMessage(error)}
                   </p>
                 </div>
               )}

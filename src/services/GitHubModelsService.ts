@@ -1,3 +1,4 @@
+import { getErrorMessage } from "../utils/error-handling";
 /**
  * GitHub Models Service for Fine-tuning and Inference
  * Handles training data preparation, model fine-tuning, and inference
@@ -349,15 +350,15 @@ IMPORTANT: Always respond with structured information including diagnosis, compo
 
       } catch (error) {
         lastError = error as Error;
-        console.error(`❌ Attempt ${attempt}/${retryCount} failed:`, error.message);
+        console.error(`❌ Attempt ${attempt}/${retryCount} failed:`, getErrorMessage(error));
         
         // Don't retry on authentication errors
-        if (error.message.includes('401') || error.message.includes('403')) {
-          throw new Error(`Authentication failed: ${error.message}. Please check your GitHub API key.`);
+        if (getErrorMessage(error).includes('401') || getErrorMessage(error).includes('403')) {
+          throw new Error(`Authentication failed: ${getErrorMessage(error)}. Please check your GitHub API key.`);
         }
         
         // Don't retry on rate limit errors beyond retryCount
-        if (error.message.includes('429') && attempt === retryCount) {
+        if (getErrorMessage(error).includes('429') && attempt === retryCount) {
           throw new Error(`Rate limit exceeded after ${retryCount} attempts. Please try again later.`);
         }
         

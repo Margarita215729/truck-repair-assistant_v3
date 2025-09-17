@@ -1,3 +1,4 @@
+import { getErrorMessage } from "../utils/error-handling";
 import { createContext, useContext, useEffect, useState, ReactNode } from 'react';
 import { User } from '@supabase/supabase-js';
 import { authAPI } from '../utils/api';
@@ -52,7 +53,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
       setUser(user);
       toast.success('Successfully signed in!');
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : 'Failed to sign in');
+      toast.error(error instanceof Error ? getErrorMessage(error) : 'Failed to sign in');
       throw error;
     } finally {
       setLoading(false);
@@ -66,7 +67,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
       setUser(user);
       toast.success('Account created successfully!');
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : 'Failed to create account');
+      toast.error(error instanceof Error ? getErrorMessage(error) : 'Failed to create account');
       throw error;
     } finally {
       setLoading(false);
