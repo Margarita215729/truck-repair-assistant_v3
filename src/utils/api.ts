@@ -1,3 +1,4 @@
+import { getErrorMessage } from "../utils/error-handling";
 import { createClient } from '@supabase/supabase-js';
 import { projectId, publicAnonKey } from './supabase/info';
 
@@ -50,13 +51,13 @@ const authAPI = {
       password,
     });
     
-    if (error) throw new Error(error.message);
+    if (error) throw new Error(getErrorMessage(error));
     return data;
   },
 
   signOut: async () => {
     const { error } = await supabase.auth.signOut();
-    if (error) throw new Error(error.message);
+    if (error) throw new Error(getErrorMessage(error));
   },
 
   getCurrentUser: async () => {

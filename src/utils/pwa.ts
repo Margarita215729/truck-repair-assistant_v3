@@ -115,7 +115,7 @@ export function showNotification(title: string, options?: NotificationOptions): 
   const defaultOptions: NotificationOptions = {
     icon: '/icons/icon-192x192.png',
     badge: '/icons/icon-96x96.png',
-    vibrate: [200, 100, 200],
+    // vibrate: [200, 100, 200], // Removed as it's not in NotificationOptions
     requireInteraction: false,
     silent: false,
     ...options
@@ -143,7 +143,7 @@ export async function subscribeToPushNotifications(): Promise<PushSubscription |
       userVisibleOnly: true,
       applicationServerKey: urlBase64ToUint8Array(
         'BEl62iUYgUivxIkv69yViEuiBIa40j13SUJhyDpU_bvpn7q0lRwY-Xhq7-T9v5J_L5k1lKyZ-e7pDw-Kk4t5KUU' // Replace with your VAPID public key
-      )
+      ) as BufferSource
     });
     
     console.log('[PWA] Push subscription created:', subscription);

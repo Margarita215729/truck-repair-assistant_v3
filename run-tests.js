@@ -1,8 +1,13 @@
 #!/usr/bin/env node
 
 // Simple test runner without TypeScript compilation
-const fs = require('fs');
-const path = require('path');
+import fs from 'fs';
+import path from 'path';
+import { execSync } from 'child_process';
+import { fileURLToPath } from 'url';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 console.log('🔍 COMPREHENSIVE DEPLOYMENT TESTING');
 console.log('=' .repeat(50));
@@ -139,7 +144,6 @@ try {
 
 // Test 4: Test build process
 console.log('\n🏗️  TESTING BUILD PROCESS...');
-const { execSync } = require('child_process');
 
 try {
   console.log('Running npm run build...');

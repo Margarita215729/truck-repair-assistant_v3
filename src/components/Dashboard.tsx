@@ -29,6 +29,16 @@ interface DashboardProps {
   setActiveTab: (tab: string) => void;
 }
 
+// Helper function to calculate system health
+const calculateSystemHealth = (diagnostics: any[]): number => {
+  if (!diagnostics.length) return 85; // Default good health
+  
+  const criticalIssues = diagnostics.filter(d => d.primaryIssue?.severity === 'critical').length;
+  const totalIssues = diagnostics.length;
+  
+  return Math.max(10, 100 - (criticalIssues / totalIssues) * 50);
+};
+
 export function Dashboard({ setActiveTab }: DashboardProps) {
   const { user } = useAuth();
   const [stats, setStats] = useState({
@@ -72,18 +82,18 @@ export function Dashboard({ setActiveTab }: DashboardProps) {
       // If we got real data, use it; otherwise use calculated stats
       const realStats = {
         totalDiagnostics: diagnosticHistory.diagnostics?.length || 0,
-        activeIssues: diagnosticHistory.diagnostics?.filter(d => 
+        activeIssues: diagnosticHistory.diagnostics?.filter((d: any) => 
           d.status === 'pending' || d.primaryIssue?.severity === 'critical'
         ).length || 0,
-        resolvedToday: diagnosticHistory.diagnostics?.filter(d => {
+        resolvedToday: diagnosticHistory.diagnostics?.filter((d: any) => {
           const today = new Date().toDateString();
           const diagDate = new Date(d.timestamp).toDateString();
           return diagDate === today && d.status === 'completed';
         }).length || 0,
-        pendingAnalysis: diagnosticHistory.diagnostics?.filter(d => 
+        pendingAnalysis: diagnosticHistory.diagnostics?.filter((d: any) => 
           d.status === 'analyzing' || d.status === 'pending'
         ).length || 0,
-        systemHealth: this.calculateSystemHealth(diagnosticHistory.diagnostics || [])
+        systemHealth: calculateSystemHealth(diagnosticHistory.diagnostics || [])
       };
       
       setStats(realStats);

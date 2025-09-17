@@ -1,3 +1,4 @@
+import { getErrorMessage } from "../utils/error-handling";
 /**
  * Model Training Dashboard
  * Interface for managing GitHub Models fine-tuning process
@@ -117,7 +118,7 @@ export function ModelTrainingDashboard() {
       
     } catch (error) {
       console.error('Error collecting training data:', error);
-      toast.error('Data collection failed: ' + error.message);
+      toast.error('Data collection failed: ' + getErrorMessage(error));
     } finally {
       setIsCollectingData(false);
     }
@@ -146,7 +147,7 @@ export function ModelTrainingDashboard() {
       
     } catch (error) {
       console.error('Error starting fine-tuning:', error);
-      toast.error('Failed to start fine-tuning: ' + error.message);
+      toast.error('Failed to start fine-tuning: ' + getErrorMessage(error));
       setIsTraining(false);
     }
   };
@@ -174,7 +175,7 @@ export function ModelTrainingDashboard() {
       
     } catch (error) {
       console.error('Training monitoring error:', error);
-      toast.error('Training monitoring failed: ' + error.message);
+      toast.error('Training monitoring failed: ' + getErrorMessage(error));
       setIsTraining(false);
     }
   };

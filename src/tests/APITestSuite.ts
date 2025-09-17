@@ -7,6 +7,7 @@ import { AudioAnalysisService } from '../services/AudioAnalysisService';
 import { GitHubModelsService } from '../services/GitHubModelsService';
 import { DataCollectionService } from '../services/DataCollectionService';
 import { diagnosticsAPI, authAPI, fleetAPI, reportsAPI } from '../utils/api';
+import { getErrorMessage } from '../utils/error-handling';
 
 interface TestResult {
   service: string;
@@ -78,7 +79,7 @@ export class APITestSuite {
           `Analysis structure valid: ${mockAnalysis.component} detected`);
       } catch (error) {
         this.addResult('AudioAnalysisService', 'Audio Analysis', 'warning', 
-          'Real audio analysis requires browser environment', 0, { error: error.message });
+          'Real audio analysis requires browser environment', 0, { error: getErrorMessage(error) });
       }
       
       // Test 4: Component classification logic
@@ -90,7 +91,7 @@ export class APITestSuite {
       
     } catch (error) {
       this.addResult('AudioAnalysisService', 'Service Test', 'fail', 
-        `Service test failed: ${error.message}`, 0, { error });
+        `Service test failed: ${getErrorMessage(error)}`, 0, { error });
     }
   }
 
@@ -108,7 +109,7 @@ export class APITestSuite {
         this.addResult('GitHubModelsService', 'Initialization', 'pass', 
           'Service initialized with mock API key');
       } catch (error) {
-        if (error.message.includes('API key not found')) {
+        if (getErrorMessage(error).includes('API key not found')) {
           this.addResult('GitHubModelsService', 'API Key Check', 'warning', 
             'API key validation working correctly');
         } else {
@@ -156,7 +157,7 @@ export class APITestSuite {
       
     } catch (error) {
       this.addResult('GitHubModelsService', 'Service Test', 'fail', 
-        `GitHub Models service test failed: ${error.message}`, 0, { error });
+        `GitHub Models service test failed: ${getErrorMessage(error)}`, 0, { error });
     }
   }
 
@@ -201,7 +202,7 @@ export class APITestSuite {
       
     } catch (error) {
       this.addResult('DataCollectionService', 'Service Test', 'fail', 
-        `Data collection service test failed: ${error.message}`, 0, { error });
+        `Data collection service test failed: ${getErrorMessage(error)}`, 0, { error });
     }
   }
 
@@ -247,7 +248,7 @@ export class APITestSuite {
       
     } catch (error) {
       this.addResult('SupabaseAPI', 'API Structure Test', 'fail', 
-        `Supabase API structure test failed: ${error.message}`, 0, { error });
+        `Supabase API structure test failed: ${getErrorMessage(error)}`, 0, { error });
     }
   }
 
@@ -291,7 +292,7 @@ export class APITestSuite {
       
     } catch (error) {
       this.addResult('Integration', 'Integration Test', 'fail', 
-        `Integration test failed: ${error.message}`, 0, { error });
+        `Integration test failed: ${getErrorMessage(error)}`, 0, { error });
     }
   }
 
