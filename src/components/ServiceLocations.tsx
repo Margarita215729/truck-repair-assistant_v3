@@ -872,12 +872,13 @@ export function ServiceLocations() {
     return baseServices;
   };
 
-  // Combine all locations for map
-  const allLocations = [
-    ...mockServiceCenters,
-    ...mockPartsSuppliers,
-    ...mockTowingServices
-  ];
+  // Combine all locations for map - prioritize real data from serviceLocations if available
+  const allLocations = serviceLocations.length > 0 ? 
+    serviceLocations : [
+      ...mockServiceCenters,
+      ...mockPartsSuppliers,
+      ...mockTowingServices
+    ];
 
   return (
     <div className="p-4 md:p-6 space-y-6 max-w-6xl mx-auto">
