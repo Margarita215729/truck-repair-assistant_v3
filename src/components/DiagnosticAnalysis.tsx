@@ -984,16 +984,19 @@ export function DiagnosticAnalysis() {
       {/* Results */}
       {!isAnalyzing && analysisResults && (
         <Tabs defaultValue="diagnosis" className="space-y-4">
-          <TabsList className="grid w-full grid-cols-4 lg:grid-cols-8 gap-1">
-            <TabsTrigger value="diagnosis" className="text-xs">Diagnosis</TabsTrigger>
-            <TabsTrigger value="ai-analysis" className="text-xs">AI Analysis</TabsTrigger>
-            <TabsTrigger value="recommendations" className="text-xs">Solutions</TabsTrigger>
-            <TabsTrigger value="repair-shops" className="text-xs">Repair Shops</TabsTrigger>
-            <TabsTrigger value="parts-costs" className="text-xs">Parts & Costs</TabsTrigger>
-            <TabsTrigger value="tow-trucks" className="text-xs">Tow Trucks</TabsTrigger>
-            <TabsTrigger value="predictive" className="text-xs">Predictive</TabsTrigger>
-            <TabsTrigger value="patterns" className="text-xs">Patterns</TabsTrigger>
-          </TabsList>
+          {/* Mobile-friendly scrollable tabs */}
+          <div className="w-full overflow-x-auto">
+            <TabsList className="flex w-max min-w-full gap-1 p-1">
+              <TabsTrigger value="diagnosis" className="text-sm px-4 py-2 whitespace-nowrap">Diagnosis</TabsTrigger>
+              <TabsTrigger value="ai-analysis" className="text-sm px-4 py-2 whitespace-nowrap">AI Analysis</TabsTrigger>
+              <TabsTrigger value="recommendations" className="text-sm px-4 py-2 whitespace-nowrap">Solutions</TabsTrigger>
+              <TabsTrigger value="repair-shops" className="text-sm px-4 py-2 whitespace-nowrap">Repair Shops</TabsTrigger>
+              <TabsTrigger value="parts-costs" className="text-sm px-4 py-2 whitespace-nowrap">Parts & Costs</TabsTrigger>
+              <TabsTrigger value="tow-trucks" className="text-sm px-4 py-2 whitespace-nowrap">Tow Trucks</TabsTrigger>
+              <TabsTrigger value="predictive" className="text-sm px-4 py-2 whitespace-nowrap">Insights</TabsTrigger>
+              <TabsTrigger value="patterns" className="text-sm px-4 py-2 whitespace-nowrap">Patterns</TabsTrigger>
+            </TabsList>
+          </div>
 
           <TabsContent value="diagnosis">
             <div className="space-y-4">

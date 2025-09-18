@@ -8,7 +8,7 @@
   "theme_color": "#1e3c72",
   "background_color": "#0f172a",
   "categories": ["automotive", "business", "utilities"],
-  "lang": "ru",
+  "lang": "en",
   "dir": "ltr",
   "scope": "/",
   "id": "truck-diagnostic-ai",
@@ -84,23 +84,23 @@
   ],
   "shortcuts": [
     {
-      "name": "Быстрая диагностика",
-      "short_name": "Диагностика",
-      "description": "Быстрый запуск AI диагностики",
+      "name": "Quick Diagnosis",
+      "short_name": "Diagnosis",
+      "description": "Fast AI diagnostic analysis",
       "url": "/?shortcut=diagnosis",
       "icons": [{ "src": "/icons/icon-96x96.png", "sizes": "96x96" }]
     },
     {
-      "name": "Ближайшие СТО",
-      "short_name": "СТО",
-      "description": "Найти ближайшие автосервисы",
+      "name": "Find Service Centers",
+      "short_name": "Service",
+      "description": "Locate nearby truck repair shops",
       "url": "/?shortcut=locations",
       "icons": [{ "src": "/icons/icon-96x96.png", "sizes": "96x96" }]
     },
     {
-      "name": "Эвакуатор",
-      "short_name": "Эвакуатор",
-      "description": "Вызов эвакуатора",
+      "name": "Emergency Towing",
+      "short_name": "Towing",
+      "description": "Call emergency tow truck",
       "url": "/?shortcut=tow",
       "icons": [{ "src": "/icons/icon-96x96.png", "sizes": "96x96" }]
     }

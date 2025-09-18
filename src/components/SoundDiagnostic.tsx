@@ -28,7 +28,7 @@ export function SoundDiagnostic() {
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
 
-  // Компоненты для диагностики
+  // Components for diagnostics
   const engineComponents = [
     { id: 'engine', name: 'Engine Block', icon: Car, description: 'Main engine performance' },
     { id: 'transmission', name: 'Transmission', icon: Settings, description: 'Gear shifting system' },

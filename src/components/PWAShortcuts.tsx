@@ -16,12 +16,12 @@ export function PWAShortcuts({ setActiveTab }: PWAShortcutsProps) {
       switch (pendingShortcut) {
         case 'diagnosis':
           setActiveTab('analysis');
-          toast.info('🔧 Быстрая диагностика запущена');
+          toast.info('🔧 Quick diagnosis started');
           break;
           
         case 'locations':
           setActiveTab('locations');
-          toast.info('📍 Поиск автосервисов');
+          toast.info('📍 Finding service centers');
           break;
           
         case 'tow':
@@ -31,7 +31,7 @@ export function PWAShortcuts({ setActiveTab }: PWAShortcutsProps) {
             const towSection = document.querySelector('[value="tow-trucks"]');
             if (towSection) {
               (towSection as HTMLElement).click();
-              toast.info('🚛 Вызов эвакуатора');
+              toast.info('🚛 Emergency towing');
             }
           }, 1000);
           break;
