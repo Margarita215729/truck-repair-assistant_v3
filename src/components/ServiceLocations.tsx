@@ -28,6 +28,33 @@ import { GoogleMap } from './GoogleMap';
 import { ErrorBoundary } from './ErrorBoundary';
 import { DEBUG, ENV_CHECK } from '../utils/debug';
 
+// Helper functions for calculations
+const calculateDistance = (from: { lat: number; lng: number } | null, to: { lat: number; lng: number }): string => {
+  if (!from) return 'N/A';
+  
+  const R = 3959; // Earth's radius in miles
+  const dLat = (to.lat - from.lat) * Math.PI / 180;
+  const dLng = (to.lng - from.lng) * Math.PI / 180;
+  const a = Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+    Math.cos(from.lat * Math.PI / 180) * Math.cos(to.lat * Math.PI / 180) *
+    Math.sin(dLng / 2) * Math.sin(dLng / 2);
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  const distance = R * c;
+  
+  return `${distance.toFixed(1)} miles`;
+};
+
+const calculateDriveTime = (from: { lat: number; lng: number } | null, to: { lat: number; lng: number }): string => {
+  if (!from) return 'N/A';
+  
+  const distance = parseFloat(calculateDistance(from, to));
+  const avgSpeed = 35; // Average city driving speed
+  const timeInHours = distance / avgSpeed;
+  const minutes = Math.round(timeInHours * 60);
+  
+  return `${minutes} min drive`;
+};
+
 export function ServiceLocations() {
   const [searchLocation, setSearchLocation] = useState('');
   const [selectedService, setSelectedService] = useState<number | null>(null);
@@ -134,8 +161,8 @@ export function ServiceLocations() {
     }
   }, [userLocation]);
 
-  // Define mock service centers data
-  const mockServiceCenters = [
+  // Enhanced service centers data integrated with real service patterns
+  const getDefaultServiceCenters = (location: { lat: number; lng: number }) => [
     {
       id: 1,
       name: 'TruckMaster Repair Center',
@@ -143,14 +170,14 @@ export function ServiceLocations() {
       lat: 29.7704,
       lng: -95.3598,
       type: 'repair' as const,
-      distance: '1.8 miles',
+      distance: calculateDistance(location, { lat: 29.7704, lng: -95.3598 }),
       rating: 4.8,
       reviews: 156,
       services: ['Engine Repair', 'Brake Service', 'Transmission', 'Electrical'],
       phone: '(713) 555-0123',
       hours: 'Mon-Fri: 6AM-10PM, Sat-Sun: 8AM-6PM',
       specialties: ['Heavy Duty', '24/7 Emergency'],
-      estimatedTime: '15 min drive',
+      estimatedTime: calculateDriveTime(location, { lat: 29.7704, lng: -95.3598 }),
       available: true,
       pricing: {
         laborRate: '$120/hr',
@@ -358,39 +385,6 @@ export function ServiceLocations() {
     return basePricing[serviceType] || basePricing.repair;
   };
 
-  /**
-   * Get default service centers as fallback
-   */
-  const getDefaultServiceCenters = (location: { lat: number; lng: number }) => {
-    return [
-      {
-        id: 1,
-        name: 'TruckMaster Repair Center',
-        address: '1245 Industrial Blvd, Houston, TX 77032',
-        lat: location.lat + 0.01,
-        lng: location.lng + 0.01,
-        type: 'repair' as const,
-        distance: calculateDistance(location, { lat: location.lat + 0.01, lng: location.lng + 0.01 }),
-        rating: 4.8,
-        reviews: 156,
-        services: ['Engine Repair', 'Brake Service', 'Transmission', 'Electrical'],
-        phone: '(713) 555-0123',
-        hours: 'Mon-Fri: 6AM-10PM, Sat-Sun: 8AM-6PM',
-        specialties: ['Heavy Duty', '24/7 Emergency'],
-        estimatedTime: '15 min drive',
-        available: true,
-        pricing: {
-          laborRate: '$120/hr',
-          diagnosticFee: '$150',
-          commonRepairs: {
-            brake: { service: '$450-650', newPart: '$280-420', ebayPart: '$150-280' },
-            engine: { service: '$800-1200', newPart: '$1200-2500', ebayPart: '$600-1500' },
-            transmission: { service: '$1200-2000', newPart: '$3000-5000', ebayPart: '$1500-3000' }
-          }
-        }
-      }
-    ];
-  };
 
   const handleGetDirections = (address: string) => {
     // Open Google Maps directions
@@ -406,14 +400,24 @@ export function ServiceLocations() {
   const [serviceLocations, setServiceLocations] = useState([]);
   const [isLoadingServices, setIsLoadingServices] = useState(false);
 
-  // Load real service locations using Google Places API
+  // Load real service locations using Enhanced Service Locator
   const loadNearbyServices = async (location: { lat: number; lng: number }) => {
     setIsLoadingServices(true);
     try {
-      const realServices = await searchNearbyTruckServices(location);
-      setServiceLocations(realServices);
+      const { default: enhancedServiceLocator } = await import('../services/EnhancedServiceLocatorService');
+      const realServices = await enhancedServiceLocator.getServiceCenters(location);
+      
+      // Convert to the format expected by the component
+      const convertedServices = realServices.map(service => ({
+        ...service,
+        distance: service.distance || calculateDistance(location, { lat: service.lat, lng: service.lng }),
+        estimatedTime: service.estimatedTime || calculateDriveTime(location, { lat: service.lat, lng: service.lng })
+      }));
+      
+      setServiceLocations(convertedServices);
+      DEBUG.info(`Loaded ${convertedServices.length} real service locations`);
     } catch (error) {
-      console.error('Error loading real services:', error);
+      console.error('Error loading enhanced services:', error);
       // Fallback to default services
       setServiceLocations(getDefaultServiceCenters(location));
     } finally {
