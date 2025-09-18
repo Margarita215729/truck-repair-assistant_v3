@@ -37,6 +37,7 @@ import { diagnosticsAPI } from '../utils/api';
 import { projectId, publicAnonKey } from '../utils/supabase/info';
 import { useAuth } from './AuthProvider';
 import { OfflineSupport } from './OfflineSupport';
+import { LoginModal } from './LoginModal';
 import { isStandalone } from '../utils/pwa';
 import { AudioAnalysisService, ComponentAnalysis } from '../services/AudioAnalysisService';
 import { toast } from 'sonner';
@@ -87,6 +88,7 @@ export function DiagnosticAnalysis() {
   const [truckMake, setTruckMake] = useState('');
   const [truckModel, setTruckModel] = useState('');
   const [analysisResults, setAnalysisResults] = useState(null);
+  const [showLoginModal, setShowLoginModal] = useState(false);
   
   // Audio recording states
   const [isRecording, setIsRecording] = useState(false);
@@ -551,6 +553,7 @@ export function DiagnosticAnalysis() {
   const handleAnalyze = async () => {
     if (!user) {
       toast.error('Please sign in to save diagnostic results');
+      setShowLoginModal(true);
       return;
     }
 
@@ -632,8 +635,19 @@ export function DiagnosticAnalysis() {
         costEstimate: Math.floor(Math.random() * 1000) + 200
       };
       
-      await diagnosticsAPI.save(diagnosticData);
-      toast.success('AI diagnostic analysis completed and saved!');
+      try {
+        await diagnosticsAPI.save(diagnosticData);
+        toast.success('AI diagnostic analysis completed and saved!');
+      } catch (saveError) {
+        console.error('Failed to save diagnostic:', saveError);
+        // Add to offline queue
+        if (window.offlineSupport) {
+          window.offlineSupport.addPendingDiagnostic(diagnosticData);
+          toast.warning('Diagnostic saved offline - will sync when connection restored');
+        } else {
+          toast.error('Failed to save diagnostic - please check your connection');
+        }
+      }
     } catch (error) {
       console.error('Error during AI analysis:', error);
       toast.error(`AI analysis failed: ${getErrorMessage(error)}`);
@@ -669,6 +683,9 @@ export function DiagnosticAnalysis() {
 
   return (
     <div className="p-4 md:p-6 space-y-6 max-w-6xl mx-auto">
+      {/* Login Modal */}
+      <LoginModal isOpen={showLoginModal} onClose={() => setShowLoginModal(false)} />
+      
       {/* Offline Support */}
       <OfflineSupport />
       

@@ -17,6 +17,15 @@ interface OfflineDiagnostic {
   status: 'pending' | 'synced' | 'failed';
 }
 
+// Global type for window object
+declare global {
+  interface Window {
+    offlineSupport?: {
+      addPendingDiagnostic: (diagnostic: Omit<OfflineDiagnostic, 'id' | 'timestamp' | 'status'>) => void;
+    };
+  }
+}
+
 export function OfflineSupport() {
   const [isOnline, setIsOnline] = useState(navigator.onLine);
   const [pendingDiagnostics, setPendingDiagnostics] = useState<OfflineDiagnostic[]>([]);
@@ -25,18 +34,23 @@ export function OfflineSupport() {
   useEffect(() => {
     // Load pending diagnostics from localStorage
     loadPendingDiagnostics();
+    
+    // Make addPendingDiagnostic available globally
+    window.offlineSupport = {
+      addPendingDiagnostic
+    };
 
     // Listen for online/offline events
     const handleOnline = () => {
       setIsOnline(true);
-      toast.success('🌐 Соединение восстановлено');
+      toast.success('🌐 Connection restored');
       // Auto-sync when coming back online
       syncPendingDiagnostics();
     };
 
     const handleOffline = () => {
       setIsOnline(false);
-      toast.info('📱 Работаем в оффлайн режиме');
+      toast.info('📱 Working in offline mode');
     };
 
     window.addEventListener('online', handleOnline);
@@ -45,6 +59,10 @@ export function OfflineSupport() {
     return () => {
       window.removeEventListener('online', handleOnline);
       window.removeEventListener('offline', handleOffline);
+      // Clean up global reference
+      if (window.offlineSupport) {
+        delete window.offlineSupport;
+      }
     };
   }, []);
 
@@ -118,7 +136,7 @@ export function OfflineSupport() {
       
       const syncedCount = pendingItems.length;
       if (syncedCount > 0) {
-        toast.success(`✅ Синхронизировано ${syncedCount} диагностик`);
+        toast.success(`✅ Synced ${syncedCount} diagnostics`);
       }
       
       // Remove old synced items (older than 24 hours)
@@ -150,7 +168,7 @@ export function OfflineSupport() {
       .map(d => ({ ...d, status: 'pending' as const }));
     
     if (failedItems.length === 0) {
-      toast.info('Нет неудачных диагностик для повтора');
+      toast.info('No failed diagnostics to retry');
       return;
     }
     
@@ -163,7 +181,7 @@ export function OfflineSupport() {
     if (isOnline) {
       await syncPendingDiagnostics();
     } else {
-      toast.info(`${failedItems.length} диагностик помечены для повтора`);
+      toast.info(`${failedItems.length} diagnostics marked for retry`);
     }
   };
 
@@ -193,12 +211,12 @@ export function OfflineSupport() {
           </div>
           <div className="min-w-0 flex-1">
             <CardTitle className="text-xl font-bold text-white">
-              {isOnline ? 'Синхронизация данных' : 'Оффлайн режим'}
+              {isOnline ? 'Data Sync' : 'Offline Mode'}
             </CardTitle>
             <CardDescription className="text-white/85 text-sm">
               {isOnline 
-                ? 'Данные будут синхронизированы с сервером'
-                : 'Данные сохраняются локально до восстановления связи'
+                ? 'Data will be synced to server'
+                : 'Data saved locally until connection restored'
               }
             </CardDescription>
           </div>
@@ -234,12 +252,12 @@ export function OfflineSupport() {
               {isSyncing ? (
                 <>
                   <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
-                  Синхронизация...
+                  Syncing...
                 </>
               ) : (
                 <>
                   <Download className="h-4 w-4 mr-2" />
-                  Синхронизировать
+                  Sync Now
                 </>
               )}
             </Button>
@@ -272,7 +290,7 @@ export function OfflineSupport() {
           <Alert className="border-yellow-400/30 bg-yellow-500/10">
             <AlertTriangle className="h-4 w-4 text-yellow-400" />
             <AlertDescription className="text-yellow-200">
-              Вы находитесь в оффлайн режиме. Диагностики сохраняются локально и будут отправлены при восстановлении соединения.
+              You are in offline mode. Diagnostics are saved locally and will be sent when connection is restored.
             </AlertDescription>
           </Alert>
         )}

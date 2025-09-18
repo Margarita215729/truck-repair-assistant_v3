@@ -876,6 +876,9 @@ export function ServiceLocations() {
     return baseServices;
   };
 
+  // Get mock service centers for fallback
+  const mockServiceCenters = getDefaultServiceCenters(userLocation || { lat: 29.7604, lng: -95.3698 });
+
   // Combine all locations for map - prioritize real data from serviceLocations if available
   const allLocations = serviceLocations.length > 0 ? 
     serviceLocations : [
