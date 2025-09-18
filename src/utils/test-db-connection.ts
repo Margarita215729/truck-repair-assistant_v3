@@ -1,13 +1,21 @@
 import { createClient } from '@supabase/supabase-js';
-import { projectId, publicAnonKey } from './supabase/info';
+import { supabaseUrl, publicAnonKey, hasSupabaseConfig } from './supabase/info';
 
-const supabase = createClient(
-  `https://${projectId}.supabase.co`,
-  publicAnonKey
-);
+const supabase = hasSupabaseConfig
+  ? createClient(
+      supabaseUrl,
+      publicAnonKey
+    )
+  : null;
 
 export async function testDatabaseConnection(): Promise<{ success: boolean; message: string }> {
   try {
+    if (!supabase) {
+      return {
+        success: false,
+        message: 'Supabase configuration is missing'
+      };
+    }
     // Test basic connection
     const { data, error } = await supabase.from('_test').select('*').limit(1);
     
@@ -41,6 +49,12 @@ export async function testDatabaseConnection(): Promise<{ success: boolean; mess
 
 export async function testAuthService(): Promise<{ success: boolean; message: string }> {
   try {
+    if (!supabase) {
+      return {
+        success: false,
+        message: 'Supabase configuration is missing'
+      };
+    }
     // Test auth service
     const { data: { user }, error } = await supabase.auth.getUser();
     

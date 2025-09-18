@@ -34,7 +34,7 @@ import {
   ShoppingCart
 } from 'lucide-react';
 import { diagnosticsAPI } from '../utils/api';
-import { projectId, publicAnonKey } from '../utils/supabase/info';
+import { supabaseUrl, publicAnonKey, hasSupabaseConfig } from '../utils/supabase/info';
 import { useAuth } from './AuthProvider';
 import { OfflineSupport } from './OfflineSupport';
 import { LoginModal } from './LoginModal';
@@ -48,9 +48,13 @@ const aiAPI = {
   analyze: async (analysisData: any) => {
     try {
       // Get access token from Supabase
+      if (!hasSupabaseConfig) {
+        throw new Error('Supabase configuration is missing');
+      }
+
       const { createClient } = await import('@supabase/supabase-js');
       const supabase = createClient(
-        `https://${projectId}.supabase.co`,
+        supabaseUrl,
         publicAnonKey
       );
       
@@ -58,7 +62,7 @@ const aiAPI = {
       const token = session?.access_token || publicAnonKey;
       
       // Call server AI analysis endpoint
-      const response = await fetch(`https://${projectId}.supabase.co/functions/v1/make-server-92d4f459/ai/analyze`, {
+      const response = await fetch(`${supabaseUrl}/functions/v1/make-server-92d4f459/ai/analyze`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
