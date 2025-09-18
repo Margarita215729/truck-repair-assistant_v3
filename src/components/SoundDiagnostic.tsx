@@ -106,6 +106,35 @@ export function SoundDiagnostic() {
     }
   };
 
+  // Helper functions for analysis
+  const generateDescription = (analysis: any) => {
+    return `Detected ${analysis.component} issue with ${Math.round(analysis.confidence * 100)}% confidence. ${analysis.severity} severity level.`;
+  };
+
+  const generateRecommendation = (analysis: any) => {
+    if (analysis.severity === 'critical') {
+      return 'Immediate professional inspection required. Do not continue driving.';
+    } else if (analysis.severity === 'moderate') {
+      return 'Schedule maintenance within the next few days.';
+    }
+    return 'Monitor the situation and check during next scheduled maintenance.';
+  };
+
+  const getComponentIcon = (component: string) => {
+    switch (component.toLowerCase()) {
+      case 'engine': return Car;
+      case 'brake': case 'brakes': return AlertTriangle;
+      case 'transmission': return Settings;
+      case 'hydraulic': return Droplets;
+      default: return Wrench;
+    }
+  };
+
+  const analyzeAdditionalComponents = (analysis: any) => {
+    // Return empty array for now, can be extended later
+    return [];
+  };
+
   const analyzeAudio = async () => {
     if (!audioUrl) {
       toast.error('Please record audio first');
@@ -134,14 +163,14 @@ export function SoundDiagnostic() {
           confidence: Math.round(componentAnalysis.confidence * 100),
           status: componentAnalysis.severity === 'critical' || componentAnalysis.severity === 'severe' ? 'critical' :
                   componentAnalysis.severity === 'moderate' ? 'warning' : 'normal',
-          description: this.generateDescription(componentAnalysis),
-          recommendation: this.generateRecommendation(componentAnalysis),
-          icon: this.getComponentIcon(componentAnalysis.component)
+          description: generateDescription(componentAnalysis),
+          recommendation: generateRecommendation(componentAnalysis),
+          icon: getComponentIcon(componentAnalysis.component)
         }
       ];
       
       // Add additional component analysis based on frequency patterns
-      const additionalComponents = this.analyzeAdditionalComponents(componentAnalysis);
+      const additionalComponents = analyzeAdditionalComponents(componentAnalysis);
       analysisResults.push(...additionalComponents);
 
       setAnalysisResults(analysisResults);
