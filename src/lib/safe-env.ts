@@ -4,8 +4,9 @@
 // Развернутые значения для разработки (fallback)
 const FALLBACK_VALUES = {
   GOOGLE_MAPS_API_KEY: '', // No API key - will use fallback map
-  SUPABASE_URL: 'https://ckozllxnzgmxmxaqqhvi.supabase.co',
-  SUPABASE_ANON_KEY: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNrb3psbHhuemdteG14YXFxaHZpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTUzOTY2MzcsImV4cCI6MjA3MDk3MjYzN30.XBVHQUDgUrSSOlL0nMk717mvx_I7mT5TjD_AdpgTFUo'
+  SUPABASE_URL: '',
+  SUPABASE_ANON_KEY: '',
+  GITHUB_TOKEN: ''
 };
 
 // Безопасный геттер переменных окружения
