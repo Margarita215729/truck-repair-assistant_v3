@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { Button } from './ui/button';
 import { Avatar, AvatarFallback } from './ui/avatar';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from './ui/dropdown-menu';
-import { Moon, Sun, Menu, Mic, Home, MapPin, FileText, LogOut, User, Volume2, BarChart3, Truck, Brain } from 'lucide-react';
+import { Moon, Sun, Menu, Mic, Home, MapPin, FileText, LogOut, User, Volume2, BarChart3, Truck } from 'lucide-react';
 import { Sheet, SheetContent, SheetTrigger, SheetTitle, SheetDescription } from './ui/sheet';
 import { VisuallyHidden } from './ui/visually-hidden';
 import { useAuth } from './AuthProvider';
@@ -22,7 +22,6 @@ export function Header({ activeTab, setActiveTab, darkMode, setDarkMode }: Heade
     { id: 'analysis', label: 'Intelligent Diagnostic Analysis', icon: BarChart3, shortText: 'ANALYSIS' },
     { id: 'reports', label: 'Smart Reports', icon: FileText, shortText: 'REPORTS' },
     { id: 'locations', label: 'Service Locator', icon: MapPin, shortText: 'HELP' },
-    { id: 'training', label: 'AI Diagnostic', icon: Brain, shortText: 'TRAINING' },
   ];
 
   return (
