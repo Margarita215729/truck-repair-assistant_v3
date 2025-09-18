@@ -967,25 +967,11 @@ export function ServiceLocations() {
           
           {/* Maps API Status Notice */}
           <div className="mb-4 p-3 bg-blue-500/10 border border-blue-500/20 rounded-lg">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <Info className="h-4 w-4 text-blue-400" />
-                <p className="text-blue-300 text-sm">
-                  Maps integration ready - configure API key for full functionality
-                </p>
-              </div>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => {
-                  // Navigate to maps test page by updating the active tab
-                  const event = new CustomEvent('navigate-to-maps-test');
-                  window.dispatchEvent(event);
-                }}
-                className="glass-subtle border-white/20 text-white hover:bg-white/10 text-xs"
-              >
-                Test & Setup
-              </Button>
+            <div className="flex items-center gap-2">
+              <Info className="h-4 w-4 text-blue-400" />
+              <p className="text-blue-300 text-sm">
+                Maps integration ready &mdash; add your Google Maps API key in the environment settings to enable live data.
+              </p>
             </div>
           </div>
           

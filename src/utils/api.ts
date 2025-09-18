@@ -1,23 +1,29 @@
 import { getErrorMessage } from "../utils/error-handling";
 import { createClient } from '@supabase/supabase-js';
-import { projectId, publicAnonKey } from './supabase/info';
+import { supabaseUrl, publicAnonKey, hasSupabaseConfig } from './supabase/info';
 
 // Check if we're in development mode without proper Supabase access
-const isDevelopmentMode = process.env.NODE_ENV === 'development' || 
-                         typeof window !== 'undefined' && window.location.hostname === 'localhost';
+const isDevelopmentMode = (typeof import.meta !== 'undefined' && import.meta.env?.DEV) ||
+  (typeof window !== 'undefined' && window.location.hostname === 'localhost');
 
 let supabase;
 try {
-  supabase = createClient(
-    `https://${projectId}.supabase.co`,
-    publicAnonKey
-  );
+  if (hasSupabaseConfig) {
+    supabase = createClient(
+      supabaseUrl,
+      publicAnonKey
+    );
+  } else {
+    supabase = null;
+  }
 } catch (error) {
   console.warn('Supabase client initialization failed, using mock authentication');
   supabase = null;
 }
 
-const API_BASE = `https://${projectId}.supabase.co/functions/v1/make-server-92d4f459`;
+const API_BASE = hasSupabaseConfig
+  ? `${supabaseUrl}/functions/v1/make-server-92d4f459`
+  : '';
 
 // Mock user for development
 const mockUser = {
@@ -47,6 +53,9 @@ async function apiRequest(endpoint: string, options: RequestInit = {}) {
   const token = await getAccessToken();
   
   try {
+    if (!API_BASE) {
+      throw new Error('Supabase API base URL is not configured');
+    }
     const response = await fetch(`${API_BASE}${endpoint}`, {
       ...options,
       headers: {

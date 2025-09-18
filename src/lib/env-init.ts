@@ -32,9 +32,9 @@ const getEnvVar = (key: string): string => {
 
 // Environment configuration with fallbacks and hardcoded development values
 const ENV_CONFIG = {
-  GOOGLE_MAPS_API_KEY: getEnvVar('GOOGLE_MAPS_API_KEY') || 'AIzaSyB4zVUOU8sLRE3WklXndoKOAutxSlstkyc',
-  SUPABASE_URL: getEnvVar('SUPABASE_URL') || 'https://ckozllxnzgmxmxaqqhvi.supabase.co',
-  SUPABASE_ANON_KEY: getEnvVar('SUPABASE_ANON_KEY') || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNrb3psbHhuemdteG14YXFxaHZpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTUzOTY2MzcsImV4cCI6MjA3MDk3MjYzN30.XBVHQUDgUrSSOlL0nMk717mvx_I7mT5TjD_AdpgTFUo',
+  GOOGLE_MAPS_API_KEY: getEnvVar('GOOGLE_MAPS_API_KEY'),
+  SUPABASE_URL: getEnvVar('SUPABASE_URL'),
+  SUPABASE_ANON_KEY: getEnvVar('SUPABASE_ANON_KEY'),
 };
 
 export const initEnv = (): void => {

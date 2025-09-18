@@ -209,14 +209,6 @@ export function Dashboard({ setActiveTab }: DashboardProps) {
       shortText: 'HELP',
       action: () => setActiveTab('locations'),
       badge: 'GPS Ready'
-    },
-    {
-      title: 'Maps Testing',
-      description: 'Test Google Maps integration and diagnostics',
-      icon: Search,
-      shortText: 'TEST',
-      action: () => setActiveTab('maps-test'),
-      badge: 'Debug'
     }
   ];
 
@@ -352,42 +344,6 @@ export function Dashboard({ setActiveTab }: DashboardProps) {
           </div>
         </CardContent>
       </Card>
-
-
-
-      {/* Development & Testing */}
-      <Card className="border border-white/20 rounded-xl backdrop-blur-xl" style={{
-        background: 'rgba(0, 0, 0, 0.4)',
-        backdropFilter: 'blur(10px)',
-        WebkitBackdropFilter: 'blur(10px)'
-      }}>
-        <CardContent className="p-4 sm:p-6">
-          <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4 justify-between">
-            <div className="flex items-center gap-3">
-              <div className="p-2 bg-gradient-to-r from-blue-500 to-purple-500 rounded-lg">
-                <Settings className="h-4 w-4 sm:h-5 sm:w-5 text-white" />
-              </div>
-              <div className="flex-1">
-                <div className="flex items-center gap-2 mb-1">
-                  <p className="font-medium text-white text-sm sm:text-base">Google Maps Integration</p>
-                  <GoogleMapsStatusIndicator />
-                </div>
-                <p className="text-xs sm:text-sm text-white/70">Test maps functionality and configure API keys</p>
-              </div>
-            </div>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => setActiveTab('maps-test')}
-              className="glass-subtle border-white/20 text-white hover:bg-white/10 whitespace-nowrap"
-            >
-              <Search className="h-4 w-4 mr-2" />
-              Test & Debug
-            </Button>
-          </div>
-        </CardContent>
-      </Card>
-
       {/* System Status Footer */}
       <Card className="border border-white/20 rounded-xl backdrop-blur-xl" style={{
         background: 'rgba(0, 0, 0, 0.4)',

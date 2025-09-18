@@ -3,7 +3,6 @@ import { Header } from './components/Header';
 import { DiagnosticAnalysis } from './components/DiagnosticAnalysis';
 import { SmartReports } from './components/SmartReports';
 import { ServiceLocations } from './components/ServiceLocations';
-import { MapTestingDashboard } from './components/MapTestingDashboard';
 import { PWAInstaller } from './components/PWAInstaller';
 import { PWAShortcuts } from './components/PWAShortcuts';
 import { AuthProvider } from './components/AuthProvider';
@@ -22,17 +21,6 @@ function AppContent() {
     }
   }, [darkMode]);
 
-  useEffect(() => {
-    const handleNavigateToMapsTest = () => {
-      setActiveTab('maps-test');
-    };
-
-    window.addEventListener('navigate-to-maps-test', handleNavigateToMapsTest);
-    return () => {
-      window.removeEventListener('navigate-to-maps-test', handleNavigateToMapsTest);
-    };
-  }, []);
-
   const renderActiveTab = () => {
     switch (activeTab) {
       case 'analysis':
@@ -41,8 +29,6 @@ function AppContent() {
         return <SmartReports />;
       case 'locations':
         return <ServiceLocations />;
-      case 'maps-test':
-        return <MapTestingDashboard />;
       default:
         return <DiagnosticAnalysis />;
     }
