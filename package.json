@@ -44,10 +44,12 @@
     "@radix-ui/react-tooltip": "^1.1.8",
     "@radix-ui/react-visually-hidden": "^1.1.0",
     "@supabase/supabase-js": "^2.45.4",
+    "@vitejs/plugin-react-swc": "^3.10.2",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "cmdk": "^1.1.1",
     "embla-carousel-react": "^8.6.0",
+    "firebase": "^12.2.1",
     "input-otp": "^1.4.2",
     "lucide-react": "^0.487.0",
     "react": "^18.3.1",
@@ -59,8 +61,7 @@
     "sonner": "^2.0.3",
     "tailwind-merge": "^2.5.4",
     "vaul": "^1.1.2",
-    "vite": "^6.0.3",
-    "@vitejs/plugin-react-swc": "^3.10.2"
+    "vite": "^6.0.3"
   },
   "devDependencies": {
     "@types/node": "^20.10.0",
@@ -71,7 +72,12 @@
     "tailwindcss": "^3.4.15",
     "typescript": "^5.7.2"
   },
-  "keywords": ["vite", "react", "typescript", "truck-diagnostic"],
+  "keywords": [
+    "vite",
+    "react",
+    "typescript",
+    "truck-diagnostic"
+  ],
   "homepage": "https://truck-repair-assistant-v2.vercel.app",
   "repository": {
     "type": "git",
