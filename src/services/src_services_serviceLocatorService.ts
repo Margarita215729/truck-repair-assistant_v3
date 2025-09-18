@@ -1,4 +1,4 @@
-import { ServiceCenter } from '../types/serviceCenter';
+import { ServiceCenter } from '../types/src_types_serviceCenter';
 import { firestore } from '../config/firebase';
 import { collection, getDocs, doc, getDoc } from 'firebase/firestore';
 
