@@ -126,9 +126,9 @@ export function PWAInstaller() {
                   <Smartphone className="h-6 w-6 text-white" />
                 </div>
                 <div>
-                  <DialogTitle className="text-white">Установить приложение</DialogTitle>
+                  <DialogTitle className="text-white">Install App</DialogTitle>
                   <DialogDescription className="text-white/85">
-                    Получите быстрый доступ к AI диагностике
+                    Get quick access to AI diagnostics
                   </DialogDescription>
                 </div>
               </div>

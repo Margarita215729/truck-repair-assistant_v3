@@ -1,7 +1,7 @@
-// Простая и безопасная обработка переменных окружения для Vite
-// Исправляет проблемы с typeof import и синтаксическими ошибками
+// Simple and safe environment variable handling for Vite
+// Fixes typeof import and syntax error issues
 
-// Развернутые значения для разработки (fallback)
+// Fallback values for development
 const FALLBACK_VALUES = {
   GOOGLE_MAPS_API_KEY: '', // No API key - will use fallback map
   SUPABASE_URL: '',
@@ -9,39 +9,39 @@ const FALLBACK_VALUES = {
   GITHUB_TOKEN: ''
 };
 
-// Безопасный геттер переменных окружения
+// Safe environment variable getter
 function getEnv(key: string): string {
   try {
-    // Проверяем import.meta.env (Vite)
+    // Check import.meta.env (Vite)
     if (import.meta?.env) {
       const viteValue = import.meta.env[`VITE_${key}`] || import.meta.env[key];
       if (viteValue) return viteValue;
     }
   } catch (error) {
-    // Игнорируем ошибки import.meta
+    // Ignore import.meta errors
   }
 
   try {
-    // Проверяем window.__ENV__ (runtime)
+    // Check window.__ENV__ (runtime)
     if (typeof window !== 'undefined' && (window as any).__ENV__) {
       const windowValue = (window as any).__ENV__[key];
       if (windowValue) return windowValue;
     }
   } catch (error) {
-    // Игнорируем ошибки window
+    // Ignore window errors
   }
 
-  // Возвращаем fallback значение
+  // Return fallback value
   return (FALLBACK_VALUES as any)[key] || '';
 }
 
-// Экспорт переменных окружения
+// Export environment variables
 export const GOOGLE_MAPS_API_KEY = getEnv('GOOGLE_MAPS_API_KEY');
 export const SUPABASE_URL = getEnv('SUPABASE_URL');
 export const SUPABASE_ANON_KEY = getEnv('SUPABASE_ANON_KEY');
 export const GITHUB_TOKEN = getEnv('GITHUB_TOKEN');
 
-// Экспорт объекта со всеми переменными
+// Export object with all variables
 export const env = {
   GOOGLE_MAPS_API_KEY,
   SUPABASE_URL,
@@ -66,7 +66,7 @@ export const isProduction = (): boolean => {
   }
 };
 
-// Инициализация window.__ENV__
+// Initialize window.__ENV__
 if (typeof window !== 'undefined') {
   (window as any).__ENV__ = env;
 }
