@@ -83,6 +83,22 @@ export function SmartReports() {
   const [isGeneratingReport, setIsGeneratingReport] = useState(false);
   const [isLoadingReports, setIsLoadingReports] = useState(true);
 
+  // Helper function for severity colors
+  const getSeverityColor = (severity: string) => {
+    switch (severity.toLowerCase()) {
+      case 'critical':
+        return 'bg-red-600 text-white border-red-500';
+      case 'high':
+        return 'bg-orange-600 text-white border-orange-500';
+      case 'medium':
+        return 'bg-yellow-600 text-white border-yellow-500';
+      case 'low':
+        return 'bg-green-600 text-white border-green-500';
+      default:
+        return 'bg-gray-600 text-white border-gray-500';
+    }
+  };
+
   // Mock diagnostic reports data
   const mockReports: DiagnosticReport[] = [
     {
