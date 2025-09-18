@@ -1,7 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Header } from './components/Header';
 import { DiagnosticAnalysis } from './components/DiagnosticAnalysis';
-import { TestComponent } from './components/TestComponent';
 import { SmartReports } from './components/SmartReports';
 import { ServiceLocations } from './components/ServiceLocations';
 import { MapTestingDashboard } from './components/MapTestingDashboard';
