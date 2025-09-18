@@ -612,7 +612,7 @@ export function DiagnosticAnalysis() {
         userLocation: { lat: 29.7604, lng: -95.3698 } // Houston default
       });
 
-      setDiagnosticResults(structuredResults);
+      setAnalysisResults(structuredResults);
       
       // Save diagnostic to backend
       const diagnosticData = {
@@ -638,10 +638,30 @@ export function DiagnosticAnalysis() {
       console.error('Error during AI analysis:', error);
       toast.error(`AI analysis failed: ${getErrorMessage(error)}`);
       
-      // Fallback to mock results if AI fails
-      const results = mockDiagnosticResults;
-      setAnalysisResults(results);
-      toast.info('Using fallback diagnostic analysis');
+      // Fallback to basic results if AI fails
+      const fallbackResults = {
+        primaryIssue: {
+          component: 'System Check Required',
+          problem: 'Unable to complete AI analysis. Please check your symptoms and try again.',
+          confidence: 0,
+          severity: 'Medium'
+        },
+        secondaryIssues: [],
+        recommendations: [{
+          action: 'Please try the analysis again or contact support',
+          priority: 'When convenient',
+          estimatedTime: 'N/A',
+          cost: 'N/A',
+          difficulty: 'Easy'
+        }],
+        repairShops: [],
+        partsAndCosts: [],
+        towTrucks: [],
+        predictiveInsights: ['AI analysis temporarily unavailable'],
+        fullAiResponse: 'Analysis failed. Please try again.'
+      };
+      setAnalysisResults(fallbackResults);
+      toast.error('AI analysis failed. Please try again.');
     } finally {
       setIsAnalyzing(false);
     }
@@ -1344,5 +1364,4 @@ export function DiagnosticAnalysis() {
       )}
     </div>
   );
-}
-}
+}}
