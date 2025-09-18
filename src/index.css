@@ -56,4 +56,28 @@
   body {
     @apply bg-background text-foreground;
   }
+  
+  /* Button text contrast improvements */
+  .btn-light {
+    @apply bg-white text-slate-900 border-gray-300;
+  }
+  
+  .btn-dark {
+    @apply bg-slate-800 text-white border-slate-600;
+  }
+  
+  /* Improve button contrast in cards and containers */
+  .glass-strong button[data-slot="button"] {
+    @apply text-white;
+  }
+  
+  .bg-white button[data-slot="button"]:not(.text-white) {
+    @apply text-slate-900;
+  }
+  
+  .bg-slate-800 button[data-slot="button"], 
+  .bg-slate-900 button[data-slot="button"],
+  .bg-black button[data-slot="button"] {
+    @apply text-white;
+  }
 }

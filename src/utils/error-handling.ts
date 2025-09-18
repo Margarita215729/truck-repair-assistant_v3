@@ -1,4 +1,3 @@
-import { getErrorMessage } from "../utils/error-handling";
 /**
  * Utility functions for safe error handling
  */
@@ -8,7 +7,7 @@ import { getErrorMessage } from "../utils/error-handling";
  */
 export function getErrorMessage(error: unknown): string {
   if (error instanceof Error) {
-    return getErrorMessage(error);
+    return error.message;
   }
   if (typeof error === 'string') {
     return error;
@@ -25,7 +24,7 @@ export function getErrorMessage(error: unknown): string {
 export function getErrorDetails(error: unknown): { message: string; stack?: string; name?: string } {
   if (error instanceof Error) {
     return {
-      message: getErrorMessage(error),
+      message: error.message,
       stack: error.stack,
       name: error.name
     };

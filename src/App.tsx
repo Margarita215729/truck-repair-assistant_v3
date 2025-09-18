@@ -4,7 +4,6 @@ import { DiagnosticAnalysis } from './components/DiagnosticAnalysis';
 import { SmartReports } from './components/SmartReports';
 import { ServiceLocations } from './components/ServiceLocations';
 import { MapTestingDashboard } from './components/MapTestingDashboard';
-import { ModelTrainingDashboard } from './components/ModelTrainingDashboard';
 import { PWAInstaller } from './components/PWAInstaller';
 import { PWAShortcuts } from './components/PWAShortcuts';
 import { AuthProvider } from './components/AuthProvider';
@@ -44,8 +43,6 @@ function AppContent() {
         return <ServiceLocations />;
       case 'maps-test':
         return <MapTestingDashboard />;
-      case 'training':
-        return <ModelTrainingDashboard />;
       default:
         return <DiagnosticAnalysis />;
     }
