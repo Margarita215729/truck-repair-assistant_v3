@@ -1,7 +1,10 @@
 import { getErrorMessage } from "../utils/error-handling";
+import { validateAudioFile } from "../lib/api-security";
+
 /**
  * Advanced Audio Analysis Service for Truck Diagnostic System
  * Implements real-time audio processing and ML-based component failure detection
+ * Enhanced with security validation for audio file handling
  */
 
 export interface AudioFeatures {
@@ -101,12 +104,58 @@ export class AudioAnalysisService {
 
   /**
    * Main entry point for analyzing audio blob from truck recording
+   * Enhanced with security validation
    */
   async analyzeAudioBlob(audioBlob: Blob): Promise<ComponentAnalysis> {
     try {
+      // Security validation of audio blob
+      const fileValidation = validateAudioFile({
+        size: audioBlob.size,
+        type: audioBlob.type,
+        name: 'audio-recording' // Default name for blob
+      });
+
+      if (!fileValidation.valid) {
+        throw new Error(`Audio validation failed: ${fileValidation.errors.join(', ')}`);
+      }
+
+      // Additional security checks
+      if (audioBlob.size === 0) {
+        throw new Error('Audio blob is empty');
+      }
+
+      if (audioBlob.size < 1000) { // Less than 1KB is suspicious
+        throw new Error('Audio file too small to be valid audio data');
+      }
+
+      // Check for reasonable duration limits (max 10 minutes = ~50MB for typical audio)
+      const maxDuration = 10 * 60; // 10 minutes
+      const estimatedDuration = audioBlob.size / (44100 * 2 * 2); // Rough estimate for 16-bit stereo
+      
+      if (estimatedDuration > maxDuration) {
+        throw new Error(`Audio too long. Maximum duration: ${maxDuration / 60} minutes`);
+      }
+
+      console.log(`🔒 Audio security validation passed. Size: ${Math.round(audioBlob.size / 1024)}KB`);
+
       // Convert blob to audio buffer
       const audioBuffer = await this.blobToAudioBuffer(audioBlob);
       
+      // Validate audio buffer
+      if (!audioBuffer || audioBuffer.length === 0) {
+        throw new Error('Failed to decode audio data');
+      }
+
+      if (audioBuffer.sampleRate < 8000 || audioBuffer.sampleRate > 96000) {
+        throw new Error('Invalid audio sample rate');
+      }
+
+      if (audioBuffer.numberOfChannels === 0 || audioBuffer.numberOfChannels > 8) {
+        throw new Error('Invalid number of audio channels');
+      }
+
+      console.log(`🎵 Audio decoded successfully. Sample Rate: ${audioBuffer.sampleRate}Hz, Channels: ${audioBuffer.numberOfChannels}, Duration: ${audioBuffer.duration.toFixed(2)}s`);
+
       // Extract comprehensive audio features
       const features = await this.extractFeatures(audioBuffer);
       
@@ -123,10 +172,65 @@ export class AudioAnalysisService {
 
   /**
    * Convert audio blob to AudioBuffer for processing
+   * Enhanced with security validation
    */
   private async blobToAudioBuffer(blob: Blob): Promise<AudioBuffer> {
-    const arrayBuffer = await blob.arrayBuffer();
-    return await this.audioContext.decodeAudioData(arrayBuffer);
+    try {
+      const arrayBuffer = await blob.arrayBuffer();
+      
+      // Security check: validate array buffer size
+      if (arrayBuffer.byteLength === 0) {
+        throw new Error('Audio data is empty');
+      }
+
+      if (arrayBuffer.byteLength > 50 * 1024 * 1024) { // 50MB limit
+        throw new Error('Audio file too large for processing');
+      }
+
+      // Check for valid audio file headers (basic validation)
+      const uint8Array = new Uint8Array(arrayBuffer);
+      const isValidAudio = this.validateAudioHeader(uint8Array);
+      
+      if (!isValidAudio) {
+        console.warn('Audio file header validation failed, proceeding with caution');
+      }
+
+      return await this.audioContext.decodeAudioData(arrayBuffer);
+    } catch (error) {
+      if (error instanceof DOMException) {
+        throw new Error('Invalid audio format or corrupted audio data');
+      }
+      throw error;
+    }
+  }
+
+  /**
+   * Basic audio file header validation
+   */
+  private validateAudioHeader(data: Uint8Array): boolean {
+    if (data.length < 12) return false;
+
+    // Check for common audio file signatures
+    const header = Array.from(data.slice(0, 12));
+    
+    // WAV file signature
+    if (header[0] === 0x52 && header[1] === 0x49 && header[2] === 0x46 && header[3] === 0x46) {
+      return true; // RIFF (WAV)
+    }
+    
+    // MP3 file signature
+    if (header[0] === 0xFF && (header[1] & 0xF0) === 0xF0) {
+      return true; // MP3
+    }
+    
+    // OGG file signature
+    if (header[0] === 0x4F && header[1] === 0x67 && header[2] === 0x67 && header[3] === 0x53) {
+      return true; // OGG
+    }
+
+    // WebM/FLAC signatures could be added here
+    
+    return false; // Unknown format, but allow processing to continue
   }
 
   /**

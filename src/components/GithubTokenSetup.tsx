@@ -14,22 +14,41 @@ import {
   EyeOff,
   Copy,
   Info,
-  Zap
+  Zap,
+  AlertTriangle
 } from 'lucide-react';
 import { toast } from 'sonner';
+import { validateGitHubToken, SecureTokenStorage } from '../lib/token-security';
+import { storeSecureToken, removeSecureToken } from '../lib/safe-env';
 
 export function GithubTokenSetup() {
   const [token, setToken] = useState('');
   const [isVisible, setIsVisible] = useState(false);
   const [isValid, setIsValid] = useState<boolean | null>(null);
   const [isLoading, setIsLoading] = useState(false);
+  const [validationErrors, setValidationErrors] = useState<string[]>([]);
+  const [validationWarnings, setValidationWarnings] = useState<string[]>([]);
 
   const testToken = async (testToken?: string) => {
     const tokenToTest = testToken || token;
     if (!tokenToTest) return false;
 
     setIsLoading(true);
+    setValidationErrors([]);
+    setValidationWarnings([]);
+
     try {
+      // First, validate token format and security
+      const validation = validateGitHubToken(tokenToTest);
+      setValidationErrors(validation.errors);
+      setValidationWarnings(validation.warnings);
+
+      if (!validation.isValid) {
+        setIsValid(false);
+        return false;
+      }
+
+      // Test token with GitHub Models API if format is valid
       const response = await fetch('https://models.inference.ai.azure.com/chat/completions', {
         method: 'POST',
         headers: {
@@ -45,14 +64,68 @@ export function GithubTokenSetup() {
 
       const isValidToken = response.ok || response.status === 400; // 400 is ok, means auth worked
       setIsValid(isValidToken);
+      
+      if (isValidToken && testToken !== token) {
+        // Store the token securely if it's valid and from environment
+        storeSecureToken('GITHUB_TOKEN', testToken, 24 * 7); // Store for 1 week
+        toast.success('🔒 GitHub token validated and stored securely');
+      }
+      
       return isValidToken;
     } catch (error) {
       console.error('Token test failed:', error);
       setIsValid(false);
+      setValidationErrors(prev => [...prev, 'Failed to test token with GitHub API']);
       return false;
     } finally {
       setIsLoading(false);
     }
+  };
+  const saveToken = async () => {
+    if (!token.trim()) {
+      toast.error('Please enter a token');
+      return;
+    }
+
+    // Validate token before saving
+    const validation = validateGitHubToken(token);
+    if (!validation.isValid) {
+      toast.error(`Invalid token: ${validation.errors.join(', ')}`);
+      return;
+    }
+
+    if (validation.warnings.length > 0) {
+      toast.warning(`Token warnings: ${validation.warnings.join(', ')}`);
+    }
+
+    try {
+      // Test the token first
+      const isTokenValid = await testToken(token);
+      
+      if (isTokenValid) {
+        // Store securely
+        storeSecureToken('GITHUB_TOKEN', token, 24 * 7); // Store for 1 week
+        toast.success('🔒 Token saved securely!');
+        
+        // Hide the token input for security
+        setToken('••••••••••••••••••••••••••••••••••••••••');
+        setIsVisible(false);
+      } else {
+        toast.error('Invalid token or token test failed');
+      }
+    } catch (error) {
+      toast.error('Failed to save token');
+      console.error('Token save error:', error);
+    }
+  };
+
+  const clearToken = () => {
+    setToken('');
+    setIsValid(null);
+    setValidationErrors([]);
+    setValidationWarnings([]);
+    removeSecureToken('GITHUB_TOKEN');
+    toast.success('Token cleared');
   };
 
   const copyToClipboard = (text: string) => {
@@ -69,19 +142,33 @@ export function GithubTokenSetup() {
   };
 
   useEffect(() => {
-    // Check if token is already set in environment
+    // Check if token is already stored securely
     const checkExistingToken = async () => {
       try {
-        // This would normally check the environment variable
-        // For demo purposes, we'll assume it needs to be set up
-        const envToken = process.env.GITHUB_TOKEN;
-        if (envToken) {
+        const storedToken = SecureTokenStorage.retrieve('GITHUB_TOKEN');
+        
+        if (storedToken) {
           setToken('••••••••••••••••••••••••••••••••••••••••');
-          const isValidToken = await testToken(envToken);
+          const isValidToken = await testToken(storedToken);
           setIsValid(isValidToken);
+          
+          if (isValidToken) {
+            toast.success('🔒 Stored GitHub token is valid');
+          } else {
+            toast.warning('Stored token appears to be invalid');
+            removeSecureToken('GITHUB_TOKEN');
+          }
+        } else {
+          // Check environment variable as fallback
+          const envToken = process.env.GITHUB_TOKEN;
+          if (envToken) {
+            setToken('••••••••••••••••••••••••••••••••••••••••');
+            const isValidToken = await testToken(envToken);
+            setIsValid(isValidToken);
+          }
         }
       } catch (error) {
-        console.log('No existing token found');
+        console.log('No existing token found or validation failed:', error);
       }
     };
 
@@ -184,6 +271,20 @@ export function GithubTokenSetup() {
               {isLoading ? 'Testing...' : 'Test Token'}
             </Button>
             <Button
+              onClick={saveToken}
+              disabled={!token || isLoading || isValid === false}
+              className="bg-green-500 hover:bg-green-600 text-white"
+            >
+              Save Token
+            </Button>
+            <Button
+              variant="outline"
+              onClick={clearToken}
+              className="glass-subtle border-white/20 text-white hover:bg-white/10"
+            >
+              Clear
+            </Button>
+            <Button
               variant="outline"
               onClick={openGithubModels}
               className="glass-subtle border-white/20 text-white hover:bg-white/10"
@@ -200,6 +301,39 @@ export function GithubTokenSetup() {
               Token Docs
             </Button>
           </div>
+
+          {/* Validation Messages */}
+          {(validationErrors.length > 0 || validationWarnings.length > 0) && (
+            <div className="space-y-2">
+              {validationErrors.length > 0 && (
+                <Alert className="border-red-500/20 bg-red-500/5">
+                  <AlertTriangle className="h-4 w-4 text-red-400" />
+                  <AlertDescription className="text-red-300">
+                    <strong>Security Errors:</strong>
+                    <ul className="list-disc list-inside mt-1">
+                      {validationErrors.map((error, index) => (
+                        <li key={index}>{error}</li>
+                      ))}
+                    </ul>
+                  </AlertDescription>
+                </Alert>
+              )}
+              
+              {validationWarnings.length > 0 && (
+                <Alert className="border-yellow-500/20 bg-yellow-500/5">
+                  <AlertTriangle className="h-4 w-4 text-yellow-400" />
+                  <AlertDescription className="text-yellow-300">
+                    <strong>Security Warnings:</strong>
+                    <ul className="list-disc list-inside mt-1">
+                      {validationWarnings.map((warning, index) => (
+                        <li key={index}>{warning}</li>
+                      ))}
+                    </ul>
+                  </AlertDescription>
+                </Alert>
+              )}
+            </div>
+          )}
 
           {/* Setup Instructions */}
           <div className="space-y-4">
