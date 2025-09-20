@@ -360,12 +360,12 @@ export function ServiceLocations() {
   const [serviceLocations, setServiceLocations] = useState([]);
   const [isLoadingServices, setIsLoadingServices] = useState(false);
 
-  // Load real service locations using Enhanced Service Locator
+  // Load real service locations using Lazy Service Locator
   const loadNearbyServices = async (location: { lat: number; lng: number }) => {
     setIsLoadingServices(true);
     try {
-      const { default: enhancedServiceLocator } = await import('../services/EnhancedServiceLocatorService');
-      const realServices = await enhancedServiceLocator.getServiceCenters(location);
+      const { default: lazyServiceLocator } = await import('../services/LazyServiceLocator');
+      const realServices = await lazyServiceLocator.getServiceCenters(location);
       
       // Convert to the format expected by the component
       const convertedServices = realServices.map(service => ({
@@ -375,9 +375,9 @@ export function ServiceLocations() {
       }));
       
       setServiceLocations(convertedServices);
-      DEBUG.info(`Loaded ${convertedServices.length} real service locations`);
+      DEBUG.info(`Loaded ${convertedServices.length} service locations (lazy loaded)`);
     } catch (error) {
-      console.error('Error loading enhanced services:', error);
+      console.error('Error loading services:', error);
       // Fallback to default services
       setServiceLocations(getDefaultServiceCenters(location));
     } finally {
