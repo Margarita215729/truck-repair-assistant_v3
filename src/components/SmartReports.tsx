@@ -6,6 +6,7 @@ import { Badge } from './ui/badge';
 import { Progress } from './ui/progress';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from './ui/tabs';
 import { Separator } from './ui/separator';
+import { diagnosticsAPI } from '../utils/api';
 import { 
   FileText, 
   Brain, 
@@ -256,9 +257,7 @@ export function SmartReports() {
       setIsLoadingReports(true);
       try {
         // Get diagnostic history from API
-        const diagnosticHistory = await import('../utils/api').then(api => 
-          api.diagnosticsAPI.getHistory()
-        );
+        const diagnosticHistory = await diagnosticsAPI.getHistory();
         
         // Convert diagnostic history to report format
         const realReports = convertDiagnosticsToReports(diagnosticHistory.diagnostics || []);

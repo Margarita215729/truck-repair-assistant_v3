@@ -35,6 +35,7 @@ import {
 } from 'lucide-react';
 import { diagnosticsAPI } from '../utils/api';
 import { supabaseUrl, publicAnonKey, hasSupabaseConfig } from '../utils/supabase/info';
+import { createClient } from '@supabase/supabase-js';
 import { useAuth } from './AuthProvider';
 import { OfflineSupport } from './OfflineSupport';
 import { LoginModal } from './LoginModal';
@@ -120,7 +121,6 @@ const aiAPI = {
         throw new Error('Supabase configuration is missing');
       }
 
-      const { createClient } = await import('@supabase/supabase-js');
       const supabase = createClient(
         supabaseUrl,
         publicAnonKey
