@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, memo, useCallback } from 'react';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from './ui/dialog';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
@@ -12,7 +12,7 @@ interface LoginModalProps {
   onOpenChange: (open: boolean) => void;
 }
 
-export function LoginModal({ open, onOpenChange }: LoginModalProps) {
+const LoginModal = memo(function LoginModal({ open, onOpenChange }: LoginModalProps) {
   const { signIn, signUp, loading } = useAuth();
   const [activeTab, setActiveTab] = useState('signin');
   
@@ -25,39 +25,44 @@ export function LoginModal({ open, onOpenChange }: LoginModalProps) {
   const [signUpPassword, setSignUpPassword] = useState('');
   const [signUpName, setSignUpName] = useState('');
 
-  const handleSignIn = async (e: React.FormEvent) => {
+  const resetForms = useCallback(() => {
+    setSignInEmail('');
+    setSignInPassword('');
+    setSignUpEmail('');
+    setSignUpPassword('');
+    setSignUpName('');
+  }, []);
+
+  const handleSignIn = useCallback(async (e: React.FormEvent) => {
     e.preventDefault();
     try {
       await signIn(signInEmail, signInPassword);
       onOpenChange(false);
-      setSignInEmail('');
-      setSignInPassword('');
+      resetForms();
     } catch (error) {
       // Error handled by useAuth
     }
-  };
+  }, [signIn, signInEmail, signInPassword, onOpenChange, resetForms]);
 
-  const handleSignUp = async (e: React.FormEvent) => {
+  const handleSignUp = useCallback(async (e: React.FormEvent) => {
     e.preventDefault();
     try {
       await signUp(signUpEmail, signUpPassword, signUpName);
       onOpenChange(false);
-      setSignUpEmail('');
-      setSignUpPassword('');
-      setSignUpName('');
+      resetForms();
     } catch (error) {
       // Error handled by useAuth
     }
-  };
+  }, [signUp, signUpEmail, signUpPassword, signUpName, onOpenChange, resetForms]);
 
-  const handleDemoLogin = async () => {
+  const handleDemoLogin = useCallback(async () => {
     try {
       await signIn('demo@truckdiag.com', 'demo123');
       onOpenChange(false);
     } catch (error) {
       // Error handled by useAuth
     }
-  };
+  }, [signIn, onOpenChange]);
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -216,4 +221,6 @@ export function LoginModal({ open, onOpenChange }: LoginModalProps) {
       </DialogContent>
     </Dialog>
   );
-}
+});
+
+export { LoginModal };
