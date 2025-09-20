@@ -86,14 +86,14 @@ export class GitHubModelsService {
 
   private getApiKey(): string {
     // Try multiple sources for API key with enhanced validation
-    if (typeof process !== 'undefined' && process.env?.GITHUB_TOKEN) {
-      return process.env.GITHUB_TOKEN;
+    if (typeof process !== 'undefined' && process.env?.MODELS_GITHUB_TOKEN) {
+      return process.env.MODELS_GITHUB_TOKEN;
     }
     
     if (typeof window !== 'undefined') {
       // Check window environment variables
-      if ((window as any).__ENV__?.GITHUB_TOKEN) {
-        return (window as any).__ENV__.GITHUB_TOKEN;
+      if ((window as any).__ENV__?.MODELS_GITHUB_TOKEN) {
+        return (window as any).__ENV__.MODELS_GITHUB_TOKEN;
       }
       
       // Check localStorage for development/testing
@@ -105,14 +105,14 @@ export class GitHubModelsService {
     
     // Check import.meta.env for Vite
     try {
-      if (import.meta?.env?.VITE_GITHUB_TOKEN) {
-        return import.meta.env.VITE_GITHUB_TOKEN;
+      if (import.meta?.env?.VITE_MODELS_GITHUB_TOKEN) {
+        return import.meta.env.VITE_MODELS_GITHUB_TOKEN;
       }
     } catch (error) {
       // Silent fail for environments without import.meta
     }
     
-    throw new Error('GitHub API key not found. Please set GITHUB_TOKEN environment variable or configure in settings.');
+    throw new Error('GitHub API key not found. Please set MODELS_GITHUB_TOKEN environment variable or configure in settings.');
   }
 
   private validateApiKey(): void {
