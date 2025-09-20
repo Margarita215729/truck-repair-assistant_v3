@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, memo, useCallback } from 'react';
 import { Button } from './ui/button';
 import { Avatar, AvatarFallback } from './ui/avatar';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from './ui/dropdown-menu';
@@ -15,14 +15,33 @@ interface HeaderProps {
   setDarkMode: (dark: boolean) => void;
 }
 
-export function Header({ activeTab, setActiveTab, darkMode, setDarkMode }: HeaderProps) {
+const Header = memo(function Header({ activeTab, setActiveTab, darkMode, setDarkMode }: HeaderProps) {
   const { user, signOut } = useAuth();
   const [showLoginModal, setShowLoginModal] = useState(false);
+  
+  // Memoized navigation items to prevent recreation on each render
   const navItems = [
     { id: 'analysis', label: 'Intelligent Diagnostic Analysis', icon: BarChart3, shortText: 'ANALYSIS' },
     { id: 'reports', label: 'Smart Reports', icon: FileText, shortText: 'REPORTS' },
     { id: 'locations', label: 'Service Locator', icon: MapPin, shortText: 'HELP' },
   ];
+
+  // Optimize callbacks to prevent unnecessary re-renders
+  const handleLoginModalToggle = useCallback(() => {
+    setShowLoginModal(prev => !prev);
+  }, []);
+
+  const handleLoginModalClose = useCallback(() => {
+    setShowLoginModal(false);
+  }, []);
+
+  const handleDarkModeToggle = useCallback(() => {
+    setDarkMode(!darkMode);
+  }, [darkMode, setDarkMode]);
+
+  const handleSignOut = useCallback(() => {
+    signOut();
+  }, [signOut]);
 
   return (
     <header className="glass-strong sticky top-0 z-50 border-b border-white/10">
@@ -50,19 +69,12 @@ export function Header({ activeTab, setActiveTab, darkMode, setDarkMode }: Heade
                 variant="ghost"
                 size="sm"
                 onClick={() => setActiveTab(item.id)}
-                className={`
-                  relative gap-1.5 px-3 py-2 rounded-lg transition-all duration-300 font-medium text-sm
-                  ${isActive 
-                    ? 'bg-gradient-to-r from-blue-500/20 to-purple-500/20 text-white border border-blue-400/30 shadow-lg shadow-blue-500/20 backdrop-blur-xl' 
-                    : 'text-white/80 hover:text-white hover:bg-white/10 hover:backdrop-blur-xl hover:shadow-lg'
-                  }
-                `}
+                aria-label={`Switch to ${item.label}`}
+                aria-current={isActive ? 'page' : undefined}
+                className={`glass-nav-item ${isActive ? 'glass-nav-item--active' : ''}`}
               >
                 <Icon className="h-4 w-4 flex-shrink-0" />
                 <span className="hidden xl:inline truncate">{item.label}</span>
-                {isActive && (
-                  <div className="absolute inset-0 rounded-lg bg-gradient-to-r from-blue-400/10 to-purple-400/10 blur-sm -z-10" />
-                )}
               </Button>
             );
           })}
@@ -101,8 +113,9 @@ export function Header({ activeTab, setActiveTab, darkMode, setDarkMode }: Heade
           <Button
             variant="ghost"
             size="sm"
-            onClick={() => setDarkMode(!darkMode)}
-            className="hidden sm:flex p-2.5 md:p-3 rounded-lg bg-white/10 hover:bg-white/20 backdrop-blur-xl transition-all duration-300 text-white hover:text-white"
+            onClick={handleDarkModeToggle}
+            aria-label={darkMode ? 'Switch to light mode' : 'Switch to dark mode'}
+            className="mobile-nav-button hidden sm:flex"
           >
             {darkMode ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
           </Button>
@@ -129,12 +142,12 @@ export function Header({ activeTab, setActiveTab, darkMode, setDarkMode }: Heade
                   </div>
                 </div>
                 <DropdownMenuSeparator className="border-white/20" />
-                <DropdownMenuItem onClick={() => setDarkMode(!darkMode)} className="text-white hover:bg-white/10 sm:hidden">
+                <DropdownMenuItem onClick={handleDarkModeToggle} className="text-white hover:bg-white/10 sm:hidden">
                   {darkMode ? <Sun className="mr-2 h-4 w-4" /> : <Moon className="mr-2 h-4 w-4" />}
                   {darkMode ? 'Light Mode' : 'Dark Mode'}
                 </DropdownMenuItem>
                 <DropdownMenuSeparator className="border-white/20 sm:hidden" />
-                <DropdownMenuItem onClick={signOut} className="text-white hover:bg-white/10">
+                <DropdownMenuItem onClick={handleSignOut} className="text-white hover:bg-white/10">
                   <LogOut className="mr-2 h-4 w-4" />
                   Sign Out
                 </DropdownMenuItem>
@@ -144,7 +157,8 @@ export function Header({ activeTab, setActiveTab, darkMode, setDarkMode }: Heade
             <Button 
               variant="ghost" 
               size="sm" 
-              onClick={() => setShowLoginModal(true)}
+              onClick={handleLoginModalToggle}
+              aria-label="Sign in to your account"
               className="gap-1 sm:gap-2 px-2 sm:px-4 py-2 rounded-lg bg-white/10 hover:bg-white/20 backdrop-blur-xl transition-all duration-300 text-white hover:text-white"
             >
               <User className="h-4 w-4" />
@@ -155,7 +169,7 @@ export function Header({ activeTab, setActiveTab, darkMode, setDarkMode }: Heade
           {/* Mobile Navigation */}
           <Sheet>
             <SheetTrigger asChild className="md:hidden">
-              <Button variant="ghost" size="sm" className="p-2.5 rounded-lg bg-white/10 hover:bg-white/20 backdrop-blur-xl transition-all duration-300 text-white hover:text-white">
+              <Button variant="ghost" size="sm" className="mobile-nav-button">
                 <Menu className="h-4 w-4" />
               </Button>
             </SheetTrigger>
@@ -166,11 +180,7 @@ export function Header({ activeTab, setActiveTab, darkMode, setDarkMode }: Heade
               </VisuallyHidden>
               <div className="flex flex-col h-full">
 
-                <nav className="flex flex-col gap-2 flex-1 relative p-4 rounded-lg" style={{
-                  background: 'rgba(0, 0, 0, 0.4)',
-                  backdropFilter: 'blur(10px)',
-                  WebkitBackdropFilter: 'blur(10px)'
-                }}>
+                <nav className="flex flex-col gap-2 flex-1 relative p-4 rounded-lg glass-mobile-nav">
                   {navItems.map((item) => {
                     const Icon = item.icon;
                     const isActive = activeTab === item.id;
@@ -179,13 +189,7 @@ export function Header({ activeTab, setActiveTab, darkMode, setDarkMode }: Heade
                         key={item.id}
                         variant="ghost"
                         onClick={() => setActiveTab(item.id)}
-                        className={`
-                          justify-start gap-3 p-3 rounded-lg transition-all duration-300 text-white hover:text-white
-                          ${isActive 
-                            ? 'bg-gradient-to-r from-blue-500/20 to-purple-500/20' 
-                            : 'hover:bg-white/10'
-                          }
-                        `}
+                        className={`mobile-nav-item ${isActive ? 'mobile-nav-item--active' : ''}`}
                       >
                         <Icon className="h-5 w-5" />
                         <span className="font-medium">{item.label}</span>
@@ -194,13 +198,9 @@ export function Header({ activeTab, setActiveTab, darkMode, setDarkMode }: Heade
                   })}
                 </nav>
                 {!user && (
-                  <div className="p-4 rounded-lg" style={{
-                    background: 'rgba(0, 0, 0, 0.4)',
-                    backdropFilter: 'blur(10px)',
-                    WebkitBackdropFilter: 'blur(10px)'
-                  }}>
+                  <div className="p-4 rounded-lg glass-mobile-nav">
                     <Button 
-                      onClick={() => setShowLoginModal(true)}
+                      onClick={handleLoginModalToggle}
                       className="w-full bg-gradient-to-r from-blue-500 to-purple-500 hover:from-blue-600 hover:to-purple-600 text-white border-0"
                     >
                       <User className="mr-2 h-4 w-4" />
@@ -213,8 +213,10 @@ export function Header({ activeTab, setActiveTab, darkMode, setDarkMode }: Heade
           </Sheet>
         </div>
         
-        <LoginModal open={showLoginModal} onOpenChange={setShowLoginModal} />
+        <LoginModal open={showLoginModal} onOpenChange={handleLoginModalClose} />
       </div>
     </header>
   );
-}
+});
+
+export { Header };
