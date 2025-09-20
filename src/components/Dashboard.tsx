@@ -2,27 +2,20 @@ import { useState, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './ui/card';
 import { Button } from './ui/button';
 import { Badge } from './ui/badge';
-import { Progress } from './ui/progress';
 import { 
   Activity, 
   AlertTriangle, 
   CheckCircle, 
   Clock, 
-  Mic, 
-  Search, 
-  TrendingUp, 
   Wrench,
   MapPin,
   FileText,
   Volume2,
   Zap,
-  Shield,
-  Truck,
-  Settings
+  Truck
 } from 'lucide-react';
 import { fleetAPI, diagnosticsAPI } from '../utils/api';
 import { useAuth } from './AuthProvider';
-import { GoogleMapsStatusIndicator } from './GoogleMapsStatusIndicator';
 import { toast } from 'sonner';
 
 interface DashboardProps {
