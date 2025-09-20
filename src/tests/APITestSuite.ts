@@ -215,7 +215,7 @@ export class APITestSuite {
     // Test diagnostics API structure
     try {
       // Test API method existence
-      const diagnosticsMethods = ['save', 'getHistory', 'getById'];
+      const diagnosticsMethods: (keyof typeof diagnosticsAPI)[] = ['save', 'getHistory', 'getById'];
       diagnosticsMethods.forEach(method => {
         const hasMethod = typeof diagnosticsAPI[method] === 'function';
         this.addResult('SupabaseAPI', `Diagnostics.${method}`, hasMethod ? 'pass' : 'fail', 
@@ -223,7 +223,7 @@ export class APITestSuite {
       });
       
       // Test auth API structure
-      const authMethods = ['signIn', 'signUp', 'signOut', 'getCurrentUser', 'getSession'];
+      const authMethods: (keyof typeof authAPI)[] = ['signIn', 'signup', 'signOut', 'getCurrentUser', 'getSession'];
       authMethods.forEach(method => {
         const hasMethod = typeof authAPI[method] === 'function';
         this.addResult('SupabaseAPI', `Auth.${method}`, hasMethod ? 'pass' : 'fail', 
@@ -231,7 +231,7 @@ export class APITestSuite {
       });
       
       // Test fleet API structure
-      const fleetMethods = ['getStats'];
+      const fleetMethods: (keyof typeof fleetAPI)[] = ['getStats'];
       fleetMethods.forEach(method => {
         const hasMethod = typeof fleetAPI[method] === 'function';
         this.addResult('SupabaseAPI', `Fleet.${method}`, hasMethod ? 'pass' : 'fail', 
@@ -239,7 +239,7 @@ export class APITestSuite {
       });
       
       // Test reports API structure
-      const reportsMethods = ['generate'];
+      const reportsMethods: (keyof typeof reportsAPI)[] = ['generate'];
       reportsMethods.forEach(method => {
         const hasMethod = typeof reportsAPI[method] === 'function';
         this.addResult('SupabaseAPI', `Reports.${method}`, hasMethod ? 'pass' : 'fail', 

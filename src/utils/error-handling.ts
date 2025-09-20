@@ -2,6 +2,8 @@
  * Utility functions for safe error handling
  */
 
+import { toast } from 'sonner';
+
 /**
  * Safely extract error message from unknown error type
  */
@@ -45,4 +47,58 @@ export function createErrorResponse(error: unknown, context?: string) {
     context: context || 'Unknown context',
     timestamp: new Date().toISOString()
   };
+}
+
+/**
+ * Standardized async error handler with toast notification
+ */
+export async function handleAsyncError<T>(
+  operation: () => Promise<T>,
+  errorContext: string,
+  showToast: boolean = true
+): Promise<T | null> {
+  try {
+    return await operation();
+  } catch (error) {
+    const errorMessage = getErrorMessage(error);
+    console.error(`${errorContext}:`, getErrorDetails(error));
+    
+    if (showToast) {
+      toast.error(`${errorContext}: ${errorMessage}`);
+    }
+    
+    return null;
+  }
+}
+
+/**
+ * Standardized sync error handler
+ */
+export function handleSyncError<T>(
+  operation: () => T,
+  errorContext: string,
+  showToast: boolean = true
+): T | null {
+  try {
+    return operation();
+  } catch (error) {
+    const errorMessage = getErrorMessage(error);
+    console.error(`${errorContext}:`, getErrorDetails(error));
+    
+    if (showToast) {
+      toast.error(`${errorContext}: ${errorMessage}`);
+    }
+    
+    return null;
+  }
+}
+
+/**
+ * Wrapper for API calls with standardized error handling
+ */
+export async function apiCall<T>(
+  request: () => Promise<T>,
+  errorMessage: string = 'API call failed'
+): Promise<T | null> {
+  return handleAsyncError(request, errorMessage);
 }

@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 
-// Simple test runner without TypeScript compilation
+// Enhanced test runner with unit tests and deployment validation
 import fs from 'fs';
 import path from 'path';
 import { execSync } from 'child_process';
@@ -9,7 +9,29 @@ import { fileURLToPath } from 'url';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-console.log('🔍 COMPREHENSIVE DEPLOYMENT TESTING');
+console.log('🧪 COMPREHENSIVE TESTING SUITE');
+console.log('=' .repeat(50));
+
+// NEW: Run unit tests first
+console.log('\n🔬 RUNNING UNIT TESTS...');
+try {
+  // Import and run our new unit tests
+  const { BasicUnitTests } = await import('./tests/BasicUnitTests.ts');
+  const unitTests = new BasicUnitTests();
+  unitTests.runAllTests();
+  
+  const summary = unitTests.getTestSummary();
+  if (summary.failed === 0) {
+    console.log('✅ All unit tests passed - continuing with deployment validation');
+  } else {
+    console.log(`❌ ${summary.failed} unit tests failed - but continuing with deployment validation`);
+  }
+} catch (error) {
+  console.log(`⚠️ Unit tests failed to run: ${error.message}`);
+  console.log('Continuing with deployment validation...');
+}
+
+console.log('\n🔍 DEPLOYMENT VALIDATION TESTING');
 console.log('=' .repeat(50));
 
 // Test 1: Check package.json
