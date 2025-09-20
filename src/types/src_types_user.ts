@@ -1,4 +1,4 @@
-import firebase from 'firebase/app';
+import { Timestamp } from 'firebase/firestore';
 
 export interface User {
   id: string;
@@ -10,7 +10,7 @@ export interface User {
   certifications?: string[];
   department?: string;
   location?: string;
-  createdAt: firebase.firestore.Timestamp;
-  lastLogin?: firebase.firestore.Timestamp;
+  createdAt: Timestamp;
+  lastLogin?: Timestamp;
   profileImageUrl?: string;
 }
