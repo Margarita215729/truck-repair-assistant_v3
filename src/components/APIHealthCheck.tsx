@@ -292,7 +292,7 @@ export function APIHealthCheck() {
       if (!githubToken || githubToken === '') {
         return {
           ...check,
-          status: 'warning',
+          status: 'unhealthy',
           responseTime: Date.now() - startTime,
           lastChecked: new Date(),
           error: 'GitHub API token not configured - AI analysis features will be limited'
