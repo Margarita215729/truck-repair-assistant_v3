@@ -6,7 +6,11 @@ import './index.css'
 // Simple environment initialization
 try {
   // Initialize safe environment variables
-  import('./lib/safe-env');
+  import('./lib/env-init').then(module => {
+    if (module.initEnv) {
+      module.initEnv();
+    }
+  });
 } catch (error) {
   console.warn('Failed to initialize environment variables:', error);
 }
