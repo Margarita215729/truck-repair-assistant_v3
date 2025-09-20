@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, memo, useCallback, useMemo } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './ui/card';
 import { Button } from './ui/button';
 import { Badge } from './ui/badge';
@@ -23,7 +23,7 @@ import { reportsAPI } from '../utils/api';
 import { useAuth } from './AuthProvider';
 import { toast } from 'sonner';
 
-export function Reports() {
+const Reports = memo(function Reports() {
   const { user } = useAuth();
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(new Date());
   const [reportType, setReportType] = useState('diagnostic');
@@ -541,4 +541,6 @@ export function Reports() {
       </Tabs>
     </div>
   );
-}
+});
+
+export { Reports };
