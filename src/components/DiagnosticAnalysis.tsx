@@ -43,6 +43,74 @@ import { AudioAnalysisService, ComponentAnalysis } from '../services/AudioAnalys
 import { toast } from 'sonner';
 import { getErrorMessage } from '../utils/error-handling';
 
+// Types for analysis results
+interface PrimaryIssue {
+  component: string;
+  problem: string;
+  confidence: number;
+  severity: string;
+}
+
+interface SecondaryIssue {
+  component: string;
+  problem: string;
+  confidence: number;
+  severity: string;
+}
+
+interface Recommendation {
+  action: string;
+  priority: string;
+  estimatedTime: string;
+  cost: string;
+  difficulty: string;
+}
+
+interface RepairShop {
+  id: number;
+  name: string;
+  address: string;
+  phone: string;
+  rating: number;
+  distance: string;
+  specialties: string[];
+  estimatedCost: string;
+  availability: string;
+}
+
+interface TowTruck {
+  company: string;
+  phone: string;
+  eta: string;
+  distance: string;
+  cost: string;
+  rating: number;
+  coverage: string;
+  capabilities: string[];
+}
+
+interface PartCost {
+  part: string;
+  newPrice: string;
+  usedPrice: string;
+  availability: string;
+  priority: string;
+  partNumber: string;
+  estimatedCost: string;
+  laborHours: string;
+}
+
+interface AnalysisResults {
+  primaryIssue: PrimaryIssue;
+  secondaryIssues: SecondaryIssue[];
+  recommendations: Recommendation[];
+  repairShops: RepairShop[];
+  partsAndCosts: PartCost[];
+  towTrucks: TowTruck[];
+  predictiveInsights: string[];
+  fullAiResponse: string;
+}
+
 // AI API function with inline implementation
 const aiAPI = {
   analyze: async (analysisData: any) => {
@@ -91,7 +159,7 @@ export function DiagnosticAnalysis() {
   const [soundLocation, setSoundLocation] = useState('');
   const [truckMake, setTruckMake] = useState('');
   const [truckModel, setTruckModel] = useState('');
-  const [analysisResults, setAnalysisResults] = useState(null);
+  const [analysisResults, setAnalysisResults] = useState<AnalysisResults | null>(null);
   const [showLoginModal, setShowLoginModal] = useState(false);
   
   // Audio recording states
@@ -688,7 +756,7 @@ export function DiagnosticAnalysis() {
   return (
     <div className="p-4 md:p-6 space-y-6 max-w-6xl mx-auto">
       {/* Login Modal */}
-      <LoginModal isOpen={showLoginModal} onClose={() => setShowLoginModal(false)} />
+      <LoginModal open={showLoginModal} onOpenChange={(open) => setShowLoginModal(open)} />
       
       {/* Offline Support */}
       <OfflineSupport />

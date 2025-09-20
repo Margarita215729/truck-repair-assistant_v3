@@ -1,12 +1,12 @@
 import { getErrorMessage } from "../utils/error-handling";
-import { createClient } from '@supabase/supabase-js';
+import { createClient, SupabaseClient } from '@supabase/supabase-js';
 import { supabaseUrl, publicAnonKey, hasSupabaseConfig } from './supabase/info';
 
 // Check if we're in development mode without proper Supabase access
 const isDevelopmentMode = (typeof import.meta !== 'undefined' && import.meta.env?.DEV) ||
   (typeof window !== 'undefined' && window.location.hostname === 'localhost');
 
-let supabase;
+let supabase: SupabaseClient | null;
 try {
   if (hasSupabaseConfig) {
     supabase = createClient(
