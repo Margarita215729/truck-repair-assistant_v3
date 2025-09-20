@@ -41,7 +41,7 @@ export function MapFallback({ locations, onLocationSelect, className = "", userL
   };
 
   const getTypeIcon = (type: string) => {
-    const colors = {
+    const colors: Record<string, string> = {
       repair: 'bg-red-500',
       parts: 'bg-blue-500', 
       towing: 'bg-green-500'

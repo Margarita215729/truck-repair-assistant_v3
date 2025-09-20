@@ -236,12 +236,12 @@ export function DiagnosticAnalysis() {
     // Extract structured diagnostic information from AI response
     const diagnosticResults = {
       primaryIssue: {
-      component: 'Fuel Injection System',
-      problem: 'Clogged fuel injectors causing incomplete combustion',
-      confidence: 92,
-      severity: 'High'
-    },
-    secondaryIssues: [
+        component: 'Fuel Injection System',
+        problem: 'Clogged fuel injectors causing incomplete combustion',
+        confidence: 92,
+        severity: 'High'
+      },
+      secondaryIssues: [
       {
         component: 'Air Filter',
         problem: 'Restricted airflow affecting engine performance',
@@ -367,6 +367,9 @@ export function DiagnosticAnalysis() {
         rating: 4.8
       }
     ]
+    };
+
+    return diagnosticResults;
   };
 
   useEffect(() => {
@@ -1457,4 +1460,4 @@ export function DiagnosticAnalysis() {
     </div>
   );
 }
-}
+
