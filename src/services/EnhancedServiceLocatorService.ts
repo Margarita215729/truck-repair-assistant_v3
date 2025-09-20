@@ -1,5 +1,4 @@
-import { ServiceCenter } from '../types/src_types_serviceCenter';
-import serviceLocatorService from './src_services_serviceLocatorService';
+import { ServiceCenter } from '../types/serviceCenter';
 
 export interface ServiceLocation {
   id: number;
@@ -61,9 +60,10 @@ export class EnhancedServiceLocatorService {
       // Try to get real data from multiple sources
       const services: ServiceLocation[] = [];
 
-      // 1. Get data from Firebase/Supabase
-      const firebaseServices = await this.getFirebaseServices(location);
-      services.push(...firebaseServices);
+      // 1. Get data from local/fallback sources
+      // Note: Firebase service removed to consolidate on Supabase
+      // const firebaseServices = await this.getFirebaseServices(location);
+      // services.push(...firebaseServices);
 
       // 2. Get data from Google Places API
       if (location && this.googleMapsService) {
@@ -90,15 +90,18 @@ export class EnhancedServiceLocatorService {
     }
   }
 
-  private async getFirebaseServices(location?: { lat: number; lng: number }): Promise<ServiceLocation[]> {
-    try {
-      const serviceCenters = await serviceLocatorService.getServiceCenters();
-      return serviceCenters.map(center => this.convertServiceCenterToLocation(center, location));
-    } catch (error) {
-      console.error('Firebase services error:', error);
-      return [];
-    }
-  }
+  /*
+   * Firebase service method removed - consolidating on Supabase
+   * private async getFirebaseServices(location?: { lat: number; lng: number }): Promise<ServiceLocation[]> {
+   *   try {
+   *     const serviceCenters = await serviceLocatorService.getServiceCenters();
+   *     return serviceCenters.map(center => this.convertServiceCenterToLocation(center, location));
+   *   } catch (error) {
+   *     console.error('Firebase services error:', error);
+   *     return [];
+   *   }
+   * }
+   */
 
   private async getGooglePlacesServices(location: { lat: number; lng: number }): Promise<ServiceLocation[]> {
     return new Promise((resolve) => {

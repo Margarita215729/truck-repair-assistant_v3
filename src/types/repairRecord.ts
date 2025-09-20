@@ -1,5 +1,3 @@
-import { Timestamp } from 'firebase/firestore';
-
 export interface RepairRecord {
   id: string;
   truckId: string;
@@ -15,10 +13,10 @@ export interface RepairRecord {
     cost: number;
   }[];
   laborHours: number;
-  startDate?: Timestamp;
-  completionDate?: Timestamp;
+  startDate?: Date;
+  completionDate?: Date;
   totalCost?: number;
   notes?: string;
-  createdAt: Timestamp;
-  updatedAt: Timestamp;
+  createdAt: Date;
+  updatedAt: Date;
 }
