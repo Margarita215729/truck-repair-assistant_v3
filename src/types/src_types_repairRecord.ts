@@ -1,4 +1,4 @@
-import firebase from 'firebase/app';
+import { Timestamp } from 'firebase/firestore';
 
 export interface RepairRecord {
   id: string;
@@ -15,10 +15,10 @@ export interface RepairRecord {
     cost: number;
   }[];
   laborHours: number;
-  startDate?: firebase.firestore.Timestamp;
-  completionDate?: firebase.firestore.Timestamp;
+  startDate?: Timestamp;
+  completionDate?: Timestamp;
   totalCost?: number;
   notes?: string;
-  createdAt: firebase.firestore.Timestamp;
-  updatedAt: firebase.firestore.Timestamp;
+  createdAt: Timestamp;
+  updatedAt: Timestamp;
 }
