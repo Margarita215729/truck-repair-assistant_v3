@@ -11,12 +11,10 @@ import {
   Search, 
   Brain, 
   AlertTriangle, 
-  CheckCircle, 
   Clock,
   Lightbulb,
   Wrench,
   TrendingUp,
-  FileText,
   Zap,
   Mic,
   MicOff,
@@ -39,7 +37,6 @@ import { createClient } from '@supabase/supabase-js';
 import { useAuth } from './AuthProvider';
 import { OfflineSupport } from './OfflineSupport';
 import { LoginModal } from './LoginModal';
-import { isStandalone } from '../utils/pwa';
 import { AudioAnalysisService, ComponentAnalysis } from '../services/AudioAnalysisService';
 import { toast } from 'sonner';
 import { getErrorMessage } from '../utils/error-handling';
@@ -236,12 +233,12 @@ export function DiagnosticAnalysis() {
     // Extract structured diagnostic information from AI response
     const diagnosticResults = {
       primaryIssue: {
-      component: 'Fuel Injection System',
-      problem: 'Clogged fuel injectors causing incomplete combustion',
-      confidence: 92,
-      severity: 'High'
-    },
-    secondaryIssues: [
+        component: 'Fuel Injection System',
+        problem: 'Clogged fuel injectors causing incomplete combustion',
+        confidence: 92,
+        severity: 'High'
+      },
+      secondaryIssues: [
       {
         component: 'Air Filter',
         problem: 'Restricted airflow affecting engine performance',
@@ -367,6 +364,9 @@ export function DiagnosticAnalysis() {
         rating: 4.8
       }
     ]
+    };
+
+    return diagnosticResults;
   };
 
   useEffect(() => {
@@ -1457,4 +1457,4 @@ export function DiagnosticAnalysis() {
     </div>
   );
 }
-}
+
