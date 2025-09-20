@@ -1,4 +1,5 @@
 import { ServiceCenter } from '../types/serviceCenter';
+import { calculateDistance, calculateDriveTime, type Location } from '../utils/distance';
 
 export interface ServiceLocation {
   id: number;
@@ -130,7 +131,7 @@ export class EnhancedServiceLocatorService {
             phone: place.formatted_phone_number || 'Call for info',
             services: ['Engine Repair', 'Brake Service', 'Transmission'],
             available: place.opening_hours ? place.opening_hours.open_now : true,
-            distance: this.calculateDistance(location, {
+            distance: calculateDistance(location, {
               lat: place.geometry.location.lat(),
               lng: place.geometry.location.lng()
             })
@@ -218,7 +219,7 @@ export class EnhancedServiceLocatorService {
     // Calculate distances if location provided
     if (location) {
       curatedServices.forEach(service => {
-        service.distance = this.calculateDistance(location, { lat: service.lat, lng: service.lng });
+        service.distance = calculateDistance(location, { lat: service.lat, lng: service.lng });
         service.estimatedTime = this.calculateDriveTime(location, { lat: service.lat, lng: service.lng });
       });
     }
@@ -238,7 +239,7 @@ export class EnhancedServiceLocatorService {
       phone: center.phone,
       services: center.services,
       available: true,
-      distance: userLocation ? this.calculateDistance(userLocation, {
+      distance: userLocation ? calculateDistance(userLocation, {
         lat: center.coordinates.latitude,
         lng: center.coordinates.longitude
       }) : undefined,
@@ -255,28 +256,6 @@ export class EnhancedServiceLocatorService {
     const todayHours = hours[days[today]];
     
     return todayHours || 'Call for hours';
-  }
-
-  private calculateDistance(from: { lat: number; lng: number }, to: { lat: number; lng: number }): string {
-    const R = 3959; // Earth's radius in miles
-    const dLat = (to.lat - from.lat) * Math.PI / 180;
-    const dLng = (to.lng - from.lng) * Math.PI / 180;
-    const a = Math.sin(dLat / 2) * Math.sin(dLat / 2) +
-      Math.cos(from.lat * Math.PI / 180) * Math.cos(to.lat * Math.PI / 180) *
-      Math.sin(dLng / 2) * Math.sin(dLng / 2);
-    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-    const distance = R * c;
-    
-    return `${distance.toFixed(1)} miles`;
-  }
-
-  private calculateDriveTime(from: { lat: number; lng: number }, to: { lat: number; lng: number }): string {
-    const distance = parseFloat(this.calculateDistance(from, to));
-    const avgSpeed = 35; // Average city driving speed
-    const timeInHours = distance / avgSpeed;
-    const minutes = Math.round(timeInHours * 60);
-    
-    return `${minutes} min drive`;
   }
 
   private deduplicateServices(services: ServiceLocation[]): ServiceLocation[] {
