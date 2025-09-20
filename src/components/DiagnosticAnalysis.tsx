@@ -11,12 +11,10 @@ import {
   Search, 
   Brain, 
   AlertTriangle, 
-  CheckCircle, 
   Clock,
   Lightbulb,
   Wrench,
   TrendingUp,
-  FileText,
   Zap,
   Mic,
   MicOff,
@@ -39,7 +37,6 @@ import { createClient } from '@supabase/supabase-js';
 import { useAuth } from './AuthProvider';
 import { OfflineSupport } from './OfflineSupport';
 import { LoginModal } from './LoginModal';
-import { isStandalone } from '../utils/pwa';
 import { AudioAnalysisService, ComponentAnalysis } from '../services/AudioAnalysisService';
 import { toast } from 'sonner';
 import { getErrorMessage } from '../utils/error-handling';
