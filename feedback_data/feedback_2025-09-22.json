@@ -1,0 +1,253 @@
+{
+  "sessions": [
+    {
+      "session_id": "session_001",
+      "user_type": "owner_operator",
+      "truck_info": {
+        "make": "Freightliner",
+        "model": "Cascadia",
+        "year": 2019
+      },
+      "location": "highway_rest_stop",
+      "time_of_day": "afternoon",
+      "urgency_level": "high",
+      "follow_up_questions": 3,
+      "session_duration": "12 minutes",
+      "features_used": [
+        "diagnostic",
+        "photo_upload",
+        "follow_up_chat"
+      ],
+      "satisfaction_score": 5,
+      "timestamp": "2025-09-22T15:50:46.842Z"
+    },
+    {
+      "session_id": "session_002",
+      "user_type": "fleet_mechanic",
+      "truck_info": {
+        "make": "Peterbilt",
+        "model": "579",
+        "year": 2020
+      },
+      "location": "service_bay",
+      "time_of_day": "morning",
+      "urgency_level": "medium",
+      "follow_up_questions": 1,
+      "session_duration": "8 minutes",
+      "features_used": [
+        "diagnostic",
+        "voice_input"
+      ],
+      "satisfaction_score": 4,
+      "timestamp": "2025-09-22T15:50:46.842Z"
+    }
+  ],
+  "ratings": [
+    {
+      "session_id": "session_001",
+      "user_id": "user_123",
+      "diagnostic_id": "diag_001",
+      "symptoms": "Engine overheating",
+      "ai_diagnosis": "Cooling system malfunction",
+      "rating": 5,
+      "feedback_text": "Spot on! The diagnosis was exactly right. Saved me a lot of time.",
+      "helpful": true,
+      "accuracy": 5,
+      "clarity": 4,
+      "actionability": 5,
+      "timestamp": "2025-09-22T15:50:46.841Z"
+    },
+    {
+      "session_id": "session_002",
+      "user_id": "user_456",
+      "diagnostic_id": "diag_002",
+      "symptoms": "Brakes feel spongy",
+      "ai_diagnosis": "Air in brake lines",
+      "rating": 3,
+      "feedback_text": "Diagnosis was partially correct, but missed the master cylinder issue.",
+      "helpful": true,
+      "accuracy": 3,
+      "clarity": 4,
+      "actionability": 4,
+      "timestamp": "2025-09-22T15:50:46.841Z"
+    },
+    {
+      "session_id": "session_003",
+      "user_id": "user_789",
+      "diagnostic_id": "diag_003",
+      "symptoms": "DEF warning light",
+      "ai_diagnosis": "Low quality DEF fluid",
+      "rating": 4,
+      "feedback_text": "Good diagnosis, quick fix worked perfectly.",
+      "helpful": true,
+      "accuracy": 4,
+      "clarity": 5,
+      "actionability": 5,
+      "timestamp": "2025-09-22T15:50:46.841Z"
+    }
+  ],
+  "corrections": [
+    {
+      "diagnostic_id": "diag_004",
+      "original_diagnosis": "Transmission slipping",
+      "user_correction": "Actually was low transmission fluid",
+      "correct_solution": "Add transmission fluid",
+      "user_expertise": "experienced_driver",
+      "mechanic_verified": true,
+      "symptoms_missed": [
+        "fluid level not checked"
+      ],
+      "improvement_suggestion": "Always check fluid levels first for transmission issues",
+      "timestamp": "2025-09-22T15:50:46.842Z"
+    },
+    {
+      "diagnostic_id": "diag_005",
+      "original_diagnosis": "Engine misfire",
+      "user_correction": "Bad fuel quality causing issues",
+      "correct_solution": "Fuel system cleaning and filter replacement",
+      "user_expertise": "fleet_manager",
+      "mechanic_verified": true,
+      "symptoms_missed": [
+        "recent fuel stop location"
+      ],
+      "improvement_suggestion": "Consider fuel quality in diagnosis when multiple trucks have similar issues",
+      "timestamp": "2025-09-22T15:50:46.842Z"
+    }
+  ],
+  "outcomes": [
+    {
+      "diagnostic_id": "diag_001",
+      "recommended_solution": "Check coolant level and radiator",
+      "user_action": "Added coolant, replaced thermostat",
+      "outcome": "problem_solved",
+      "time_to_fix": "45 minutes",
+      "actual_cost": 85,
+      "estimated_cost_range": [
+        50,
+        150
+      ],
+      "cost_accuracy": "accurate",
+      "would_recommend": true,
+      "additional_issues_found": [],
+      "mechanic_confirmation": true,
+      "timestamp": "2025-09-22T15:50:46.841Z"
+    },
+    {
+      "diagnostic_id": "diag_002",
+      "recommended_solution": "Bleed brake lines",
+      "user_action": "Bled brakes, replaced master cylinder",
+      "outcome": "partially_solved",
+      "time_to_fix": "2 hours",
+      "actual_cost": 320,
+      "estimated_cost_range": [
+        100,
+        250
+      ],
+      "cost_accuracy": "underestimated",
+      "would_recommend": true,
+      "additional_issues_found": [
+        "master cylinder leak"
+      ],
+      "mechanic_confirmation": true,
+      "timestamp": "2025-09-22T15:50:46.841Z"
+    },
+    {
+      "diagnostic_id": "diag_003",
+      "recommended_solution": "Replace DEF fluid",
+      "user_action": "Replaced DEF fluid",
+      "outcome": "problem_solved",
+      "time_to_fix": "15 minutes",
+      "actual_cost": 45,
+      "estimated_cost_range": [
+        40,
+        60
+      ],
+      "cost_accuracy": "accurate",
+      "would_recommend": true,
+      "additional_issues_found": [],
+      "mechanic_confirmation": false,
+      "timestamp": "2025-09-22T15:50:46.841Z"
+    }
+  ],
+  "metadata": {
+    "version": "1.0.0",
+    "created": "2025-09-22T15:50:46.834Z",
+    "total_feedback": 8
+  },
+  "analysis": {
+    "average_rating": "4.00",
+    "common_issues": [
+      {
+        "issue": "engine overheating",
+        "count": 1
+      },
+      {
+        "issue": "brakes feel spongy",
+        "count": 1
+      },
+      {
+        "issue": "def warning light",
+        "count": 1
+      }
+    ],
+    "accuracy_by_category": {
+      "engine": {
+        "average_accuracy": "5.00",
+        "sample_size": 1
+      },
+      "brake": {
+        "average_accuracy": "3.00",
+        "sample_size": 1
+      },
+      "other": {
+        "average_accuracy": "4.00",
+        "sample_size": 1
+      }
+    },
+    "cost_estimation_accuracy": {
+      "accurate_percentage": "66.7",
+      "underestimated_percentage": "33.3",
+      "overestimated_percentage": "0.0",
+      "total_cases": 3
+    },
+    "user_satisfaction_trends": {
+      "average_satisfaction": "4.50",
+      "high_satisfaction_percentage": "100.0",
+      "average_session_duration": "10.0 minutes",
+      "most_used_features": [
+        {
+          "feature": "diagnostic",
+          "usage_count": 2
+        },
+        {
+          "feature": "photo_upload",
+          "usage_count": 1
+        },
+        {
+          "feature": "follow_up_chat",
+          "usage_count": 1
+        }
+      ]
+    },
+    "improvement_areas": [
+      {
+        "area": "diagnostic_accuracy",
+        "priority": "high",
+        "description": "1 cases with ratings below 4",
+        "suggested_action": "Review and improve diagnostic algorithms for these symptom patterns"
+      },
+      {
+        "area": "missed_symptoms",
+        "priority": "medium",
+        "description": "Users providing corrections to diagnoses",
+        "suggested_action": "Incorporate common correction patterns into training data"
+      },
+      {
+        "area": "cost_estimation",
+        "priority": "medium",
+        "description": "Only 66.7% of cost estimates are accurate",
+        "suggested_action": "Improve cost estimation models with regional pricing data"
+      }
+    ]
+  }
+}

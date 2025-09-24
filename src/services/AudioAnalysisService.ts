@@ -44,7 +44,7 @@ export type TruckComponent =
   | 'air_system' | 'cooling' | 'electrical' | 'drivetrain';
 
 export class AudioAnalysisService {
-  private audioContext: AudioContext;
+  private audioContext!: AudioContext;
   private sampleRate: number = 44100;
   private frameSize: number = 2048;
   private hopLength: number = 512;

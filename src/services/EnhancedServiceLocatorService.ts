@@ -1,28 +1,6 @@
 import { ServiceCenter } from '../types/serviceCenter';
+import { ServiceLocation } from '../types/serviceLocation';
 import { calculateDistance, calculateDriveTime, type Location } from '../utils/distance';
-
-export interface ServiceLocation {
-  id: number;
-  name: string;
-  address: string;
-  lat: number;
-  lng: number;
-  type: 'repair' | 'parts' | 'towing';
-  rating: number;
-  phone: string;
-  services: string[];
-  available: boolean;
-  distance?: string;
-  reviews?: number;
-  hours?: string;
-  specialties?: string[];
-  estimatedTime?: string;
-  pricing?: {
-    laborRate: string;
-    diagnosticFee: string;
-    commonRepairs: any;
-  };
-}
 
 export class EnhancedServiceLocatorService {
   private googleMapsService: any = null;
@@ -220,7 +198,7 @@ export class EnhancedServiceLocatorService {
     if (location) {
       curatedServices.forEach(service => {
         service.distance = calculateDistance(location, { lat: service.lat, lng: service.lng });
-        service.estimatedTime = this.calculateDriveTime(location, { lat: service.lat, lng: service.lng });
+        service.estimatedTime = calculateDriveTime(location, { lat: service.lat, lng: service.lng });
       });
     }
 

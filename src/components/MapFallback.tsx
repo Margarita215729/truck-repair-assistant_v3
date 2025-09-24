@@ -3,22 +3,7 @@ import { Button } from './ui/button';
 import { Badge } from './ui/badge';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './ui/card';
 import { Alert, AlertDescription } from './ui/alert';
-
-interface ServiceLocation {
-  id: number;
-  name: string;
-  address: string;
-  lat: number;
-  lng: number;
-  type: 'repair' | 'parts' | 'towing';
-  rating: number;
-  phone: string;
-  services: string[];
-  available: boolean;
-  distance?: string;
-  estimatedTime?: string;
-  pricing?: any;
-}
+import { ServiceLocation } from '../types/serviceLocation';
 
 interface MapFallbackProps {
   locations: ServiceLocation[];
