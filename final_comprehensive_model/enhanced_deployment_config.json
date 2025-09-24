@@ -1,0 +1,69 @@
+{
+  "modelName": "TruckDiagnosticAI_v3.0_Comprehensive",
+  "version": "3.0.0",
+  "enhanced": true,
+  "endpoints": {
+    "ai-analyze": {
+      "method": "POST",
+      "description": "Enhanced AI-powered truck diagnostic analysis with 500+ error codes",
+      "expectedInput": {
+        "symptoms": "string",
+        "truckMake": "string",
+        "truckModel": "string",
+        "errorCode": "string (optional)",
+        "audioAnalysis": "object (optional)",
+        "photos": "array (optional)"
+      },
+      "expectedOutput": {
+        "diagnosis": "string",
+        "urgency": "critical|high|medium|low",
+        "immediateActions": "array",
+        "repairRecommendations": "object",
+        "safetyWarnings": "array",
+        "preventionTips": "array",
+        "errorCodeAnalysis": "comprehensive",
+        "manufacturerSpecificCodes": "included"
+      },
+      "enhancedFeatures": [
+        "500+ error codes",
+        "Comprehensive diagnostic analysis",
+        "Enhanced cost estimation",
+        "Manufacturer-specific recommendations",
+        "Comprehensive safety protocols"
+      ]
+    }
+  },
+  "supportedManufacturers": [
+    "Freightliner",
+    "Peterbilt",
+    "Kenworth",
+    "Volvo",
+    "Mack",
+    "International",
+    "Western Star"
+  ],
+  "errorCodeCoverage": {
+    "total": 500,
+    "categories": 12,
+    "comprehensive": true
+  },
+  "performance": {
+    "trainingAccuracy": 0.9265517511617216,
+    "validationAccuracy": 0.8902152295514213,
+    "diagnosticPrecision": 0.9505979752479683,
+    "safetyScore": 0.9788441838835479,
+    "costEstimationAccuracy": 0.9100739974125275,
+    "enhancedManufacturerAccuracy": {
+      "Freightliner": 0.9312431606471524,
+      "Peterbilt": 0.9179477342383454,
+      "Kenworth": 0.9321460066844353,
+      "Volvo": 0.9406095253774447,
+      "Mack": 0.9166455764476891,
+      "International": 0.8808725377354943,
+      "Western Star": 0.8703679117053306
+    }
+  },
+  "deploymentReady": true,
+  "lastUpdated": "2025-09-22T17:16:17.790Z",
+  "enhancementNotes": "Enhanced with comprehensive error code database and improved diagnostic precision"
+}

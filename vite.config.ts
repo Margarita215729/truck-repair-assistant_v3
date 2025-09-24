@@ -30,13 +30,23 @@ export default defineConfig({
   server: {
     port: 3000,
     host: true,
+    logLevel: 'info',
+    middlewareMode: false,
+    open: false,
+    cors: true,
+    strictPort: false,
+    fs: {
+      allow: ['..']
+    }
   },
   preview: {
     port: 4173,
     host: true,
+    logLevel: 'info'
   },
   base: '/',
   publicDir: 'public',
+  logLevel: 'info',
   define: {
     __VITE_BUILD_TIME__: JSON.stringify(new Date().toISOString()),
   }

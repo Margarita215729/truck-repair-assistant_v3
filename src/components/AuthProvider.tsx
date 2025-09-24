@@ -50,7 +50,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
     try {
       setLoading(true);
       const { user } = await authAPI.signIn(email, password);
-      setUser(user);
+      setUser(user as User | null);
       toast.success('Successfully signed in!');
     } catch (error) {
       toast.error(error instanceof Error ? getErrorMessage(error) : 'Failed to sign in');
@@ -64,7 +64,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
     try {
       setLoading(true);
       const { user } = await authAPI.signup(email, password, name);
-      setUser(user);
+      setUser(user as User | null);
       toast.success('Account created successfully!');
     } catch (error) {
       toast.error(error instanceof Error ? getErrorMessage(error) : 'Failed to create account');

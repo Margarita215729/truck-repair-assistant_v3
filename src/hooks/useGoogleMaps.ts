@@ -28,7 +28,7 @@ export function useGoogleMaps() {
         // Get API key from environment variables
         const apiKey = env.GOOGLE_MAPS_API_KEY;
         
-        if (!apiKey || apiKey === '' || apiKey.includes('YOUR_API_KEY')) {
+        if (!apiKey || apiKey === '' || apiKey.includes('YOUR_API_KEY') || apiKey.includes('your_google_maps_api_key_here')) {
           DEBUG.warn('Google Maps API key not configured, using fallback map');
           setError('Google Maps API not available - using fallback map interface');
           return;

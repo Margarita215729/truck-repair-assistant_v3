@@ -73,26 +73,30 @@ export function VoiceDiagnostic() {
     let currentSection = '';
     
     lines.forEach(line => {
-      if (line.includes('1.') || line.toLowerCase().includes('most likely')) {
-        currentSection = 'cause';
-        sections[currentSection] = line.replace(/^\d+\.?\s*/, '');
-      } else if (line.includes('2.') || line.toLowerCase().includes('urgency')) {
+      const cleanLine = line.trim();
+      
+      // Look for structured sections with emojis
+      if (cleanLine.includes('🔍') || cleanLine.toLowerCase().includes('primary diagnosis')) {
+        currentSection = 'diagnosis';
+        sections[currentSection] = cleanLine.replace(/🔍\s*PRIMARY DIAGNOSIS:?\s*/i, '').trim();
+      } else if (cleanLine.includes('⚠️') || cleanLine.toLowerCase().includes('urgency')) {
         currentSection = 'urgency';
-        sections[currentSection] = line.replace(/^\d+\.?\s*/, '');
-      } else if (line.includes('3.') || line.toLowerCase().includes('continue')) {
-        currentSection = 'safety';
-        sections[currentSection] = line.replace(/^\d+\.?\s*/, '');
-      } else if (line.includes('4.') || line.toLowerCase().includes('immediate')) {
+        sections[currentSection] = cleanLine.replace(/⚠️\s*URGENCY LEVEL:?\s*/i, '').trim();
+      } else if (cleanLine.includes('🚨') || cleanLine.toLowerCase().includes('immediate actions')) {
         currentSection = 'actions';
-        sections[currentSection] = line.replace(/^\d+\.?\s*/, '');
-      } else if (line.includes('5.') || line.toLowerCase().includes('cost')) {
-        currentSection = 'cost';
-        sections[currentSection] = line.replace(/^\d+\.?\s*/, '');
-      } else if (line.includes('6.') || line.toLowerCase().includes('professional')) {
-        currentSection = 'help';
-        sections[currentSection] = line.replace(/^\d+\.?\s*/, '');
-      } else if (currentSection && line.trim()) {
-        sections[currentSection] += ' ' + line.trim();
+        sections[currentSection] = cleanLine.replace(/🚨\s*IMMEDIATE ACTIONS:?\s*/i, '').trim();
+      } else if (cleanLine.includes('🔧') || cleanLine.toLowerCase().includes('repair recommendations')) {
+        currentSection = 'repair';
+        sections[currentSection] = cleanLine.replace(/🔧\s*REPAIR RECOMMENDATIONS:?\s*/i, '').trim();
+      } else if (cleanLine.includes('💡') || cleanLine.toLowerCase().includes('prevention tips')) {
+        currentSection = 'prevention';
+        sections[currentSection] = cleanLine.replace(/💡\s*PREVENTION TIPS:?\s*/i, '').trim();
+      } else if (cleanLine.includes('🚨') && cleanLine.toLowerCase().includes('safety warnings')) {
+        currentSection = 'safety';
+        sections[currentSection] = cleanLine.replace(/🚨\s*SAFETY WARNINGS:?\s*/i, '').trim();
+      } else if (currentSection && cleanLine && !cleanLine.match(/^[🔍⚠️🚨🔧💡]/)) {
+        // Add to current section if it's not a new section header
+        sections[currentSection] += (sections[currentSection] ? ' ' : '') + cleanLine;
       }
     });
     
@@ -102,11 +106,11 @@ export function VoiceDiagnostic() {
   const parsedAnalysis = parseAiResponse(aiAnalysis?.aiResponse);
 
   return (
-    <div className="p-4 md:p-6 space-y-6 max-w-6xl mx-auto">
+    <div className="p-2 md:p-4 lg:p-6 space-y-4 md:space-y-6 max-w-6xl mx-auto">
       {/* Header */}
-      <div className="glass-strong rounded-2xl p-4 md:p-6 border border-white/20 backdrop-blur-xl">
-        <h2 className="text-2xl md:text-3xl font-bold text-metal-silver mb-2">Tell AI What's Wrong</h2>
-        <p className="text-white/80 text-sm md:text-base leading-relaxed">
+      <div className="glass-strong rounded-2xl p-3 md:p-4 lg:p-6 border border-white/20 backdrop-blur-xl">
+        <h2 className="text-xl md:text-2xl lg:text-3xl font-bold text-metal-silver mb-2">Tell AI What's Wrong</h2>
+        <p className="text-white/80 text-xs md:text-sm lg:text-base leading-relaxed">
           Describe your truck's problem in plain English - our AI will help you figure out what to do next.
         </p>
       </div>
@@ -127,17 +131,17 @@ export function VoiceDiagnostic() {
           </div>
         </CardHeader>
         <CardContent>
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 md:gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-2 md:gap-3 lg:gap-4">
             {emergencyQuestions.map((question, index) => (
               <Button
                 key={index}
                 variant="outline"
-                className="p-3 md:p-4 h-auto text-left justify-start glass-subtle hover:scale-102 hover:bg-white/10 transition-all duration-300 border border-white/20 backdrop-blur-xl"
+                className="p-2 md:p-3 lg:p-4 h-auto text-left justify-start glass-subtle hover:scale-102 hover:bg-white/10 transition-all duration-300 border border-white/20 backdrop-blur-xl"
                 onClick={() => handleQuickQuestion(question)}
                 disabled={isAnalyzing}
               >
-                <AlertTriangle className="h-4 w-4 mr-2 md:mr-3 text-red-400 flex-shrink-0" />
-                <span className="text-sm md:text-base text-white leading-tight">{question}</span>
+                <AlertTriangle className="h-3 w-3 md:h-4 md:w-4 mr-2 md:mr-3 text-red-400 flex-shrink-0" />
+                <span className="text-xs md:text-sm lg:text-base text-white leading-tight">{question}</span>
               </Button>
             ))}
           </div>
@@ -164,7 +168,7 @@ export function VoiceDiagnostic() {
             placeholder="Example: My truck is making a weird grinding noise when I brake, and the steering wheel shakes when I go over 50 mph..."
             value={userInput}
             onChange={(e) => setUserInput(e.target.value)}
-            rows={4}
+            rows={2}
             className="glass-subtle border-glass-border"
           />
           
@@ -218,81 +222,83 @@ export function VoiceDiagnostic() {
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
+            {/* Primary Diagnosis */}
+            {parsedAnalysis.diagnosis && (
+              <div className="p-4 glass-subtle rounded-lg border-glass-border">
+                <div className="flex items-center gap-2 mb-3">
+                  <div className="p-2 bg-blue-500 rounded-lg">
+                    <Wrench className="h-5 w-5 text-white" />
+                  </div>
+                  <span className="font-semibold text-metal-silver text-lg">What's Wrong</span>
+                </div>
+                <p className="text-sm text-white/90 leading-relaxed">{parsedAnalysis.diagnosis}</p>
+              </div>
+            )}
+
             {/* Urgency Level */}
             {parsedAnalysis.urgency && (
-              <div className="p-3 glass-subtle rounded-lg border-glass-border">
-                <div className="flex items-center gap-2 mb-2">
-                  <AlertTriangle className="h-5 w-5 text-destructive" />
-                  <span className="font-medium text-metal-silver">Urgency Level</span>
+              <div className="p-4 glass-subtle rounded-lg border-glass-border">
+                <div className="flex items-center gap-2 mb-3">
+                  <div className="p-2 bg-red-500 rounded-lg">
+                    <AlertTriangle className="h-5 w-5 text-white" />
+                  </div>
+                  <span className="font-semibold text-metal-silver text-lg">Urgency Level</span>
                 </div>
-                <p className="text-sm">{parsedAnalysis.urgency}</p>
-              </div>
-            )}
-
-            {/* Safety Assessment */}
-            {parsedAnalysis.safety && (
-              <div className="p-3 glass-subtle rounded-lg border-glass-border">
-                <div className="flex items-center gap-2 mb-2">
-                  <Shield className="h-5 w-5 text-blue-600" />
-                  <span className="font-medium text-metal-silver">Can You Continue Driving?</span>
-                </div>
-                <p className="text-sm">{parsedAnalysis.safety}</p>
-              </div>
-            )}
-
-            {/* Most Likely Cause */}
-            {parsedAnalysis.cause && (
-              <div className="p-3 glass-subtle rounded-lg border-glass-border">
-                <div className="flex items-center gap-2 mb-2">
-                  <Wrench className="h-5 w-5 text-orange-600" />
-                  <span className="font-medium text-metal-silver">Most Likely Problem</span>
-                </div>
-                <p className="text-sm">{parsedAnalysis.cause}</p>
+                <p className="text-sm text-white/90 leading-relaxed">{parsedAnalysis.urgency}</p>
               </div>
             )}
 
             {/* Immediate Actions */}
             {parsedAnalysis.actions && (
-              <div className="p-3 glass-subtle rounded-lg border-glass-border">
-                <div className="flex items-center gap-2 mb-2">
-                  <Zap className="h-5 w-5 text-yellow-600" />
-                  <span className="font-medium text-metal-silver">What To Do Right Now</span>
+              <div className="p-4 glass-subtle rounded-lg border-glass-border">
+                <div className="flex items-center gap-2 mb-3">
+                  <div className="p-2 bg-yellow-500 rounded-lg">
+                    <Zap className="h-5 w-5 text-white" />
+                  </div>
+                  <span className="font-semibold text-metal-silver text-lg">What To Do Right Now</span>
                 </div>
-                <p className="text-sm">{parsedAnalysis.actions}</p>
+                <p className="text-sm text-white/90 leading-relaxed">{parsedAnalysis.actions}</p>
               </div>
             )}
 
-            {/* Cost Estimate */}
-            {parsedAnalysis.cost && (
-              <div className="p-3 glass-subtle rounded-lg border-glass-border">
-                <div className="flex items-center gap-2 mb-2">
-                  <span className="text-lg">💰</span>
-                  <span className="font-medium text-metal-silver">Estimated Repair Cost</span>
+            {/* Repair Recommendations */}
+            {parsedAnalysis.repair && (
+              <div className="p-4 glass-subtle rounded-lg border-glass-border">
+                <div className="flex items-center gap-2 mb-3">
+                  <div className="p-2 bg-green-500 rounded-lg">
+                    <span className="text-white text-lg">🔧</span>
+                  </div>
+                  <span className="font-semibold text-metal-silver text-lg">Repair Information</span>
                 </div>
-                <p className="text-sm">{parsedAnalysis.cost}</p>
+                <p className="text-sm text-white/90 leading-relaxed">{parsedAnalysis.repair}</p>
               </div>
             )}
 
-            {/* Professional Help */}
-            {parsedAnalysis.help && (
-              <div className="p-3 glass-subtle rounded-lg border-glass-border">
-                <div className="flex items-center gap-2 mb-2">
-                  <span className="text-lg">👨‍🔧</span>
-                  <span className="font-medium text-metal-silver">Do You Need Professional Help?</span>
+            {/* Safety Warnings */}
+            {parsedAnalysis.safety && (
+              <div className="p-4 glass-subtle rounded-lg border-glass-border border-red-500/30">
+                <div className="flex items-center gap-2 mb-3">
+                  <div className="p-2 bg-red-600 rounded-lg">
+                    <Shield className="h-5 w-5 text-white" />
+                  </div>
+                  <span className="font-semibold text-red-400 text-lg">Safety Warnings</span>
                 </div>
-                <p className="text-sm">{parsedAnalysis.help}</p>
+                <p className="text-sm text-red-300 leading-relaxed">{parsedAnalysis.safety}</p>
               </div>
             )}
 
-            {/* Full AI Response */}
-            <details className="text-sm">
-              <summary className="cursor-pointer text-muted-foreground hover:text-foreground">
-                View Full AI Analysis
-              </summary>
-              <div className="mt-2 p-3 bg-muted/50 rounded-lg whitespace-pre-wrap">
-                {aiAnalysis.aiResponse}
+            {/* Prevention Tips */}
+            {parsedAnalysis.prevention && (
+              <div className="p-4 glass-subtle rounded-lg border-glass-border">
+                <div className="flex items-center gap-2 mb-3">
+                  <div className="p-2 bg-purple-500 rounded-lg">
+                    <span className="text-white text-lg">💡</span>
+                  </div>
+                  <span className="font-semibold text-metal-silver text-lg">Prevention Tips</span>
+                </div>
+                <p className="text-sm text-white/90 leading-relaxed">{parsedAnalysis.prevention}</p>
               </div>
-            </details>
+            )}
           </CardContent>
         </Card>
       )}

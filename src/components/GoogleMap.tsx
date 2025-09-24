@@ -4,20 +4,7 @@ import { Button } from './ui/button';
 import { MapPin, Navigation, Phone, Star, Loader2 } from 'lucide-react';
 import { MapFallback } from './MapFallback';
 import { DEBUG } from '../utils/debug';
-
-export interface ServiceLocation {
-  id: number;
-  name: string;
-  address: string;
-  lat: number;
-  lng: number;
-  type: 'repair' | 'parts' | 'towing';
-  rating: number;
-  phone: string;
-  services: string[];
-  available: boolean;
-  distance?: string;
-}
+import { ServiceLocation } from '../types/serviceLocation';
 
 interface GoogleMapProps {
   locations: ServiceLocation[];
@@ -195,95 +182,97 @@ export function GoogleMap({ locations, userLocation, onLocationSelect, className
       }
     }
 
-    // Add service location markers using AdvancedMarkerElement
+    // Add service location markers with proper icons
     locations.forEach(location => {
-      const markerColor = 
-        location.type === 'repair' ? '#ef4444' :
-        location.type === 'parts' ? '#3b82f6' : '#22c55e';
-
-      const createServiceMarker = () => {
-        // Try AdvancedMarkerElement first if available and using advanced markers
-        if (window.google.maps.marker?.AdvancedMarkerElement && useAdvancedMarkers) {
-          try {
-            // Create custom pin element for service location
-            const pinElement = document.createElement('div');
-            pinElement.innerHTML = `
-              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7z" fill="${markerColor}" stroke="#ffffff" stroke-width="2"/>
-                <circle cx="12" cy="9" r="2.5" fill="#ffffff"/>
-              </svg>
-            `;
-            pinElement.style.cursor = 'pointer';
-            pinElement.style.transform = 'scale(1)';
-            pinElement.style.transition = 'transform 0.2s ease';
-            
-            // Add hover effects
-            pinElement.addEventListener('mouseenter', () => {
-              pinElement.style.transform = 'scale(1.1)';
-            });
-            pinElement.addEventListener('mouseleave', () => {
-              pinElement.style.transform = 'scale(1)';
-            });
-
-            const marker = new window.google.maps.marker.AdvancedMarkerElement({
-              position: { lat: location.lat, lng: location.lng },
-              map: map,
-              title: location.name,
-              content: pinElement
-            });
-
-            // Add click listener to marker
-            marker.addListener('click', () => {
-              setSelectedLocation(location);
-              onLocationSelect?.(location);
-              
-              // Center map on clicked location
-              map.setCenter({ lat: location.lat, lng: location.lng });
-              map.setZoom(15);
-            });
-
-            DEBUG.info(`Created AdvancedMarkerElement for ${location.name}`);
-            return marker;
-          } catch (advancedError) {
-            DEBUG.warn(`AdvancedMarkerElement failed for ${location.name}, using legacy Marker:`, advancedError);
-          }
-        }
-        
-        // Fallback to legacy Marker
-        DEBUG.info(`Using legacy Marker for ${location.name}`);
-        const marker = new window.google.maps.Marker({
-          position: { lat: location.lat, lng: location.lng },
-          map: map,
-          title: location.name,
-          icon: {
-            url: 'data:image/svg+xml;charset=UTF-8,' + encodeURIComponent(`
-              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7z" fill="${markerColor}" stroke="#ffffff" stroke-width="2"/>
-                <circle cx="12" cy="9" r="2.5" fill="#ffffff"/>
-              </svg>
-            `),
-            scaledSize: new window.google.maps.Size(24, 24),
-          }
-        });
-
-        // Add click listener to marker
-        marker.addListener('click', () => {
-          setSelectedLocation(location);
-          onLocationSelect?.(location);
-          
-          // Center map on clicked location
-          map.setCenter({ lat: location.lat, lng: location.lng });
-          map.setZoom(15);
-        });
-
-        return marker;
+      const getMarkerIcon = (type: string) => {
+        const iconMap = {
+          'repair': '🔧',
+          'parts': '📦', 
+          'towing': '🚛'
+        };
+        return iconMap[type] || '📍';
       };
 
-      const marker = createServiceMarker();
-      if (marker) {
-        markersRef.current.push(marker);
-      }
+      const getMarkerColor = (type: string) => {
+        const colorMap = {
+          'repair': '#ef4444',
+          'parts': '#3b82f6',
+          'towing': '#f59e0b'
+        };
+        return colorMap[type] || '#6b7280';
+      };
+
+      const markerColor = getMarkerColor(location.type);
+      const markerIcon = getMarkerIcon(location.type);
+
+      // Create marker with proper icon
+      const marker = new window.google.maps.Marker({
+        position: { lat: location.lat, lng: location.lng },
+        map: map,
+        title: location.name,
+        icon: {
+          url: 'data:image/svg+xml;charset=UTF-8,' + encodeURIComponent(`
+            <svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <circle cx="16" cy="16" r="14" fill="${markerColor}" stroke="#ffffff" stroke-width="2"/>
+              <text x="16" y="20" text-anchor="middle" fill="white" font-size="12" font-weight="bold">${markerIcon}</text>
+            </svg>
+          `),
+          scaledSize: new window.google.maps.Size(32, 32),
+          anchor: new window.google.maps.Point(16, 16)
+        }
+      });
+
+      // Add info window
+      const infoWindow = new window.google.maps.InfoWindow({
+        content: `
+          <div style="padding: 8px; max-width: 280px;">
+            <h3 style="margin: 0 0 8px 0; color: #333; font-size: 14px;">${location.name}</h3>
+            <p style="margin: 0 0 4px 0; color: #666; font-size: 12px;">${location.address}</p>
+            <p style="margin: 0 0 4px 0; color: #666; font-size: 12px;">Rating: ${location.rating}⭐</p>
+            ${location.phone ? `<p style="margin: 0 0 4px 0; color: #666; font-size: 12px;">Phone: ${location.phone}</p>` : ''}
+            ${location.services ? `<p style="margin: 0 0 8px 0; color: #666; font-size: 12px;">Services: ${location.services.slice(0, 3).join(', ')}</p>` : ''}
+            <div style="display: flex; gap: 4px; margin-top: 8px;">
+              <button onclick="selectService(${location.id})" style="
+                background: #4285F4; 
+                color: white; 
+                border: none; 
+                padding: 6px 10px; 
+                border-radius: 4px; 
+                cursor: pointer; 
+                font-size: 11px;
+                flex: 1;
+              ">Select</button>
+              <button onclick="navigateToService(${location.id})" style="
+                background: #34A853; 
+                color: white; 
+                border: none; 
+                padding: 6px 10px; 
+                border-radius: 4px; 
+                cursor: pointer; 
+                font-size: 11px;
+                flex: 1;
+              ">🚛 Navigate</button>
+            </div>
+          </div>
+        `
+      });
+
+      // Add click listener to marker
+      marker.addListener('click', () => {
+        setSelectedLocation(location);
+        onLocationSelect?.(location);
+        infoWindow.open(map, marker);
+        
+        // Center map on clicked location
+        map.setCenter({ lat: location.lat, lng: location.lng });
+        map.setZoom(15);
+      });
+
+      markersRef.current.push(marker);
     });
+
+    // Add truck height restrictions and safe routes
+    addTruckRoutesAndRestrictions(map, userLocation);
 
     // Fit map to show all markers
     if (locations.length > 0 || userLocation) {
@@ -312,6 +301,98 @@ export function GoogleMap({ locations, userLocation, onLocationSelect, className
     }
 
   }, [isGoogleMapsReady, locations, userLocation, onLocationSelect]);
+
+  // Function to add truck routes and height restrictions
+  const addTruckRoutesAndRestrictions = (map: any, userLocation?: { lat: number; lng: number }) => {
+    if (!userLocation) return;
+
+    // Add sample height restrictions (in real app, this would come from API)
+    const heightRestrictions = [
+      {
+        path: [
+          { lat: userLocation.lat + 0.01, lng: userLocation.lng + 0.01 },
+          { lat: userLocation.lat + 0.02, lng: userLocation.lng + 0.02 }
+        ],
+        maxHeight: 12.5,
+        description: 'Low Bridge - 12.5ft'
+      },
+      {
+        path: [
+          { lat: userLocation.lat - 0.01, lng: userLocation.lng - 0.01 },
+          { lat: userLocation.lat - 0.02, lng: userLocation.lng - 0.02 }
+        ],
+        maxHeight: 14.0,
+        description: 'Restricted Route - 14.0ft'
+      }
+    ];
+
+    // Add safe routes (in real app, this would come from truck routing API)
+    const safeRoutes = [
+      {
+        path: [
+          { lat: userLocation.lat, lng: userLocation.lng },
+          { lat: userLocation.lat + 0.005, lng: userLocation.lng + 0.005 },
+          { lat: userLocation.lat + 0.01, lng: userLocation.lng + 0.01 }
+        ],
+        description: 'Truck-Safe Route'
+      }
+    ];
+
+    // Add height restriction polylines
+    heightRestrictions.forEach(restriction => {
+      const polyline = new window.google.maps.Polyline({
+        path: restriction.path,
+        geodesic: true,
+        strokeColor: '#FF0000', // Red for restrictions
+        strokeOpacity: 0.8,
+        strokeWeight: 4,
+        map: map
+      });
+
+      // Add restriction info window
+      const infoWindow = new window.google.maps.InfoWindow({
+        content: `
+          <div style="padding: 4px; font-size: 12px;">
+            <strong>${restriction.description}</strong><br/>
+            Max Height: ${restriction.maxHeight}ft<br/>
+            <span style="color: red;">⚠️ Height Restricted</span>
+          </div>
+        `
+      });
+
+      polyline.addListener('click', (event: any) => {
+        infoWindow.setPosition(event.latLng);
+        infoWindow.open(map);
+      });
+    });
+
+    // Add safe route polylines
+    safeRoutes.forEach(route => {
+      const polyline = new window.google.maps.Polyline({
+        path: route.path,
+        geodesic: true,
+        strokeColor: '#00FF00', // Green for safe routes
+        strokeOpacity: 0.6,
+        strokeWeight: 3,
+        map: map
+      });
+
+      // Add route info window
+      const infoWindow = new window.google.maps.InfoWindow({
+        content: `
+          <div style="padding: 4px; font-size: 12px;">
+            <strong>${route.description}</strong><br/>
+            <span style="color: green;">✅ Truck-Safe Route</span>
+          </div>
+        `
+      });
+
+      polyline.addListener('click', (event: any) => {
+        infoWindow.setPosition(event.latLng);
+        infoWindow.open(map);
+      });
+    });
+  };
 
   const handleGetDirections = (location: ServiceLocation) => {
     if (!window.google || !userLocation) return;
@@ -356,21 +437,30 @@ export function GoogleMap({ locations, userLocation, onLocationSelect, className
         backdropFilter: 'blur(10px)',
         WebkitBackdropFilter: 'blur(10px)'
       }}>
-        <div className="flex items-center gap-2 text-white text-sm mb-1">
-          <div className="w-3 h-3 bg-red-500 rounded-full"></div>
-          <span>Repair Shops</span>
+        <div className="text-white text-xs font-semibold mb-2">Legend:</div>
+        <div className="flex items-center gap-2 text-white text-xs mb-1">
+          <span className="text-lg">🔧</span>
+          <span>Repair Centers</span>
         </div>
-        <div className="flex items-center gap-2 text-white text-sm mb-1">
-          <div className="w-3 h-3 bg-blue-500 rounded-full"></div>
-          <span>Parts Suppliers</span>
+        <div className="flex items-center gap-2 text-white text-xs mb-1">
+          <span className="text-lg">📦</span>
+          <span>Parts Stores</span>
         </div>
-        <div className="flex items-center gap-2 text-white text-sm mb-1">
-          <div className="w-3 h-3 bg-green-500 rounded-full"></div>
-          <span>Tow Services</span>
+        <div className="flex items-center gap-2 text-white text-xs mb-1">
+          <span className="text-lg">🚛</span>
+          <span>Towing Services</span>
         </div>
-        <div className="flex items-center gap-2 text-white text-sm">
-          <div className="w-3 h-3 bg-orange-500 rounded-full"></div>
+        <div className="flex items-center gap-2 text-white text-xs mb-1">
+          <span className="text-lg">🔵</span>
           <span>Your Location</span>
+        </div>
+        <div className="flex items-center gap-2 text-white text-xs mb-1">
+          <span className="text-lg">🟢</span>
+          <span>Safe Routes</span>
+        </div>
+        <div className="flex items-center gap-2 text-white text-xs">
+          <span className="text-lg">🔴</span>
+          <span>Height Restricted</span>
         </div>
       </div>
 

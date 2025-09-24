@@ -70,7 +70,8 @@ export interface DiagnosticResponse {
 }
 
 export class GitHubModelsService {
-  private readonly BASE_URL = 'https://models.inference.ai.azure.com';
+  private readonly BASE_URL = 'https://models.inference.ai.azure.com'
+  private dynamicPricingService?: any; // Lazy load to avoid circular imports;
   private readonly API_VERSION = '2024-02-01';
   private apiKey: string;
   private fineTunedModel: string | null = null;
@@ -286,6 +287,22 @@ This analysis is based on extensive truck diagnostic expertise and real-world re
   }
 
   /**
+   * Get dynamic pricing analysis for repair costs
+   */
+  async getDynamicPricingAnalysis(
+    component: string,
+    repairType: string,
+    location: { lat: number; lng: number; city?: string; state?: string }
+  ): Promise<any> {
+    if (!this.dynamicPricingService) {
+      const { DynamicPricingService } = await import('./DynamicPricingService');
+      this.dynamicPricingService = new DynamicPricingService();
+    }
+    
+    return await this.dynamicPricingService.getRepairCostAnalysis(component, repairType, location);
+  }
+
+  /**
    * Enhanced diagnostic analysis using fine-tuned model with retry logic and error handling
    */
   async analyzeTruckDiagnostic(prompt: DiagnosticPrompt, retryCount: number = 3): Promise<DiagnosticResponse> {
@@ -293,23 +310,26 @@ This analysis is based on extensive truck diagnostic expertise and real-world re
     
     for (let attempt = 1; attempt <= retryCount; attempt++) {
       try {
-        const modelToUse = this.fineTunedModel || 'gpt-4o-mini';
+        const modelToUse = this.getBestAvailableModel();
         
         const systemPrompt = `You are a specialized truck diagnostic AI expert with access to:
 - 50,000+ diagnostic cases from American truck forums
 - Technical manuals from Cummins, Caterpillar, Detroit Diesel
 - Real-world repair data from service centers nationwide
 - Audio-based component failure detection capabilities
+- REAL-TIME pricing data from Reddit posts (last 10 months)
+- Location-based cost analysis from multiple sources
 
 Provide comprehensive diagnostic analysis with focus on:
 1. Immediate safety assessment
-2. Accurate cost estimation
+2. REAL-TIME cost estimation based on current market data
 3. Practical roadside solutions
 4. Component-specific failure patterns
+5. Location-specific pricing trends
 
-IMPORTANT: Always respond with structured information including diagnosis, component, urgency level, and safety assessment.`;
+IMPORTANT: Always respond with structured information including diagnosis, component, urgency level, and safety assessment. Use current market pricing data when available.`;
 
-        const userPrompt = this.buildEnhancedPrompt(prompt);
+        const userPrompt = await this.buildEnhancedPrompt(prompt);
 
         const requestBody = {
           model: modelToUse,
@@ -525,7 +545,7 @@ IMPORTANT: Always respond with structured information including diagnosis, compo
     return 'low';
   }
 
-  private buildEnhancedPrompt(prompt: DiagnosticPrompt): string {
+  private async buildEnhancedPrompt(prompt: DiagnosticPrompt, location?: { lat: number; lng: number; city?: string; state?: string }): Promise<string> {
     let enhancedPrompt = `ADVANCED TRUCK DIAGNOSTIC REQUEST:
 
 🚛 VEHICLE INFORMATION:
@@ -553,13 +573,36 @@ Symptoms Reported: ${prompt.symptoms}`;
 • Driving Conditions: ${prompt.environmental_context.driving_conditions}`;
     }
 
+    // Add dynamic pricing information if location is available
+    if (location && prompt.audio_analysis) {
+      try {
+        const pricingAnalysis = await this.getDynamicPricingAnalysis(
+          prompt.audio_analysis.component,
+          prompt.audio_analysis.failure_type,
+          location
+        );
+        
+        enhancedPrompt += `\n💰 REAL-TIME PRICING DATA (${pricingAnalysis.location.city}, ${pricingAnalysis.location.state}):
+• Total Cost Range: $${pricingAnalysis.pricing.total.min} - $${pricingAnalysis.pricing.total.max}
+• Average Cost: $${pricingAnalysis.pricing.total.average}
+• Labor Cost: $${pricingAnalysis.pricing.labor.average} (${pricingAnalysis.timeEstimate.average})
+• Parts Cost: $${pricingAnalysis.pricing.parts.average}
+• Price Trend: ${pricingAnalysis.trends.priceChange} (${pricingAnalysis.trends.changePercent}% over ${pricingAnalysis.trends.period})
+• Data Sources: ${pricingAnalysis.sources.length} recent reports
+• Confidence: ${Math.round(pricingAnalysis.confidence * 100)}%`;
+      } catch (error) {
+        console.warn('Failed to get dynamic pricing:', error);
+        enhancedPrompt += `\n💰 PRICING: Using estimated costs (real-time data unavailable)`;
+      }
+    }
+
     enhancedPrompt += `\n\n📋 REQUIRED ANALYSIS:
 Please provide comprehensive diagnostic analysis including:
 1. Primary failure mode identification
 2. Root cause analysis
 3. Critical safety assessment (can driver continue?)
 4. Immediate emergency actions
-5. Detailed repair cost breakdown
+5. Detailed repair cost breakdown (use real-time pricing if available)
 6. Parts availability and alternatives
 7. Preventive maintenance recommendations
 8. Similar case patterns and outcomes
@@ -935,6 +978,20 @@ Format response with clear sections and actionable information for emergency roa
     try {
       console.log('Starting fine-tuning process...');
       
+      // Check if we already have a trained model
+      const existingModel = this.getExistingTrainedModel();
+      if (existingModel) {
+        console.log('Using existing trained model:', existingModel);
+        return existingModel;
+      }
+      
+      // Check if training is needed based on data changes
+      const shouldTrain = await this.shouldTrainModel(trainingData);
+      if (!shouldTrain) {
+        console.log('Training not needed, using base model');
+        return 'gpt-4o-mini'; // Return base model
+      }
+      
       // 1. Prepare training data
       const formattedData = await this.prepareTrainingData(trainingData);
       
@@ -961,6 +1018,105 @@ Format response with clear sections and actionable information for emergency roa
   }
 
   /**
+   * Get existing trained model from cache
+   */
+  private getExistingTrainedModel(): string | null {
+    try {
+      const cachedModel = localStorage.getItem('truck_diagnostic_model');
+      const modelTimestamp = localStorage.getItem('truck_diagnostic_model_timestamp');
+      
+      if (cachedModel && modelTimestamp) {
+        const timestamp = new Date(modelTimestamp).getTime();
+        const now = Date.now();
+        const ageInHours = (now - timestamp) / (1000 * 60 * 60);
+        
+        // Use cached model if it's less than 7 days old
+        if (ageInHours < 168) {
+          console.log('Using cached model, age:', Math.round(ageInHours), 'hours');
+          return cachedModel;
+        } else {
+          console.log('Cached model is too old, age:', Math.round(ageInHours), 'hours');
+          localStorage.removeItem('truck_diagnostic_model');
+          localStorage.removeItem('truck_diagnostic_model_timestamp');
+        }
+      }
+      
+      return null;
+    } catch (error) {
+      console.error('Error getting existing model:', error);
+      return null;
+    }
+  }
+
+  /**
+   * Check if model training is needed
+   */
+  private async shouldTrainModel(trainingData: any[]): Promise<boolean> {
+    try {
+      // Check if we have enough new data to warrant training
+      const lastTrainingData = localStorage.getItem('last_training_data_hash');
+      const currentDataHash = this.generateDataHash(trainingData);
+      
+      if (lastTrainingData === currentDataHash) {
+        console.log('Training data unchanged, skipping training');
+        return false;
+      }
+      
+      // Check if we have enough data samples
+      if (trainingData.length < 50) {
+        console.log('Not enough training data:', trainingData.length, 'samples');
+        return false;
+      }
+      
+      // Check if enough time has passed since last training
+      const lastTraining = localStorage.getItem('last_training_timestamp');
+      if (lastTraining) {
+        const lastTrainingTime = new Date(lastTraining).getTime();
+        const now = Date.now();
+        const timeSinceLastTraining = now - lastTrainingTime;
+        
+        // Only train if more than 24 hours have passed
+        if (timeSinceLastTraining < (24 * 60 * 60 * 1000)) {
+          console.log('Not enough time since last training');
+          return false;
+        }
+      }
+      
+      console.log('Training is needed');
+      return true;
+      
+    } catch (error) {
+      console.error('Error checking if training is needed:', error);
+      return false; // Default to not training if check fails
+    }
+  }
+
+  /**
+   * Generate hash for training data to detect changes
+   */
+  private generateDataHash(trainingData: any[]): string {
+    try {
+      const dataString = JSON.stringify(trainingData.map(d => ({
+        input: d.input,
+        output: d.output
+      })));
+      
+      // Simple hash function
+      let hash = 0;
+      for (let i = 0; i < dataString.length; i++) {
+        const char = dataString.charCodeAt(i);
+        hash = ((hash << 5) - hash) + char;
+        hash = hash & hash; // Convert to 32-bit integer
+      }
+      
+      return hash.toString();
+    } catch (error) {
+      console.error('Error generating data hash:', error);
+      return Date.now().toString(); // Fallback to timestamp
+    }
+  }
+
+  /**
    * Monitor fine-tuning progress
    */
   async monitorTraining(jobId: string, onProgress?: (status: TrainingJob) => void): Promise<string> {
@@ -977,6 +1133,8 @@ Format response with clear sections and actionable information for emergency roa
             if (status.fine_tuned_model) {
               this.fineTunedModel = status.fine_tuned_model;
               localStorage.setItem('truck_diagnostic_model', status.fine_tuned_model);
+              localStorage.setItem('truck_diagnostic_model_timestamp', new Date().toISOString());
+              localStorage.setItem('last_training_timestamp', new Date().toISOString());
               console.log('Fine-tuning completed successfully:', status.fine_tuned_model);
               resolve(status.fine_tuned_model);
             } else {
@@ -997,5 +1155,19 @@ Format response with clear sections and actionable information for emergency roa
       
       checkStatus();
     });
+  }
+
+  /**
+   * Get the best available model (cached fine-tuned or base model)
+   */
+  private getBestAvailableModel(): string {
+    const cachedModel = this.getExistingTrainedModel();
+    if (cachedModel) {
+      console.log('Using cached fine-tuned model:', cachedModel);
+      return cachedModel;
+    }
+    
+    console.log('Using base model: gpt-4o-mini');
+    return 'gpt-4o-mini';
   }
 }

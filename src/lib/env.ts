@@ -3,6 +3,7 @@
 
 // Re-export from safe-env to maintain compatibility
 export { env, GOOGLE_MAPS_API_KEY, SUPABASE_URL, SUPABASE_ANON_KEY, GITHUB_TOKEN } from './safe-env';
+import { env } from './safe-env';
 
 // Type definitions for environment variables
 interface EnvironmentConfig {
@@ -32,21 +33,20 @@ export const isProduction = (): boolean => {
 
 // Validation function to check if required environment variables are set
 export const validateEnvironment = (): { isValid: boolean; missing: string[] } => {
-  const { env } = require('./safe-env');
   const requiredKeys: (keyof EnvironmentConfig)[] = [
     'GOOGLE_MAPS_API_KEY',
-    'SUPABASE_URL', 
+    'SUPABASE_URL',
     'SUPABASE_ANON_KEY'
   ];
-  
+
   const missing: string[] = [];
-  
+
   for (const key of requiredKeys) {
     if (!env[key]) {
       missing.push(key);
     }
   }
-  
+
   return {
     isValid: missing.length === 0,
     missing
@@ -54,5 +54,4 @@ export const validateEnvironment = (): { isValid: boolean; missing: string[] } =
 };
 
 // Default export for compatibility
-import { env } from './safe-env';
 export default env;

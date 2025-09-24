@@ -1,11 +1,11 @@
-import { ServiceLocation } from './EnhancedServiceLocatorService';
+import { ServiceLocation } from '../types/serviceLocation';
 import { calculateDistance } from '../utils/distance';
 
 /**
  * Lightweight service locator with essential functionality only.
  * Used as default export to reduce initial bundle size.
  */
-export class ServiceLocatorService {
+export class BasicServiceLocatorService {
   private cache = new Map<string, ServiceLocation[]>();
   private cacheExpiry = 10 * 60 * 1000; // 10 minutes
 
@@ -108,4 +108,4 @@ export class ServiceLocatorService {
   }
 }
 
-export default new ServiceLocatorService();
+export default new BasicServiceLocatorService();

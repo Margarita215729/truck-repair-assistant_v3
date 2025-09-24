@@ -1,139 +1,83 @@
-<!doctype html>
-<html lang="ru">
+<!DOCTYPE html>
+<html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <link rel="icon" type="image/svg+xml" href="/truck-icon.svg" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, maximum-scale=1.0" />
-    <title>Truck Repair Assistant - AI Диагностика грузовиков</title>
-    <meta name="description" content="Мобильное приложение для AI диагностики грузовиков с анализом звуков двигателя, поиском автосервисов и вызовом эвакуатора. Экстренная помощь водителям на дороге." />
-    <meta name="keywords" content="диагностика грузовиков, ремонт грузовиков, AI диагностика, мобильное приложение, техническая помощь, эвакуатор, автосервис, звук двигателя" />
-    
-    <!-- PWA Manifest -->
-    <link rel="manifest" href="/manifest.json" />
-    
-    <!-- iOS PWA -->
-    <meta name="apple-mobile-web-app-capable" content="yes" />
-    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
-    <meta name="apple-mobile-web-app-title" content="TruckRepair AI" />
-    <link rel="apple-touch-icon" href="/icons/icon-192x192.png" />
-    <link rel="apple-touch-startup-image" href="/icons/icon-512x512.png" />
-    
-    <!-- Android PWA -->
-    <meta name="mobile-web-app-capable" content="yes" />
-    <meta name="application-name" content="TruckRepair AI" />
-    
-    <!-- Theme colors -->
-    <meta name="theme-color" content="#1e3c72" />
-    <meta name="msapplication-TileColor" content="#1e3c72" />
-    <meta name="msapplication-navbutton-color" content="#1e3c72" />
-    
-    <!-- Open Graph / Facebook -->
-    <meta property="og:type" content="website" />
-    <meta property="og:url" content="https://truck-diagnostic-ai.vercel.app/" />
-    <meta property="og:title" content="Truck Repair Assistant - AI Диагностика грузовиков" />
-    <meta property="og:description" content="Мобильное приложение для AI диагностики грузовиков с анализом звуков двигателя, поиском автосервисов и вызовом эвакуатора." />
-    <meta property="og:image" content="/icons/icon-512x512.png" />
-    
-    <!-- Twitter -->
-    <meta property="twitter:card" content="summary_large_image" />
-    <meta property="twitter:url" content="https://truck-diagnostic-ai.vercel.app/" />
-    <meta property="twitter:title" content="Truck Repair Assistant - AI Диагностика грузовиков" />
-    <meta property="twitter:description" content="Мобильное приложение для AI диагностики грузовиков с анализом звуков двигателя, поиском автосервисов и вызовом эвакуатора." />
-    <meta property="twitter:image" content="/icons/icon-512x512.png" />
-    
-    <!-- Preconnect for performance -->
-    <link rel="preconnect" href="https://fonts.googleapis.com" />
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link rel="preconnect" href="https://maps.googleapis.com" />
-    <link rel="preconnect" href="https://api.unsplash.com" />
-    
-    <!-- Security -->
-    <meta http-equiv="X-Content-Type-Options" content="nosniff" />
-    <meta http-equiv="X-Frame-Options" content="DENY" />
-    <meta http-equiv="X-XSS-Protection" content="1; mode=block" />
-    
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Vite Test App</title>
     <style>
-      /* Prevent FOUC */
-      html {
-        background-color: #0f172a;
-      }
-      
-      /* Loading animation */
-      .loading-container {
-        position: fixed;
-        inset: 0;
+      body {
+        font-family: Arial, sans-serif;
+        margin: 0;
+        padding: 20px;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        min-height: 100vh;
         display: flex;
         align-items: center;
         justify-content: center;
-        background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
-        z-index: 9999;
       }
-      
-      .loading-spinner {
-        width: 40px;
-        height: 40px;
-        border: 3px solid rgba(59, 130, 246, 0.3);
-        border-top: 3px solid #3b82f6;
-        border-radius: 50%;
-        animation: spin 1s linear infinite;
+      .container {
+        text-align: center;
+        max-width: 600px;
       }
-      
-      @keyframes spin {
-        0% { transform: rotate(0deg); }
-        100% { transform: rotate(360deg); }
+      h1 {
+        font-size: 3rem;
+        margin-bottom: 20px;
+        text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
       }
-      
-      /* Hide loading when app is ready */
-      #root:not(:empty) + .loading-container {
-        display: none;
+      .success {
+        background: rgba(255,255,255,0.2);
+        padding: 20px;
+        border-radius: 10px;
+        margin: 20px 0;
+        border-left: 5px solid #4CAF50;
+      }
+      .debug {
+        background: rgba(0,0,0,0.3);
+        padding: 15px;
+        border-radius: 8px;
+        margin-top: 20px;
+        font-size: 14px;
+        text-align: left;
       }
     </style>
   </head>
   <body>
-    <div id="root"></div>
-    <div class="loading-container">
-      <div class="loading-spinner"></div>
-    </div>
-    
-    <!-- Service Worker Registration -->
-    <script>
-      if ('serviceWorker' in navigator) {
-        window.addEventListener('load', () => {
-          navigator.serviceWorker.register('/sw.js')
-            .then((registration) => {
-              console.log('[PWA] Service Worker registered successfully:', registration.scope);
-              
-              // Check for updates
-              registration.addEventListener('updatefound', () => {
-                const newWorker = registration.installing;
-                if (newWorker) {
-                  newWorker.addEventListener('statechange', () => {
-                    if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
-                      // New version available
-                      console.log('[PWA] New version available');
-                      if (window.confirm('Доступна новая версия приложения. Обновить?')) {
-                        window.location.reload();
-                      }
-                    }
-                  });
-                }
-              });
-            })
-            .catch((error) => {
-              console.log('[PWA] Service Worker registration failed:', error);
-            });
-        });
-      }
+    <div class="container">
+      <h1>🚀 Vite Server Test</h1>
 
-      // Handle app shortcuts
-      if (window.location.search.includes('shortcut=')) {
-        const shortcut = new URLSearchParams(window.location.search).get('shortcut');
-        localStorage.setItem('pendingShortcut', shortcut);
-      }
+      <div class="success">
+        <h2 style="color: #4CAF50;">✅ Vite Server Working!</h2>
+        <p>If you can see this page, then Vite is serving static HTML correctly.</p>
+        <p><strong>Time:</strong> <span id="time"></span></p>
+        <p><strong>URL:</strong> <span id="url"></span></p>
+      </div>
+
+      <div class="debug">
+        <h3>🔍 Debug Information:</h3>
+        <p>✅ HTML file loaded successfully</p>
+        <p>✅ CSS styles applied</p>
+        <p>✅ JavaScript executing</p>
+        <p>✅ Server responding on port 3000</p>
+        <p id="userAgent">🔄 Loading user agent...</p>
+      </div>
+
+      <div style="margin-top: 30px;">
+        <button onclick="location.reload()" style="padding: 10px 20px; background: #4CAF50; color: white; border: none; border-radius: 5px; cursor: pointer; font-size: 16px;">
+          🔄 Reload Page
+        </button>
+      </div>
+    </div>
+
+    <script>
+      document.getElementById('time').textContent = new Date().toLocaleString();
+      document.getElementById('url').textContent = window.location.href;
+      document.getElementById('userAgent').textContent = '📱 ' + navigator.userAgent;
+
+      console.log('🚀 Vite Test Page Loaded');
+      console.log('⏰ Time:', new Date().toISOString());
+      console.log('🌐 URL:', window.location.href);
+      console.log('📱 User Agent:', navigator.userAgent);
     </script>
-    
-    <script type="module" src="/main.tsx"></script>
-    
-    <!-- Environment variables can be injected via window.__ENV__ at deploy time if required -->
   </body>
 </html>

@@ -1,0 +1,324 @@
+{
+  "quickFixes": [
+    {
+      "problem": "Engine overheating",
+      "symptoms": [
+        "temperature gauge rising",
+        "steam from hood",
+        "coolant smell"
+      ],
+      "quickFix": {
+        "action": "Check coolant level and add water/coolant if low",
+        "tools": [
+          "coolant",
+          "water",
+          "funnel"
+        ],
+        "timeToFix": "5-10 minutes",
+        "riskLevel": "high",
+        "canDriveAfter": "short distance only",
+        "details": "Turn off AC, turn on heater to max to help cool engine. Pull over safely ASAP."
+      },
+      "severity": "critical",
+      "category": "cooling_system"
+    },
+    {
+      "problem": "Low air pressure warning",
+      "symptoms": [
+        "buzzer sound",
+        "red warning light",
+        "brakes feel different"
+      ],
+      "quickFix": {
+        "action": "Check for air leaks, pump brakes to build pressure",
+        "tools": [
+          "soapy water for leak detection"
+        ],
+        "timeToFix": "10-15 minutes",
+        "riskLevel": "high",
+        "canDriveAfter": "only if pressure builds up",
+        "details": "Listen for hissing sounds. Check air lines and connections. DO NOT drive with low air pressure."
+      },
+      "severity": "critical",
+      "category": "brake_system"
+    },
+    {
+      "problem": "DEF (Diesel Exhaust Fluid) warning",
+      "symptoms": [
+        "DEF warning light",
+        "reduced power",
+        "countdown timer"
+      ],
+      "quickFix": {
+        "action": "Add DEF fluid to tank",
+        "tools": [
+          "DEF fluid",
+          "funnel"
+        ],
+        "timeToFix": "5 minutes",
+        "riskLevel": "medium",
+        "canDriveAfter": "yes, after reset",
+        "details": "Use only proper DEF fluid. Tank usually near fuel tank. Reset warning after filling."
+      },
+      "severity": "medium",
+      "category": "emissions"
+    },
+    {
+      "problem": "Flat tire",
+      "symptoms": [
+        "tire pressure warning",
+        "pulling to one side",
+        "visible flat"
+      ],
+      "quickFix": {
+        "action": "Use tire sealant or change tire if tools available",
+        "tools": [
+          "tire iron",
+          "jack",
+          "spare tire",
+          "tire sealant"
+        ],
+        "timeToFix": "20-30 minutes",
+        "riskLevel": "medium",
+        "canDriveAfter": "slowly to nearest service",
+        "details": "Check all tires for damage. Use hazard lights. Pull over safely."
+      },
+      "severity": "medium",
+      "category": "tires"
+    },
+    {
+      "problem": "Battery warning light",
+      "symptoms": [
+        "battery light on",
+        "dimming lights",
+        "electrical issues"
+      ],
+      "quickFix": {
+        "action": "Check battery connections and alternator belt",
+        "tools": [
+          "wrench set",
+          "wire brush"
+        ],
+        "timeToFix": "10 minutes",
+        "riskLevel": "medium",
+        "canDriveAfter": "short distance to service",
+        "details": "Clean battery terminals. Check if alternator belt is loose or broken."
+      },
+      "severity": "medium",
+      "category": "electrical"
+    },
+    {
+      "problem": "Oil pressure low",
+      "symptoms": [
+        "oil pressure light",
+        "engine knocking",
+        "oil smell"
+      ],
+      "quickFix": {
+        "action": "Check oil level and add oil if needed",
+        "tools": [
+          "engine oil",
+          "funnel",
+          "dipstick"
+        ],
+        "timeToFix": "5 minutes",
+        "riskLevel": "critical",
+        "canDriveAfter": "only if oil level was low and now fixed",
+        "details": "STOP ENGINE IMMEDIATELY if oil pressure light comes on. Check oil level first."
+      },
+      "severity": "critical",
+      "category": "engine"
+    }
+  ],
+  "symptoms": [
+    {
+      "symptom": "knocking sound from engine",
+      "possibleCauses": [
+        "low oil",
+        "bad bearings",
+        "carbon knock",
+        "timing issues"
+      ],
+      "urgency": "critical",
+      "inspectFirst": [
+        "oil level",
+        "oil pressure",
+        "engine temperature"
+      ]
+    },
+    {
+      "symptom": "white smoke from exhaust",
+      "possibleCauses": [
+        "coolant leak",
+        "head gasket",
+        "cracked head",
+        "turbo issues"
+      ],
+      "urgency": "high",
+      "inspectFirst": [
+        "coolant level",
+        "oil condition",
+        "exhaust color consistency"
+      ]
+    },
+    {
+      "symptom": "black smoke from exhaust",
+      "possibleCauses": [
+        "rich fuel mixture",
+        "clogged air filter",
+        "injector problems",
+        "turbo issues"
+      ],
+      "urgency": "medium",
+      "inspectFirst": [
+        "air filter",
+        "fuel system",
+        "turbo operation"
+      ]
+    },
+    {
+      "symptom": "grinding noise when braking",
+      "possibleCauses": [
+        "worn brake pads",
+        "warped rotors",
+        "brake adjustment needed"
+      ],
+      "urgency": "high",
+      "inspectFirst": [
+        "brake pad thickness",
+        "rotor condition",
+        "brake adjustment"
+      ]
+    },
+    {
+      "symptom": "steering wheel vibration",
+      "possibleCauses": [
+        "tire balance",
+        "alignment issues",
+        "worn suspension",
+        "brake issues"
+      ],
+      "urgency": "medium",
+      "inspectFirst": [
+        "tire condition",
+        "wheel balance",
+        "suspension components"
+      ]
+    }
+  ],
+  "emergencyTips": [
+    {
+      "situation": "Engine overheating on highway",
+      "immediateActions": [
+        "Turn on heater to maximum",
+        "Turn off A/C immediately",
+        "Pull over safely as soon as possible",
+        "Turn off engine",
+        "Wait 30+ minutes before opening hood"
+      ],
+      "whatToCheck": [
+        "coolant level",
+        "radiator leaks",
+        "fan operation",
+        "thermostat"
+      ],
+      "temporarySolutions": [
+        "Add water if coolant low",
+        "Remove thermostat if stuck"
+      ],
+      "whenToCallTowing": "If coolant is boiling or major leak found"
+    },
+    {
+      "situation": "Loss of braking power",
+      "immediateActions": [
+        "Pump brakes rapidly",
+        "Use engine brake/jake brake",
+        "Downshift to lower gear",
+        "Use emergency brake gradually",
+        "Look for escape route"
+      ],
+      "whatToCheck": [
+        "brake fluid level",
+        "air pressure (if air brakes)",
+        "brake pedal feel"
+      ],
+      "temporarySolutions": [
+        "Build air pressure if low",
+        "Pump brakes to build pressure"
+      ],
+      "whenToCallTowing": "If no braking power can be restored"
+    },
+    {
+      "situation": "Tire blowout while driving",
+      "immediateActions": [
+        "Keep steering wheel straight",
+        "Do not brake suddenly",
+        "Gradually reduce speed",
+        "Pull over safely",
+        "Turn on hazard lights"
+      ],
+      "whatToCheck": [
+        "other tire conditions",
+        "wheel damage",
+        "suspension damage"
+      ],
+      "temporarySolutions": [
+        "Change to spare if available",
+        "Use tire sealant for small holes"
+      ],
+      "whenToCallTowing": "If no spare tire or wheel damage"
+    }
+  ],
+  "manuals": [
+    {
+      "make": "Freightliner",
+      "model": "Cascadia",
+      "commonIssues": [
+        {
+          "issue": "DEF system problems",
+          "solutions": [
+            "Check DEF quality",
+            "Clean DEF injector",
+            "Reset system"
+          ],
+          "partNumbers": [
+            "A4714700894",
+            "A4714701794"
+          ]
+        },
+        {
+          "issue": "Air leak in brake system",
+          "solutions": [
+            "Check gladhands",
+            "Inspect air lines",
+            "Test compressor"
+          ],
+          "partNumbers": [
+            "A0004201524",
+            "A0004202024"
+          ]
+        }
+      ]
+    },
+    {
+      "make": "Peterbilt",
+      "model": "579",
+      "commonIssues": [
+        {
+          "issue": "EGR valve problems",
+          "solutions": [
+            "Clean EGR valve",
+            "Check EGR cooler",
+            "Reset codes"
+          ],
+          "partNumbers": [
+            "2871746C91",
+            "2871747C91"
+          ]
+        }
+      ]
+    }
+  ],
+  "forumSolutions": [],
+  "lastUpdated": "2025-09-22T15:36:04.691Z"
+}

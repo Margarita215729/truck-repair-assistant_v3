@@ -24,6 +24,7 @@ const Header = memo(function Header({ activeTab, setActiveTab, darkMode, setDark
     { id: 'analysis', label: 'Intelligent Diagnostic Analysis', icon: BarChart3, shortText: 'ANALYSIS' },
     { id: 'reports', label: 'Smart Reports', icon: FileText, shortText: 'REPORTS' },
     { id: 'locations', label: 'Service Locator', icon: MapPin, shortText: 'HELP' },
+    { id: 'test', label: 'AI Test', icon: Truck, shortText: 'TEST' },
   ];
 
   // Optimize callbacks to prevent unnecessary re-renders

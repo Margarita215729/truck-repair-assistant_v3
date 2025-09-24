@@ -7,12 +7,13 @@ import * as kv from './kv_store.tsx';
 
 const app = new Hono();
 
-// Middleware
-app.use('*', cors({
-  origin: '*',
-  allowHeaders: ['*'],
-  allowMethods: ['*'],
-}));
+// Middleware - Disabled CORS for local development
+// app.use('*', cors({
+//   origin: ['http://localhost:3000', 'http://localhost:3010', 'http://localhost:5173', 'http://127.0.0.1:3000', 'http://127.0.0.1:3010', 'http://127.0.0.1:5173', 'https://localhost:3000', 'https://localhost:3010', 'https://localhost:5173'],
+//   allowHeaders: ['*'],
+//   allowMethods: ['*'],
+//   credentials: true,
+// }));
 app.use('*', logger(console.log));
 
 // Supabase client
@@ -289,6 +290,18 @@ app.post(`${PREFIX}/reports/generate`, async (c) => {
   }
 });
 
+// Handle CORS preflight requests - Disabled for local development
+// app.options(`${PREFIX}/ai/analyze`, async (c) => {
+//   return new Response(null, {
+//     status: 200,
+//     headers: {
+//       'Access-Control-Allow-Origin': '*',
+//       'Access-Control-Allow-Headers': '*',
+//       'Access-Control-Allow-Methods': '*',
+//     },
+//   });
+// });
+
 // AI Analysis with GitHub Models
 app.post(`${PREFIX}/ai/analyze`, async (c) => {
   try {
@@ -330,28 +343,35 @@ Provide comprehensive diagnostic analysis with:
 Keep response practical and emergency-focused for a driver stranded on the road.`;
 
     // Call GitHub Models API
-    const response = await fetch('https://models.inference.ai.azure.com/chat/completions', {
+    const response = await fetch('https://models.github.ai/inference/chat/completions', {
       method: 'POST',
       headers: {
-        'Authorization': `Bearer ${Deno.env.get('GITHUB_TOKEN')}`,
+        'Authorization': `Bearer ${Deno.env.get('VITE_GITHUB_TOKEN')}`,
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
         messages: [
           { role: 'user', content: prompt }
         ],
-        model: 'gpt-4o-mini',
+        model: 'xai/grok-3',
         temperature: 0.3,
-        max_tokens: 1000
+        max_tokens: 1500
       })
     });
 
     if (!response.ok) {
-      console.log('GitHub Models API error:', response.status, await response.text());
-      return c.json({ error: 'AI analysis failed' }, 500);
+      const errorText = await response.text();
+      console.log('GitHub Models API error:', response.status, errorText);
+      return c.json({ error: `AI analysis failed: ${response.status} - ${errorText}` }, 500);
     }
 
     const result = await response.json();
+
+    if (!result.choices || !result.choices[0] || !result.choices[0].message || !result.choices[0].message.content) {
+      console.log('Invalid response format from GitHub Models API:', result);
+      return c.json({ error: 'Invalid response format from AI service' }, 500);
+    }
+
     const analysis = result.choices[0].message.content;
     
     // Parse the AI response to extract structured data

@@ -1,22 +1,26 @@
 import React from 'react'
 import ReactDOM from 'react-dom/client'
 import App from './App.tsx'
-import './index.css'
 
-// Simple environment initialization
+console.log('🚀 main.tsx loaded');
+console.log('📁 Current directory:', import.meta.url);
+console.log('🌐 Environment:', import.meta.env.MODE);
+
 try {
-  // Initialize safe environment variables
-  import('./lib/env-init').then(module => {
-    if (module.initEnv) {
-      module.initEnv();
-    }
-  });
-} catch (error) {
-  console.warn('Failed to initialize environment variables:', error);
-}
+  const root = document.getElementById('root');
+  console.log('🎯 Root element found:', !!root);
 
-ReactDOM.createRoot(document.getElementById('root')!).render(
-  <React.StrictMode>
-    <App />
-  </React.StrictMode>,
-)
+  if (!root) {
+    throw new Error('Root element not found');
+  }
+
+  ReactDOM.createRoot(root).render(
+    <React.StrictMode>
+      <App />
+    </React.StrictMode>,
+  )
+
+  console.log('✅ React app rendered successfully');
+} catch (error) {
+  console.error('❌ Failed to render React app:', error);
+}
