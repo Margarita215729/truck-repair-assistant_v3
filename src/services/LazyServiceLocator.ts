@@ -1,4 +1,4 @@
-import { ServiceLocation } from './EnhancedServiceLocatorService';
+import { ServiceLocation } from '../types/serviceLocation';
 import basicService from './BasicServiceLocatorService';
 
 /**

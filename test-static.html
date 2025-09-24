@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Static Test</title>
+    <style>
+        body { font-family: Arial; background: #f0f0f0; text-align: center; padding: 50px; }
+        .success { color: green; font-size: 24px; }
+        .error { color: red; font-size: 24px; }
+    </style>
+</head>
+<body>
+    <h1>Static HTML Test</h1>
+    <p class="success">✅ If you see this, Vite server works!</p>
+    <p>Time: <span id="time"></span></p>
+    <script>
+        document.getElementById('time').textContent = new Date().toISOString();
+        console.log('Static test loaded');
+    </script>
+</body>
+</html>
+

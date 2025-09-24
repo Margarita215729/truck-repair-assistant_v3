@@ -39,7 +39,7 @@ function getEnv(key: string): string {
 export const GOOGLE_MAPS_API_KEY = getEnv('GOOGLE_MAPS_API_KEY');
 export const SUPABASE_URL = getEnv('SUPABASE_URL');
 export const SUPABASE_ANON_KEY = getEnv('SUPABASE_ANON_KEY');
-export const GITHUB_TOKEN = getEnv('GITHUB_TOKEN');
+export const GITHUB_TOKEN = getEnv('VITE_GITHUB_TOKEN');
 
 // Export object with all variables
 export const env = {

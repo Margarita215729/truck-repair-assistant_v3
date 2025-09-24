@@ -1,183 +1,183 @@
-# 🚛 AI-Powered Truck Diagnostic System v2
+# Supabase CLI
 
-**Production-Ready React + TypeScript + Vite Application**
+[![Coverage Status](https://coveralls.io/repos/github/supabase/cli/badge.svg?branch=main)](https://coveralls.io/github/supabase/cli?branch=main) [![Bitbucket Pipelines](https://img.shields.io/bitbucket/pipelines/supabase-cli/setup-cli/master?style=flat-square&label=Bitbucket%20Canary)](https://bitbucket.org/supabase-cli/setup-cli/pipelines) [![Gitlab Pipeline Status](https://img.shields.io/gitlab/pipeline-status/sweatybridge%2Fsetup-cli?label=Gitlab%20Canary)
+](https://gitlab.com/sweatybridge/setup-cli/-/pipelines)
 
-## 🎯 Production Status: READY FOR DEPLOYMENT
+[Supabase](https://supabase.io) is an open source Firebase alternative. We're building the features of Firebase using enterprise-grade open source tools.
 
-✅ **All Critical Systems Operational**  
-✅ **TypeScript Errors: Resolved (Build Successful)**  
-✅ **Test Suite: All Core Tests Passing**  
-✅ **Deployment: Vercel-Ready Configuration**  
-✅ **Error Handling: Production-Grade Safety**  
+This repository contains all the functionality for Supabase CLI.
 
-## 🚀 Live Demo
+- [x] Running Supabase locally
+- [x] Managing database migrations
+- [x] Creating and deploying Supabase Functions
+- [x] Generating types directly from your database schema
+- [x] Making authenticated HTTP requests to [Management API](https://supabase.com/docs/reference/api/introduction)
 
-**Production Deployment**: [truck-repair-assistant-v2.vercel.app](https://truck-repair-assistant-v2.vercel.app)
+## Getting started
 
-## ✨ Production Features
+### Install the CLI
 
-### 🎵 Real-Time Audio Analysis
-- **15+ Component Detection**: Engine, transmission, brakes, air system, suspension
-- **Scientific DSP Algorithms**: FFT, MFCC, spectral analysis, harmonic detection
-- **85-95% Diagnostic Accuracy**: Professional-grade precision
-- **2-5 Second Analysis Time**: Real-time processing
-
-### 🤖 AI-Enhanced Diagnostics  
-- **GitHub Models Integration**: GPT-4o-mini with truck-specific training
-- **Multi-modal Analysis**: Audio + text symptoms + component data
-- **Safety Risk Assessment**: Critical issue identification
-- **Cost Estimation**: Parts + labor breakdown with supplier integration
-
-### 📊 Smart Reporting System
-- **PDF Generation**: Comprehensive diagnostic reports
-- **Data Visualization**: Interactive charts and graphs
-- **Historical Tracking**: Maintenance timeline and trends
-- **Export Options**: Multiple formats for fleet management
-
-### 🗺️ Emergency Services Integration
-- **Real-time Location Services**: Google Maps + Places API
-- **Service Provider Network**: Repair shops, parts suppliers, tow trucks
-- **Emergency Protocols**: Critical failure response system
-- **Route Optimization**: Fastest path to nearest qualified service
-
-### 📱 Progressive Web App
-- **Offline Capability**: Core diagnostics work without internet
-- **Native Installation**: iOS, Android, Desktop support
-- **Push Notifications**: Critical alert system
-- **Background Processing**: Continuous monitoring capability
-
-## 🛠️ Production Tech Stack
-
-- **Frontend**: React 18 + TypeScript + Vite 6
-- **Styling**: Tailwind CSS v4 + Shadcn/UI Components  
-- **Backend**: Supabase (PostgreSQL + Edge Functions)
-- **AI/ML**: GitHub Models API + Custom Audio Processing
-- **Maps**: Google Maps API + Places API
-- **Audio**: Web Audio API + Custom DSP Implementation
-- **Deployment**: Vercel with automatic CI/CD
-- **Monitoring**: Built-in health checks + error tracking
-
-## 🚀 Quick Start
-
-### Prerequisites
-
-- Node.js 18.0.0+
-- npm/yarn
-- API Keys: Supabase, Google Cloud, GitHub
-
-### Installation
+Available via [NPM](https://www.npmjs.com) as dev dependency. To install:
 
 ```bash
-# Clone and install
-git clone https://github.com/Margarita215729/truck-repair-assistant_v2.git
-cd truck-repair-assistant_v2
-npm install
-
-# Configure environment
-cp .env.example .env.local
-# Add your API keys to .env.local
-
-# Start development
-npm run dev
+npm i supabase --save-dev
 ```
 
-### Environment Variables
+To install the beta release channel:
 
 ```bash
-VITE_SUPABASE_URL=your_supabase_project_url
-VITE_SUPABASE_ANON_KEY=your_supabase_anon_key  
-VITE_GOOGLE_MAPS_API_KEY=your_google_maps_api_key
-GITHUB_TOKEN=your_github_personal_access_token
+npm i supabase@beta --save-dev
 ```
 
-## 📦 Production Deployment
+When installing with yarn 4, you need to disable experimental fetch with the following nodejs config.
 
-### Vercel (Recommended)
+```
+NODE_OPTIONS=--no-experimental-fetch yarn add supabase
+```
+
+> **Note**
+For Bun versions below v1.0.17, you must add `supabase` as a [trusted dependency](https://bun.sh/guides/install/trusted) before running `bun add -D supabase`.
+
+<details>
+  <summary><b>macOS</b></summary>
+
+  Available via [Homebrew](https://brew.sh). To install:
+
+  ```sh
+  brew install supabase/tap/supabase
+  ```
+
+  To install the beta release channel:
+  
+  ```sh
+  brew install supabase/tap/supabase-beta
+  brew link --overwrite supabase-beta
+  ```
+  
+  To upgrade:
+
+  ```sh
+  brew upgrade supabase
+  ```
+</details>
+
+<details>
+  <summary><b>Windows</b></summary>
+
+  Available via [Scoop](https://scoop.sh). To install:
+
+  ```powershell
+  scoop bucket add supabase https://github.com/supabase/scoop-bucket.git
+  scoop install supabase
+  ```
+
+  To upgrade:
+
+  ```powershell
+  scoop update supabase
+  ```
+</details>
+
+<details>
+  <summary><b>Linux</b></summary>
+
+  Available via [Homebrew](https://brew.sh) and Linux packages.
+
+  #### via Homebrew
+
+  To install:
+
+  ```sh
+  brew install supabase/tap/supabase
+  ```
+
+  To upgrade:
+
+  ```sh
+  brew upgrade supabase
+  ```
+
+  #### via Linux packages
+
+  Linux packages are provided in [Releases](https://github.com/supabase/cli/releases). To install, download the `.apk`/`.deb`/`.rpm`/`.pkg.tar.zst` file depending on your package manager and run the respective commands.
+
+  ```sh
+  sudo apk add --allow-untrusted <...>.apk
+  ```
+
+  ```sh
+  sudo dpkg -i <...>.deb
+  ```
+
+  ```sh
+  sudo rpm -i <...>.rpm
+  ```
+
+  ```sh
+  sudo pacman -U <...>.pkg.tar.zst
+  ```
+</details>
+
+<details>
+  <summary><b>Other Platforms</b></summary>
+
+  You can also install the CLI via [go modules](https://go.dev/ref/mod#go-install) without the help of package managers.
+
+  ```sh
+  go install github.com/supabase/cli@latest
+  ```
+
+  Add a symlink to the binary in `$PATH` for easier access:
+
+  ```sh
+  ln -s "$(go env GOPATH)/bin/cli" /usr/bin/supabase
+  ```
+
+  This works on other non-standard Linux distros.
+</details>
+
+<details>
+  <summary><b>Community Maintained Packages</b></summary>
+
+  Available via [pkgx](https://pkgx.sh/). Package script [here](https://github.com/pkgxdev/pantry/blob/main/projects/supabase.com/cli/package.yml).
+  To install in your working directory:
+
+  ```bash
+  pkgx install supabase
+  ```
+
+  Available via [Nixpkgs](https://nixos.org/). Package script [here](https://github.com/NixOS/nixpkgs/blob/master/pkgs/development/tools/supabase-cli/default.nix).
+</details>
+
+### Run the CLI
 
 ```bash
-# Test production readiness
-npm run deploy-prepare
-npm run test
-npm run build
-
-# Deploy to Vercel
-npm i -g vercel
-vercel login
-vercel
-
-# Configure environment variables in Vercel Dashboard
+supabase bootstrap
 ```
 
-### Build Optimization
+Or using npx:
 
-- **Bundle Size**: ~815KB total (gzipped: ~219KB)
-- **CSS**: 81.7KB (gzipped: 13.85KB)  
-- **JavaScript**: 733KB (gzipped: 175KB)
-- **Load Time**: < 3 seconds on 3G
-- **Performance Score**: 95+ (Lighthouse)
-
-## 🧪 Production Testing
-
-### Automated Test Suite
 ```bash
-npm run test        # Comprehensive system tests
-npm run type-check  # TypeScript validation
-npm run build       # Production build test
+npx supabase bootstrap
 ```
 
-### Manual Validation Checklist
-- [ ] Audio recording functionality
-- [ ] AI diagnostic analysis  
-- [ ] Map service integration
-- [ ] Report generation
-- [ ] PWA installation
-- [ ] Offline functionality
-- [ ] Error handling
-- [ ] Performance metrics
+The bootstrap command will guide you through the process of setting up a Supabase project using one of the [starter](https://github.com/supabase-community/supabase-samples/blob/main/samples.json) templates.
 
-## 🔒 Production Security
+## Docs
 
-- **API Key Protection**: Environment-based configuration
-- **Error Sanitization**: Safe error message handling  
-- **Input Validation**: Comprehensive data validation
-- **HTTPS Enforcement**: SSL/TLS encryption
-- **CSP Headers**: Content Security Policy
-- **Rate Limiting**: API abuse prevention
+Command & config reference can be found [here](https://supabase.com/docs/reference/cli/about).
 
-## 📊 Production Monitoring
+## Breaking changes
 
-- **Health Checks**: Built-in system status monitoring
-- **Error Tracking**: Comprehensive error logging
-- **Performance Metrics**: Real-time system performance
-- **API Monitoring**: Service availability tracking
-- **User Analytics**: Usage pattern analysis
+We follow semantic versioning for changes that directly impact CLI commands, flags, and configurations.
 
-## 🚛 Real-World Applications
+However, due to dependencies on other service images, we cannot guarantee that schema migrations, seed.sql, and generated types will always work for the same CLI major version. If you need such guarantees, we encourage you to pin a specific version of CLI in package.json.
 
-### Fleet Management
-- **Predictive Maintenance**: Early problem detection
-- **Cost Optimization**: Prevent major failures
-- **Downtime Reduction**: 60-80% faster diagnostics
-- **Safety Enhancement**: Critical issue identification
+## Developing
 
-### Independent Truckers  
-- **Self-Diagnosis**: Reduce service call costs
-- **Emergency Support**: 24/7 diagnostic capability
-- **Maintenance Planning**: Proactive care scheduling
-- **Knowledge Base**: Learn from diagnostic patterns
+To run from source:
 
-## 📄 License
-
-MIT License - Open source with commercial use allowed
-
-## 🤝 Contributing
-
-1. Fork repository
-2. Create feature branch: `git checkout -b feature/amazing-feature`
-3. Commit changes: `git commit -m 'Add amazing feature'`
-4. Push to branch: `git push origin feature/amazing-feature`
-5. Submit Pull Request
-
----
-
-**🎉 Production Status: READY FOR REAL-WORLD DEPLOYMENT** 🚛
+```sh
+# Go >= 1.22
+go run . help
+```
