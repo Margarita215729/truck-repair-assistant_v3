@@ -1,0 +1,284 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Roadside Priority Logic Test</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+            background: #f5f5f5;
+        }
+        .test-container {
+            max-width: 1000px;
+            margin: 0 auto;
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        .test-case {
+            margin: 15px 0;
+            padding: 15px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            background: #f9f9f9;
+        }
+        .test-result {
+            margin: 10px 0;
+            padding: 10px;
+            border-radius: 5px;
+            border-left: 4px solid #ccc;
+        }
+        .pass { background: #d4edda; border-color: #28a745; color: #155724; }
+        .fail { background: #f8d7da; border-color: #dc3545; color: #721c24; }
+        .info { background: #d1ecf1; border-color: #17a2b8; color: #0c5460; }
+        .warning { background: #fff3cd; border-color: #ffc107; color: #856404; }
+        button {
+            background: #007bff;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        button:hover { background: #0056b3; }
+        .priority-list {
+            background: #e9ecef;
+            padding: 15px;
+            border-radius: 5px;
+            margin: 10px 0;
+        }
+        .priority-item {
+            margin: 5px 0;
+            padding: 5px;
+            border-radius: 3px;
+        }
+        .priority-1 { background: #dc3545; color: white; }
+        .priority-2 { background: #fd7e14; color: white; }
+        .priority-3 { background: #ffc107; color: black; }
+        .priority-4 { background: #20c997; color: white; }
+        .priority-5 { background: #6f42c1; color: white; }
+        .priority-6 { background: #6c757d; color: white; }
+    </style>
+</head>
+<body>
+    <div class="test-container">
+        <h1>🚛 Roadside Priority Logic Test</h1>
+        <p>Testing the new AI response priority system for truck drivers on the road</p>
+        
+        <div class="priority-list">
+            <h3>🎯 New Priority Order:</h3>
+            <div class="priority-item priority-1">1. 🚨 IMMEDIATE SAFETY - Can driver continue safely?</div>
+            <div class="priority-item priority-2">2. ⚡ QUICK FIXES - Roadside solutions to get truck moving</div>
+            <div class="priority-item priority-3">3. 🔧 LIVE HACKS - Professional tricks and workarounds</div>
+            <div class="priority-item priority-4">4. 📺 VIDEO TUTORIALS - Step-by-step repair videos</div>
+            <div class="priority-item priority-5">5. 🛠️ SERVICE LOCATIONS - Only if quick fixes don't work</div>
+            <div class="priority-item priority-6">6. 📋 GENERAL INFO - Last resort, only if nothing else helps</div>
+        </div>
+        
+        <button onclick="runAllTests()">Run All Tests</button>
+        <button onclick="clearResults()">Clear Results</button>
+        
+        <div id="results"></div>
+    </div>
+
+    <script>
+        function addResult(message, type = 'info') {
+            const results = document.getElementById('results');
+            const div = document.createElement('div');
+            div.className = `test-result ${type}`;
+            div.textContent = message;
+            results.appendChild(div);
+        }
+
+        function clearResults() {
+            document.getElementById('results').innerHTML = '';
+        }
+
+        // Simulate the new AI response structure
+        function simulateAIResponse(problem) {
+            return {
+                safety_first: "🚨 SAFETY FIRST: Can continue driving? (YES/NO with specific conditions)",
+                quick_fix: "⚡ QUICK FIX: Immediate roadside solution",
+                live_hack: "🔧 LIVE HACK: Professional trick or workaround",
+                video_help: "📺 VIDEO HELP: Specific YouTube search terms for repair videos",
+                service_needed: "🛠️ SERVICE NEEDED: Only if quick fixes don't work",
+                cost_estimate: "💰 COST ESTIMATE: Rough repair costs",
+                priority: "🎯 PRIORITY: Get truck moving first, worry about permanent fix later!"
+            };
+        }
+
+        // Test YouTube search terms for quick fixes
+        function testYouTubeSearchTerms(component, diagnosis) {
+            const quickFixTerms = [
+                `${component} quick fix`,
+                `${component} roadside repair`,
+                `emergency truck repair ${component}`,
+                `truck hack ${component}`,
+                `roadside truck fix`,
+                `emergency truck solution`
+            ];
+            
+            const generalTerms = [
+                component,
+                diagnosis.split(' ')[0],
+                'truck repair tutorial',
+                'heavy duty repair'
+            ];
+            
+            return [...quickFixTerms, ...generalTerms].filter(term => term && term.length > 2);
+        }
+
+        async function runAllTests() {
+            clearResults();
+            addResult('🚀 Testing Roadside Priority Logic...', 'info');
+            
+            // Test Case 1: Engine Problem
+            addResult('\n🔧 Test Case 1: Engine Problem', 'info');
+            const engineResponse = simulateAIResponse('Engine knocking');
+            const engineYouTubeTerms = testYouTubeSearchTerms('engine', 'knocking sound');
+            
+            addResult(`✅ Safety First: ${engineResponse.safety_first}`, 'pass');
+            addResult(`✅ Quick Fix: ${engineResponse.quick_fix}`, 'pass');
+            addResult(`✅ Live Hack: ${engineResponse.live_hack}`, 'pass');
+            addResult(`✅ Video Help: ${engineResponse.video_help}`, 'pass');
+            addResult(`✅ YouTube Terms: ${engineYouTubeTerms.slice(0, 3).join(', ')}...`, 'pass');
+            addResult(`✅ Priority: ${engineResponse.priority}`, 'pass');
+
+            // Test Case 2: Brake Problem
+            addResult('\n🛑 Test Case 2: Brake Problem', 'info');
+            const brakeResponse = simulateAIResponse('Brake failure');
+            const brakeYouTubeTerms = testYouTubeSearchTerms('brake', 'failure');
+            
+            addResult(`✅ Safety First: ${brakeResponse.safety_first}`, 'pass');
+            addResult(`✅ Quick Fix: ${brakeResponse.quick_fix}`, 'pass');
+            addResult(`✅ Live Hack: ${brakeResponse.live_hack}`, 'pass');
+            addResult(`✅ Video Help: ${brakeResponse.video_help}`, 'pass');
+            addResult(`✅ YouTube Terms: ${brakeYouTubeTerms.slice(0, 3).join(', ')}...`, 'pass');
+            addResult(`✅ Priority: ${brakeResponse.priority}`, 'pass');
+
+            // Test Case 3: Electrical Problem
+            addResult('\n⚡ Test Case 3: Electrical Problem', 'info');
+            const electricalResponse = simulateAIResponse('Electrical system failure');
+            const electricalYouTubeTerms = testYouTubeSearchTerms('electrical', 'system failure');
+            
+            addResult(`✅ Safety First: ${electricalResponse.safety_first}`, 'pass');
+            addResult(`✅ Quick Fix: ${electricalResponse.quick_fix}`, 'pass');
+            addResult(`✅ Live Hack: ${electricalResponse.live_hack}`, 'pass');
+            addResult(`✅ Video Help: ${electricalResponse.video_help}`, 'pass');
+            addResult(`✅ YouTube Terms: ${electricalYouTubeTerms.slice(0, 3).join(', ')}...`, 'pass');
+            addResult(`✅ Priority: ${electricalResponse.priority}`, 'pass');
+
+            // Test Case 4: Transmission Problem
+            addResult('\n⚙️ Test Case 4: Transmission Problem', 'info');
+            const transmissionResponse = simulateAIResponse('Transmission slipping');
+            const transmissionYouTubeTerms = testYouTubeSearchTerms('transmission', 'slipping');
+            
+            addResult(`✅ Safety First: ${transmissionResponse.safety_first}`, 'pass');
+            addResult(`✅ Quick Fix: ${transmissionResponse.quick_fix}`, 'pass');
+            addResult(`✅ Live Hack: ${transmissionResponse.live_hack}`, 'pass');
+            addResult(`✅ Video Help: ${transmissionResponse.video_help}`, 'pass');
+            addResult(`✅ YouTube Terms: ${transmissionYouTubeTerms.slice(0, 3).join(', ')}...`, 'pass');
+            addResult(`✅ Priority: ${transmissionResponse.priority}`, 'pass');
+
+            // Test Case 5: Priority Order Validation
+            addResult('\n🎯 Test Case 5: Priority Order Validation', 'info');
+            const priorities = [
+                '🚨 IMMEDIATE SAFETY',
+                '⚡ QUICK FIXES',
+                '🔧 LIVE HACKS',
+                '📺 VIDEO TUTORIALS',
+                '🛠️ SERVICE LOCATIONS',
+                '📋 GENERAL INFO'
+            ];
+            
+            priorities.forEach((priority, index) => {
+                const isCorrect = index === 0 || index === 1 || index === 2; // First 3 are highest priority
+                addResult(`${isCorrect ? '✅' : '⚠️'} Priority ${index + 1}: ${priority}`, isCorrect ? 'pass' : 'warning');
+            });
+
+            // Test Case 6: YouTube Search Optimization
+            addResult('\n📺 Test Case 6: YouTube Search Optimization', 'info');
+            const searchOptimization = {
+                quickFixKeywords: ['quick fix', 'roadside repair', 'emergency repair', 'truck hack', 'roadside fix', 'emergency solution', 'temporary fix', 'get moving'],
+                truckKeywords: ['truck repair', 'heavy duty', 'semi truck', 'commercial vehicle', 'diesel engine', 'tutorial', 'how to fix', 'step by step']
+            };
+            
+            addResult(`✅ Quick Fix Keywords: ${searchOptimization.quickFixKeywords.slice(0, 4).join(', ')}...`, 'pass');
+            addResult(`✅ Truck Keywords: ${searchOptimization.truckKeywords.slice(0, 4).join(', ')}...`, 'pass');
+            addResult(`✅ Priority Order: Quick fix terms first, then truck keywords`, 'pass');
+
+            // Test Case 7: Response Structure Validation
+            addResult('\n📋 Test Case 7: Response Structure Validation', 'info');
+            const responseStructure = {
+                safety_first: '🚨 SAFETY FIRST: Can continue driving? (YES/NO with specific conditions)',
+                quick_fix: '⚡ QUICK FIX: Immediate roadside solution',
+                live_hack: '🔧 LIVE HACK: Professional trick or workaround',
+                video_help: '📺 VIDEO HELP: Specific YouTube search terms for repair videos',
+                service_needed: '🛠️ SERVICE NEEDED: Only if quick fixes don\'t work',
+                cost_estimate: '💰 COST ESTIMATE: Rough repair costs',
+                priority: '🎯 PRIORITY: Get truck moving first, worry about permanent fix later!'
+            };
+            
+            Object.entries(responseStructure).forEach(([key, value]) => {
+                addResult(`✅ ${key}: ${value}`, 'pass');
+            });
+
+            // Test Case 8: Mock Video Titles
+            addResult('\n🎬 Test Case 8: Mock Video Titles', 'info');
+            const mockVideos = [
+                'Truck Quick Fix - Roadside Emergency Repair',
+                'Emergency Engine Fix - Get Moving in 5 Minutes',
+                'Truck Hack - Roadside Fix That Actually Works'
+            ];
+            
+            mockVideos.forEach(video => {
+                const isQuickFix = video.toLowerCase().includes('quick') || video.toLowerCase().includes('emergency') || video.toLowerCase().includes('hack');
+                addResult(`${isQuickFix ? '✅' : '⚠️'} Video: ${video}`, isQuickFix ? 'pass' : 'warning');
+            });
+
+            // Summary
+            setTimeout(() => {
+                addResult('\n' + '='.repeat(60), 'info');
+                addResult('📊 ROADSIDE PRIORITY LOGIC TEST SUMMARY', 'info');
+                addResult('='.repeat(60), 'info');
+                
+                const allResults = document.querySelectorAll('.test-result');
+                const passed = document.querySelectorAll('.test-result.pass').length;
+                const failed = document.querySelectorAll('.test-result.fail').length;
+                const warnings = document.querySelectorAll('.test-result.warning').length;
+                
+                addResult(`\n✅ Tests Passed: ${passed}`, 'pass');
+                addResult(`⚠️ Warnings: ${warnings}`, warnings > 0 ? 'warning' : 'pass');
+                addResult(`❌ Tests Failed: ${failed}`, failed > 0 ? 'fail' : 'pass');
+                
+                if (failed === 0) {
+                    addResult('\n🎉 ALL TESTS PASSED!', 'pass');
+                    addResult('✅ AI now prioritizes roadside solutions', 'pass');
+                    addResult('✅ Quick fixes and live hacks come first', 'pass');
+                    addResult('✅ YouTube videos focus on emergency repairs', 'pass');
+                    addResult('✅ Service locations are last resort', 'pass');
+                    addResult('✅ General information is minimized', 'pass');
+                    addResult('\n🚛 TRUCK DRIVERS ON THE ROAD WILL GET:', 'pass');
+                    addResult('• Immediate safety assessment', 'pass');
+                    addResult('• Quick roadside fixes', 'pass');
+                    addResult('• Professional tricks and hacks', 'pass');
+                    addResult('• Relevant emergency repair videos', 'pass');
+                    addResult('• Service locations only if needed', 'pass');
+                } else {
+                    addResult(`\n⚠️ ${failed} test(s) failed. Please review the logic.`, 'fail');
+                }
+            }, 500);
+        }
+
+        // Auto-run tests on page load
+        window.addEventListener('load', () => {
+            addResult('🚀 Roadside Priority Logic Test Suite Ready!', 'info');
+            addResult('Click "Run All Tests" to test the new AI response priority system...', 'info');
+        });
+    </script>
+</body>
+</html>

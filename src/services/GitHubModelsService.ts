@@ -1,4 +1,5 @@
 import { getErrorMessage } from "../utils/error-handling";
+import { YouTubeSearchService, YouTubeVideo } from './YouTubeSearchService';
 /**
  * GitHub Models Service for Fine-tuning and Inference
  * Handles training data preparation, model fine-tuning, and inference
@@ -51,26 +52,25 @@ export interface DiagnosticResponse {
   component: string;
   failure_type: string;
   urgency: 'low' | 'medium' | 'high' | 'critical';
-  safety_assessment: {
-    can_continue: boolean;
-    max_distance: number;
-    speed_limit: number;
-    warnings: string[];
-  };
-  repair_information: {
-    estimated_cost: string;
-    repair_time: string;
-    difficulty_level: string;
-    required_tools: string[];
-    parts_needed: string[];
-  };
+  can_continue: boolean; // Simplified for quick access
+  quick_fixes?: string[]; // New: Roadside solutions
+  live_hacks?: string[]; // New: Professional tricks
   immediate_actions: string[];
-  preventive_measures: string[];
+  repair_recommendations?: string[];
+  prevention_tips?: string[];
+  cost_estimate?: {
+    min: number;
+    max: number;
+  };
+  difficulty?: 'easy' | 'moderate' | 'hard' | 'expert';
+  video_search_terms?: string[];
   confidence_score: number;
+  youtube_videos?: YouTubeVideo[];
 }
 
 export class GitHubModelsService {
   private readonly BASE_URL = 'https://models.inference.ai.azure.com'
+  private youtubeService: YouTubeSearchService;
   private dynamicPricingService?: any; // Lazy load to avoid circular imports;
   private readonly API_VERSION = '2024-02-01';
   private apiKey: string;
@@ -78,6 +78,7 @@ export class GitHubModelsService {
 
   constructor(apiKey?: string) {
     this.apiKey = apiKey || this.getApiKey();
+    this.youtubeService = new YouTubeSearchService();
     // Check if we have a fine-tuned model available
     this.loadFineTunedModel();
     
@@ -157,7 +158,31 @@ export class GitHubModelsService {
 - Audio-based component failure detection
 - Emergency roadside assessment
 
-Provide comprehensive, practical diagnostic advice focused on driver safety and cost-effective repairs.`
+CRITICAL PRIORITY ORDER FOR RESPONSES:
+1. 🚨 IMMEDIATE SAFETY - Can driver continue safely?
+2. ⚡ QUICK FIXES - Roadside solutions to get truck moving
+3. 🔧 LIVE HACKS - Professional tricks and workarounds
+4. 📺 VIDEO TUTORIALS - Step-by-step repair videos
+5. 🛠️ SERVICE LOCATIONS - Only if quick fixes don't work
+6. 📋 GENERAL INFO - Last resort, only if nothing else helps
+
+IMPORTANT FORMATTING RULES:
+- Use ONLY emojis and bullet points for structure
+- NO asterisks (*), underscores (_), or markdown formatting
+- NO technical symbols like **, __, or ##
+- Keep responses clean and professional for truck drivers
+- ALWAYS include relevant YouTube video search terms
+- Focus on GETTING THE TRUCK MOVING, not general information
+
+RESPONSE STRUCTURE:
+🚨 SAFETY FIRST: Can continue driving? (YES/NO with specific conditions)
+⚡ QUICK FIX: Immediate roadside solution
+🔧 LIVE HACK: Professional trick or workaround
+📺 VIDEO HELP: Specific YouTube search terms for repair videos
+🛠️ SERVICE NEEDED: Only if quick fixes don't work
+💰 COST ESTIMATE: Rough repair costs
+
+Remember: Driver is ON THE ROAD and needs to keep moving. Prioritize quick solutions over general information.`
         },
         {
           role: "user", 
@@ -197,21 +222,33 @@ Symptoms: ${input.symptoms}`;
   }
 
   private formatDiagnosticResponse(output: any): string {
-    return `COMPREHENSIVE TRUCK DIAGNOSTIC ANALYSIS:
+    return `ROADSIDE TRUCK DIAGNOSTIC - GET YOU MOVING:
 
-🔧 PRIMARY DIAGNOSIS: ${output.diagnosis}
+🚨 SAFETY FIRST:
+• Can Continue Driving: ${output.can_continue ? 'YES (with specific conditions)' : 'NO - STOP IMMEDIATELY'}
+• Safety Risk: ${output.urgency === 'critical' ? 'EXTREME - DO NOT DRIVE' : output.urgency === 'high' ? 'HIGH - Drive with extreme caution' : 'MODERATE - Monitor closely'}
 
-📋 COMPONENT DETAILS:
+⚡ QUICK FIX (Roadside Solution):
+${output.quick_fixes?.map((fix: string) => `• ${fix}`).join('\n') || output.immediate_actions.map((action: string) => `• ${action}`).join('\n')}
+
+🔧 LIVE HACK (Professional Trick):
+${output.live_hacks?.map((hack: string) => `• ${hack}`).join('\n') || '• Check connections and try restarting engine'}
+
+📺 VIDEO HELP (YouTube Search):
+• Search: "${output.video_search_terms?.join('" OR "') || `${output.component} roadside fix tutorial`}"
+• Quick fix videos: "Emergency truck repair", "Roadside truck hack"
+• Professional channels: Heavy Duty Mechanics, Truck Repair Pro
+
+🛠️ SERVICE NEEDED (Only if quick fixes fail):
 • Component: ${output.component}
-• Failure Type: ${output.failure_type}
-• Urgency Level: ${output.urgency.toUpperCase()}
+• Failure: ${output.failure_type}
+• Urgency: ${output.urgency.toUpperCase()}
 
-🚨 SAFETY ASSESSMENT:
-• Can Continue Driving: ${output.can_continue ? 'YES (with caution)' : 'NO - STOP IMMEDIATELY'}
-• Safety Risk Level: ${output.urgency === 'critical' ? 'EXTREME' : output.urgency === 'high' ? 'HIGH' : 'MODERATE'}
+💰 ROUGH COST ESTIMATE:
+• Quick fix: $0-50 (if you can do it)
+• Professional repair: $${output.cost_estimate?.min || '500'}-$${output.cost_estimate?.max || '2000'}
 
-⚡ IMMEDIATE ACTIONS:
-${output.immediate_actions.map((action: string) => `• ${action}`).join('\n')}
+🎯 PRIORITY: Get truck moving first, worry about permanent fix later!
 
 💰 REPAIR INFORMATION:
 • Estimated Cost: ${output.repair_cost_range}
@@ -303,6 +340,64 @@ This analysis is based on extensive truck diagnostic expertise and real-world re
   }
 
   /**
+   * Get relevant YouTube videos for the diagnostic response
+   */
+  private async getRelevantYouTubeVideos(response: DiagnosticResponse): Promise<YouTubeVideo[]> {
+    try {
+      // Prioritize quick fix and roadside repair videos
+      const quickFixTerms = [
+        `${response.component} quick fix`,
+        `${response.component} roadside repair`,
+        `emergency truck repair ${response.component}`,
+        `truck hack ${response.component}`,
+        `roadside truck fix`,
+        `emergency truck solution`
+      ];
+      
+      const generalTerms = [
+        response.component,
+        response.diagnosis.split(' ')[0],
+        'truck repair tutorial',
+        'heavy duty repair'
+      ];
+      
+      // Combine quick fix terms with general terms
+      const searchTerms = [...quickFixTerms, ...generalTerms].filter(term => term && term.length > 2);
+
+      const youtubeResult = await this.youtubeService.searchTruckRepairVideos(searchTerms, 3);
+      return youtubeResult.videos;
+    } catch (error) {
+      console.warn('Failed to fetch YouTube videos:', error);
+      return [];
+    }
+  }
+
+  /**
+   * Clean AI response from technical symbols and formatting
+   */
+  private cleanAIResponse(response: string): string {
+    return response
+      // Remove markdown formatting
+      .replace(/\*\*(.*?)\*\*/g, '$1')
+      .replace(/\*(.*?)\*/g, '$1')
+      .replace(/__(.*?)__/g, '$1')
+      .replace(/_(.*?)_/g, '$1')
+      .replace(/##\s*(.*?)$/gm, '$1')
+      .replace(/#\s*(.*?)$/gm, '$1')
+      // Remove code blocks
+      .replace(/```[\s\S]*?```/g, '')
+      .replace(/`(.*?)`/g, '$1')
+      // Clean up extra whitespace
+      .replace(/\n\s*\n\s*\n/g, '\n\n')
+      .replace(/^\s+|\s+$/gm, '')
+      // Remove technical symbols
+      .replace(/[`~^]/g, '')
+      // Clean up bullet points
+      .replace(/^\s*[-*+]\s+/gm, '• ')
+      .trim();
+  }
+
+  /**
    * Enhanced diagnostic analysis using fine-tuned model with retry logic and error handling
    */
   async analyzeTruckDiagnostic(prompt: DiagnosticPrompt, retryCount: number = 3): Promise<DiagnosticResponse> {
@@ -357,10 +452,17 @@ IMPORTANT: Always respond with structured information including diagnosis, compo
           throw new Error('Invalid response format from API');
         }
 
-        const analysisText = result.choices[0].message.content;
+        const rawAnalysisText = result.choices[0].message.content;
+        
+        // Clean the AI response from technical symbols
+        const analysisText = this.cleanAIResponse(rawAnalysisText);
 
         // Parse the structured response
         const parsedResponse = this.parseAnalysisResponse(analysisText);
+        
+        // Add YouTube videos to the response
+        const youtubeVideos = await this.getRelevantYouTubeVideos(parsedResponse);
+        parsedResponse.youtube_videos = youtubeVideos;
         
         // Validate the parsed response
         this.validateDiagnosticResponse(parsedResponse);
@@ -621,24 +723,28 @@ Format response with clear sections and actionable information for emergency roa
     let failureType = '';
     let urgency: 'low' | 'medium' | 'high' | 'critical' = 'medium';
     let canContinue = true;
-    let estimatedCost = '$300-800';
-    let repairTime = '2-4 hours';
-    let difficultyLevel = 'moderate';
+    let quickFixes: string[] = [];
+    let liveHacks: string[] = [];
     let immediateActions: string[] = [];
-    let partsNeeded: string[] = [];
-    let requiredTools: string[] = [];
+    let repairRecommendations: string[] = [];
+    let preventionTips: string[] = [];
+    let costEstimate = { min: 300, max: 800 };
+    let difficulty: 'easy' | 'moderate' | 'hard' | 'expert' = 'moderate';
+    let videoSearchTerms: string[] = [];
     let confidenceScore = 0.85;
     
-    // Enhanced pattern matching with regex
+    // Enhanced pattern matching with regex for roadside-focused responses
     const patterns = {
       diagnosis: /(?:diagnosis|primary.*?diagnosis|most likely cause):\s*(.+)/i,
       component: /(?:component|system):\s*(.+)/i,
       urgency: /(?:urgency|priority).*?:\s*(critical|high|medium|low)/i,
-      canContinue: /(stop immediately|do not (?:continue|drive)|cannot continue|safe to continue|can continue)/i,
+      canContinue: /(?:can continue|safe to continue|yes.*?continue|no.*?stop|stop immediately|do not.*?drive)/i,
+      quickFix: /(?:quick fix|roadside solution|immediate fix|emergency fix):\s*(.+)/i,
+      liveHack: /(?:live hack|professional trick|workaround|hack):\s*(.+)/i,
       cost: /(?:cost|price).*?:\s*\$?(\d+(?:,\d{3})*(?:-\$?\d+(?:,\d{3})*)?)/i,
-      time: /(?:time|duration).*?:\s*(\d+(?:\.\d+)?)\s*(?:hours?|hrs?|minutes?|mins?)/i,
       difficulty: /(?:difficulty|complexity).*?:\s*(easy|moderate|difficult|complex|expert)/i,
-      confidence: /confidence.*?:\s*(\d+)%?/i
+      confidence: /confidence.*?:\s*(\d+)%?/i,
+      videoSearch: /(?:video|youtube|search).*?:\s*(.+)/i
     };
     
     // Extract structured information
@@ -667,27 +773,45 @@ Format response with clear sections and actionable information for emergency roa
       const safetyMatch = line.match(patterns.canContinue);
       if (safetyMatch) {
         const safetyText = safetyMatch[1].toLowerCase();
-        canContinue = safetyText.includes('safe') || safetyText.includes('can continue');
+        canContinue = safetyText.includes('safe') || safetyText.includes('can continue') || safetyText.includes('yes');
+      }
+      
+      // Extract quick fixes
+      const quickFixMatch = line.match(patterns.quickFix);
+      if (quickFixMatch) {
+        quickFixes.push(quickFixMatch[1].trim());
+      }
+      
+      // Extract live hacks
+      const liveHackMatch = line.match(patterns.liveHack);
+      if (liveHackMatch) {
+        liveHacks.push(liveHackMatch[1].trim());
       }
       
       // Extract cost information
       const costMatch = line.match(patterns.cost);
       if (costMatch) {
-        estimatedCost = '$' + costMatch[1];
-      }
-      
-      // Extract time information
-      const timeMatch = line.match(patterns.time);
-      if (timeMatch) {
-        const timeValue = timeMatch[1];
-        const unit = line.toLowerCase().includes('minute') ? 'minutes' : 'hours';
-        repairTime = `${timeValue} ${unit}`;
+        const costText = costMatch[1];
+        const costRange = costText.split('-');
+        if (costRange.length === 2) {
+          costEstimate.min = parseInt(costRange[0].replace(/[,$]/g, ''));
+          costEstimate.max = parseInt(costRange[1].replace(/[,$]/g, ''));
+        } else {
+          costEstimate.min = parseInt(costText.replace(/[,$]/g, ''));
+          costEstimate.max = costEstimate.min;
+        }
       }
       
       // Extract difficulty
       const difficultyMatch = line.match(patterns.difficulty);
       if (difficultyMatch) {
-        difficultyLevel = difficultyMatch[1].toLowerCase();
+        difficulty = difficultyMatch[1].toLowerCase() as 'easy' | 'moderate' | 'hard' | 'expert';
+      }
+      
+      // Extract video search terms
+      const videoMatch = line.match(patterns.videoSearch);
+      if (videoMatch) {
+        videoSearchTerms.push(videoMatch[1].trim());
       }
       
       // Extract confidence score
@@ -742,21 +866,15 @@ Format response with clear sections and actionable information for emergency roa
       component,
       failure_type: failureType,
       urgency,
-      safety_assessment: {
-        can_continue: canContinue,
-        max_distance: this.calculateMaxDistance(urgency, canContinue),
-        speed_limit: this.calculateSpeedLimit(urgency, canContinue),
-        warnings: this.generateSafetyWarnings(urgency, canContinue, component)
-      },
-      repair_information: {
-        estimated_cost: estimatedCost,
-        repair_time: repairTime,
-        difficulty_level: difficultyLevel,
-        required_tools: requiredTools,
-        parts_needed: partsNeeded
-      },
-      immediate_actions: immediateActions,
-      preventive_measures: this.generatePreventiveMeasures(component, failureType),
+      can_continue: canContinue,
+      quick_fixes: quickFixes.length > 0 ? quickFixes : undefined,
+      live_hacks: liveHacks.length > 0 ? liveHacks : undefined,
+      immediate_actions: immediateActions.length > 0 ? immediateActions : ['Check connections and restart engine'],
+      repair_recommendations: repairRecommendations.length > 0 ? repairRecommendations : undefined,
+      prevention_tips: preventionTips.length > 0 ? preventionTips : undefined,
+      cost_estimate: costEstimate,
+      difficulty,
+      video_search_terms: videoSearchTerms.length > 0 ? videoSearchTerms : undefined,
       confidence_score: confidenceScore
     };
   }

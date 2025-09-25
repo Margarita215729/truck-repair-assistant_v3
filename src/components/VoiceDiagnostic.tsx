@@ -11,7 +11,9 @@ import {
   MessageSquare,
   Wrench,
   Shield,
-  Zap
+  Zap,
+  Play,
+  ExternalLink
 } from 'lucide-react';
 import { Textarea } from './ui/textarea';
 import { aiAPI } from '../utils/api';
@@ -299,6 +301,50 @@ export function VoiceDiagnostic() {
                 <p className="text-sm text-white/90 leading-relaxed">{parsedAnalysis.prevention}</p>
               </div>
             )}
+          </CardContent>
+        </Card>
+      )}
+
+      {/* YouTube Videos */}
+      {aiAnalysis?.youtube_videos && aiAnalysis.youtube_videos.length > 0 && (
+        <Card className="glass-strong border-glass-border">
+          <CardHeader className="pb-3">
+            <CardTitle className="text-lg text-metal-silver flex items-center gap-2">
+              <Play className="h-5 w-5 text-red-500" />
+              Video Instructions
+            </CardTitle>
+            <CardDescription className="text-white/70">
+              Step-by-step repair tutorials and tips
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            {aiAnalysis.youtube_videos.map((video, index) => (
+              <div key={video.id} className="flex gap-3 p-3 bg-white/5 rounded-lg border border-white/10 hover:bg-white/10 transition-colors">
+                <img 
+                  src={video.thumbnail} 
+                  alt={video.title}
+                  className="w-20 h-15 rounded object-cover flex-shrink-0"
+                />
+                <div className="flex-1 min-w-0">
+                  <h4 className="text-sm font-medium text-white line-clamp-2 mb-1">
+                    {video.title}
+                  </h4>
+                  <p className="text-xs text-white/60 mb-2">
+                    {video.channelTitle} • {video.duration} • {video.viewCount} views
+                  </p>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="h-7 px-2 text-xs"
+                    onClick={() => window.open(video.url, '_blank')}
+                  >
+                    <Play className="h-3 w-3 mr-1" />
+                    Watch
+                    <ExternalLink className="h-3 w-3 ml-1" />
+                  </Button>
+                </div>
+              </div>
+            ))}
           </CardContent>
         </Card>
       )}
