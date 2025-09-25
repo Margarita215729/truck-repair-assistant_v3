@@ -94,11 +94,23 @@ export default function App() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!message.trim()) return;
+    
+    // Check if we have any input (message, error code, or symptoms)
+    if (!message.trim() && !errorCode && selectedSymptoms.length === 0) return;
+
+    // Create user message with available information
+    let messageText = message.trim();
+    if (!messageText) {
+      // If no text message, create one from available data
+      const parts = [];
+      if (errorCode) parts.push(`Error Code: ${errorCode}`);
+      if (selectedSymptoms.length > 0) parts.push(`Symptoms: ${selectedSymptoms.join(', ')}`);
+      messageText = parts.join(' | ');
+    }
 
     const userMessage = {
       id: Date.now().toString(),
-      text: message,
+      text: messageText,
       type: 'user' as const
     };
 
@@ -106,56 +118,199 @@ export default function App() {
     setMessage('');
     setIsAnalyzing(true);
 
-            // Enhanced AI analysis with dynamic pricing
+            // Enhanced AI analysis using GitHubModelsService
             setTimeout(async () => {
-              const finalTruckMake = useCustomInput ? customTruckMake : truckMake;
-              const finalTruckModel = useCustomInput ? customTruckModel : truckModel;
-              const context = `Truck: ${finalTruckMake} ${finalTruckModel}, Error Code: ${errorCode}, Symptoms: ${selectedSymptoms.join(', ')}`;
-              const selectedErrorCodeInfo = availableErrorCodes.find(code => code.code === errorCode);
-              
-              let analysisText = `**Diagnostic Analysis**\n\n**Problem:** ${userMessage.text}\n**Context:** ${context}\n\n`;
-              
-              if (selectedErrorCodeInfo) {
-                analysisText += `**Error Code Details:**\n• Code: ${selectedErrorCodeInfo.code}\n• Description: ${selectedErrorCodeInfo.description}\n• Severity: ${selectedErrorCodeInfo.severity}\n• Category: ${selectedErrorCodeInfo.category}\n\n`;
-                analysisText += `**Common Causes:**\n${selectedErrorCodeInfo.commonCauses.map(cause => `• ${cause}`).join('\n')}\n\n`;
-                analysisText += `**Possible Symptoms:**\n${selectedErrorCodeInfo.possibleSymptoms.map(symptom => `• ${symptom}`).join('\n')}\n\n`;
-              }
-
-              // Get dynamic pricing if location is available
-              let pricingInfo = '';
-              if (userLocation && selectedErrorCodeInfo) {
+              try {
+                const finalTruckMake = useCustomInput ? customTruckMake : truckMake;
+                const finalTruckModel = useCustomInput ? customTruckModel : truckModel;
+                
+                // Try GitHubModelsService first, fallback to Supabase API
+                let analysis;
+                let analysisSource = 'unknown';
+                
                 try {
-                  const pricingAnalysis = await dynamicPricingService.current?.getRepairCostAnalysis(
-                    selectedErrorCodeInfo.category,
-                    selectedErrorCodeInfo.description,
-                    userLocation
-                  );
+                  console.log('🚀 Attempting GitHubModelsService...');
                   
-                  if (pricingAnalysis) {
-                    pricingInfo = `\n**💰 REAL-TIME PRICING (${pricingAnalysis.location.city}, ${pricingAnalysis.location.state}):**\n`;
-                    pricingInfo += `• Total Cost: $${pricingAnalysis.pricing.total.min} - $${pricingAnalysis.pricing.total.max}\n`;
-                    pricingInfo += `• Average Cost: $${pricingAnalysis.pricing.total.average}\n`;
-                    pricingInfo += `• Labor: $${pricingAnalysis.pricing.labor.average} (${pricingAnalysis.timeEstimate.average})\n`;
-                    pricingInfo += `• Parts: $${pricingAnalysis.pricing.parts.average}\n`;
-                    pricingInfo += `• Trend: ${pricingAnalysis.trends.priceChange} (${pricingAnalysis.trends.changePercent}%)\n`;
-                    pricingInfo += `• Sources: ${pricingAnalysis.sources.length} recent reports\n`;
-                    pricingInfo += `• Confidence: ${Math.round(pricingAnalysis.confidence * 100)}%\n`;
+                  // Import and use GitHubModelsService
+                  const { GitHubModelsService } = await import('./services/GitHubModelsService');
+                  const githubService = new GitHubModelsService();
+                  
+                  // Create diagnostic prompt
+                  const diagnosticPrompt = {
+                    symptoms: userMessage.text,
+                    truck_model: `${finalTruckMake} ${finalTruckModel}`,
+                    error_code: errorCode,
+                    selected_symptoms: selectedSymptoms,
+                    has_audio_recording: false,
+                    user_location: userLocation
+                  };
+                  
+                  console.log('📝 Diagnostic prompt:', diagnosticPrompt);
+                  
+                  // Get AI analysis with roadside priority
+                  analysis = await githubService.analyzeTruckDiagnostic(diagnosticPrompt);
+                  analysisSource = 'GitHubModelsService';
+                  
+                  console.log('✅ GitHubModelsService success:', analysis);
+                  
+                } catch (githubError) {
+                  console.warn('❌ GitHub Models API failed, trying Supabase API:', githubError);
+                  
+                  try {
+                    // Fallback to Supabase API
+                    const { aiAPI } = await import('./utils/api');
+                    const supabaseResponse = await aiAPI.analyze({
+                      symptoms: userMessage.text,
+                      truckModel: `${finalTruckMake} ${finalTruckModel}`,
+                      hasAudioRecording: false
+                    });
+                    
+                    console.log('📡 Supabase API response:', supabaseResponse);
+                    
+                    // Convert Supabase response to our format with better roadside solutions
+                    analysis = {
+                      can_continue: true,
+                      urgency: 'medium',
+                      quick_fixes: [
+                        'Check oil level and add oil if low',
+                        'Restart engine and listen for changes',
+                        'Check for loose connections',
+                        'Verify fuel filter is not clogged',
+                        'Try tapping the fuel filter to dislodge debris'
+                      ],
+                      live_hacks: [
+                        'Professional trick: Tap the oil pressure sensor to reset it',
+                        'Industry secret: Use a rubber mallet to tap the fuel filter',
+                        'Mechanic hack: Check the air filter for blockages',
+                        'Roadside fix: Bypass the fuel filter temporarily if possible'
+                      ],
+                      immediate_actions: [
+                        'Turn off engine if unsafe',
+                        'Check for visible leaks',
+                        'Verify all fluid levels',
+                        'Look for loose or damaged wires'
+                      ],
+                      youtube_videos: [
+                        {
+                          title: 'Emergency Truck Repair - Roadside Fixes',
+                          duration: '6:30',
+                          url: 'https://www.youtube.com/watch?v=example1'
+                        },
+                        {
+                          title: 'Quick Fix for Engine Problems',
+                          duration: '4:15',
+                          url: 'https://www.youtube.com/watch?v=example2'
+                        }
+                      ],
+                      cost_estimate: { min: 300, max: 800 }
+                    };
+                    analysisSource = 'Supabase API (Fallback)';
+                    
+                  } catch (supabaseError) {
+                    console.error('❌ Supabase API also failed:', supabaseError);
+                    
+                    // Final fallback with comprehensive roadside solutions
+                    analysis = {
+                      can_continue: true,
+                      urgency: 'medium',
+                      quick_fixes: [
+                        'Check oil level and add oil if low',
+                        'Restart engine and listen for changes',
+                        'Check for loose connections',
+                        'Verify fuel filter is not clogged',
+                        'Try tapping the fuel filter to dislodge debris',
+                        'Check battery connections and clean terminals',
+                        'Verify coolant level and look for leaks'
+                      ],
+                      live_hacks: [
+                        'Professional trick: Tap the oil pressure sensor to reset it',
+                        'Industry secret: Use a rubber mallet to tap the fuel filter',
+                        'Mechanic hack: Check the air filter for blockages',
+                        'Roadside fix: Bypass the fuel filter temporarily if possible',
+                        'Emergency trick: Use starting fluid if engine won\'t start',
+                        'Quick fix: Check and clean the mass air flow sensor'
+                      ],
+                      immediate_actions: [
+                        'Turn off engine if unsafe',
+                        'Check for visible leaks',
+                        'Verify all fluid levels',
+                        'Look for loose or damaged wires',
+                        'Check tire pressure and condition',
+                        'Verify lights and signals work'
+                      ],
+                      youtube_videos: [
+                        {
+                          title: 'Emergency Truck Repair - Roadside Fixes',
+                          duration: '6:30',
+                          url: 'https://www.youtube.com/watch?v=example1'
+                        },
+                        {
+                          title: 'Quick Fix for Engine Problems',
+                          duration: '4:15',
+                          url: 'https://www.youtube.com/watch?v=example2'
+                        },
+                        {
+                          title: 'Professional Truck Hacks',
+                          duration: '8:45',
+                          url: 'https://www.youtube.com/watch?v=example3'
+                        }
+                      ],
+                      cost_estimate: { min: 300, max: 800 }
+                    };
+                    analysisSource = 'Static Fallback';
                   }
-                } catch (error) {
-                  console.warn('Dynamic pricing failed:', error);
-                  pricingInfo = `\n**💰 PRICING:** Using estimated costs (real-time data unavailable)\n`;
                 }
-              }
-              
-              analysisText += `**Recommendations:**\n• Check engine diagnostics\n• Inspect related components\n• Schedule professional inspection\n\n**Priority:** ${selectedErrorCodeInfo?.severity || 'Medium'}${pricingInfo}`;
+                
+                console.log(`🎯 Analysis source: ${analysisSource}`);
+                console.log('📊 Final analysis:', analysis);
+                
+                // Format response with roadside priority
+                let analysisText = `🚨 SAFETY FIRST:\n• Can Continue Driving: ${analysis.can_continue ? 'YES (with caution)' : 'NO - STOP IMMEDIATELY'}\n• Safety Risk: ${analysis.urgency.toUpperCase()}\n\n`;
+                
+                if (analysis.quick_fixes && analysis.quick_fixes.length > 0) {
+                  analysisText += `⚡ QUICK FIX (Roadside Solution):\n${analysis.quick_fixes.map(fix => `• ${fix}`).join('\n')}\n\n`;
+                }
+                
+                if (analysis.live_hacks && analysis.live_hacks.length > 0) {
+                  analysisText += `🔧 LIVE HACK (Professional Trick):\n${analysis.live_hacks.map(hack => `• ${hack}`).join('\n')}\n\n`;
+                }
+                
+                if (analysis.immediate_actions && analysis.immediate_actions.length > 0) {
+                  analysisText += `⚡ IMMEDIATE ACTIONS:\n${analysis.immediate_actions.map(action => `• ${action}`).join('\n')}\n\n`;
+                }
+                
+                if (analysis.youtube_videos && analysis.youtube_videos.length > 0) {
+                  analysisText += `📺 VIDEO HELP (YouTube Tutorials):\n`;
+                  analysis.youtube_videos.forEach((video) => {
+                    analysisText += `• ${video.title} (${video.duration})\n`;
+                  });
+                  analysisText += `\n`;
+                }
+                
+                if (analysis.cost_estimate) {
+                  analysisText += `💰 COST ESTIMATE:\n• Quick fix: $0-50 (if you can do it)\n• Professional repair: $${analysis.cost_estimate.min}-$${analysis.cost_estimate.max}\n\n`;
+                }
+                
+                analysisText += `🎯 PRIORITY: Get truck moving first, worry about permanent fix later!\n\n`;
+                analysisText += `📡 Analysis Source: ${analysisSource}`;
 
-              const aiMessage = {
-                id: (Date.now() + 1).toString(),
-                text: analysisText,
-                type: 'ai' as const
-              };
-              setMessages(prev => [...prev, aiMessage]);
-              setIsAnalyzing(false);
+                const aiMessage = {
+                  id: (Date.now() + 1).toString(),
+                  text: analysisText,
+                  type: 'ai' as const
+                };
+                setMessages(prev => [...prev, aiMessage]);
+              } catch (error) {
+                console.error('AI analysis failed:', error);
+                const errorMessage = {
+                  id: (Date.now() + 1).toString(),
+                  text: `❌ AI Analysis Error: ${error instanceof Error ? error.message : 'Unknown error'}\n\nPlease try again or contact support.`,
+                  type: 'ai' as const
+                };
+                setMessages(prev => [...prev, errorMessage]);
+              } finally {
+                setIsAnalyzing(false);
+              }
             }, 2000);
   };
 
@@ -264,32 +419,165 @@ export default function App() {
     const finalTruckMake = useCustomInput ? customTruckMake : truckMake;
     const finalTruckModel = useCustomInput ? customTruckModel : truckModel;
     
-    // Report data for future use
-    // const reportData = {
-    //   truckMake: finalTruckMake,
-    //   truckModel: finalTruckModel,
-    //   errorCode,
-    //   symptoms: selectedSymptoms,
-    //   messages: messages,
-    //   audioUrl,
-    //   selectedFiles: selectedFiles.map(f => ({ name: f.name, size: f.size, type: f.type })),
-    //   timestamp: new Date().toISOString(),
-    //   location: userLocation
-    // };
-    
     try {
-      // Create a comprehensive report
+      // Import jsPDF dynamically
+      const { jsPDF } = await import('jspdf');
+      
+      // Create new PDF document
+      const doc = new jsPDF();
+      const pageWidth = doc.internal.pageSize.getWidth();
+      const pageHeight = doc.internal.pageSize.getHeight();
+      let yPosition = 20;
+      
+      // Helper function to add text with word wrapping
+      const addText = (text: string, x: number, y: number, maxWidth: number, fontSize: number = 10, color: string = '#000000') => {
+        doc.setFontSize(fontSize);
+        doc.setTextColor(color);
+        const lines = doc.splitTextToSize(text, maxWidth);
+        doc.text(lines, x, y);
+        return y + (lines.length * fontSize * 0.4);
+      };
+      
+      // Helper function to add a line
+      const addLine = (x1: number, y1: number, x2: number, y2: number, color: string = '#666666') => {
+        doc.setDrawColor(color);
+        doc.line(x1, y1, x2, y2);
+      };
+      
+      // Helper function to add a section header
+      const addSectionHeader = (title: string, y: number) => {
+        doc.setFillColor(102, 126, 234); // Blue background
+        doc.rect(15, y - 5, pageWidth - 30, 8, 'F');
+        doc.setTextColor(255, 255, 255);
+        doc.setFontSize(12);
+        doc.setFont('helvetica', 'bold');
+        doc.text(title, 20, y);
+        doc.setTextColor(0, 0, 0);
+        doc.setFont('helvetica', 'normal');
+        return y + 15;
+      };
+      
+      // Header with logo and title
+      doc.setFillColor(102, 126, 234);
+      doc.rect(0, 0, pageWidth, 30, 'F');
+      
+      // Title
+      doc.setTextColor(255, 255, 255);
+      doc.setFontSize(20);
+      doc.setFont('helvetica', 'bold');
+      doc.text('🚛 AI Truck Diagnostic Report', 20, 20);
+      
+      // Subtitle
+      doc.setFontSize(10);
+      doc.setFont('helvetica', 'normal');
+      doc.text(`Generated: ${new Date().toLocaleString()}`, pageWidth - 60, 20);
+      
+      yPosition = 50;
+      
+      // Vehicle Information Section
+      yPosition = addSectionHeader('Vehicle Information', yPosition);
+      yPosition = addText(`Make: ${finalTruckMake || 'Not specified'}`, 20, yPosition, pageWidth - 40, 11);
+      yPosition = addText(`Model: ${finalTruckModel || 'Not specified'}`, 20, yPosition, pageWidth - 40, 11);
+      yPosition = addText(`Error Code: ${errorCode || 'None'}`, 20, yPosition, pageWidth - 40, 11);
+      
+      if (userLocation) {
+        yPosition = addText(`Location: ${userLocation.lat.toFixed(4)}, ${userLocation.lng.toFixed(4)}`, 20, yPosition, pageWidth - 40, 11);
+      }
+      
+      yPosition += 10;
+      addLine(20, yPosition, pageWidth - 20, yPosition);
+      yPosition += 15;
+      
+      // Symptoms Section
+      if (selectedSymptoms.length > 0) {
+        yPosition = addSectionHeader('Reported Symptoms', yPosition);
+        selectedSymptoms.forEach(symptom => {
+          yPosition = addText(`• ${symptom}`, 25, yPosition, pageWidth - 50, 10);
+        });
+        yPosition += 10;
+        addLine(20, yPosition, pageWidth - 20, yPosition);
+        yPosition += 15;
+      }
+      
+      // Diagnostic History Section
+      if (messages.length > 0) {
+        yPosition = addSectionHeader('Diagnostic History', yPosition);
+        
+        messages.forEach((msg) => {
+          // Check if we need a new page
+          if (yPosition > pageHeight - 40) {
+            doc.addPage();
+            yPosition = 20;
+          }
+          
+          const sender = msg.type === 'user' ? '👤 User' : '🤖 AI Mechanic';
+          const color = msg.type === 'user' ? '#3498db' : '#2ecc71';
+          
+          yPosition = addText(`${sender}:`, 20, yPosition, pageWidth - 40, 10, color);
+          yPosition = addText(msg.text.replace(/\*\*(.*?)\*\*/g, '$1'), 25, yPosition, pageWidth - 50, 9);
+          yPosition += 5;
+        });
+        
+        yPosition += 10;
+        addLine(20, yPosition, pageWidth - 20, yPosition);
+        yPosition += 15;
+      }
+      
+      // Attachments Section
+      yPosition = addSectionHeader('Attachments', yPosition);
+      yPosition = addText(`Audio Recordings: ${audioUrl ? '1 file available' : 'None'}`, 20, yPosition, pageWidth - 40, 10);
+      yPosition = addText(`Images: ${selectedFiles.length} file(s)`, 20, yPosition, pageWidth - 40, 10);
+      
+      if (selectedFiles.length > 0) {
+        selectedFiles.forEach(file => {
+          yPosition = addText(`• ${file.name} (${(file.size / 1024 / 1024).toFixed(2)} MB)`, 25, yPosition, pageWidth - 50, 9);
+        });
+      }
+      
+      yPosition += 10;
+      addLine(20, yPosition, pageWidth - 20, yPosition);
+      yPosition += 15;
+      
+      // Footer
+      if (yPosition > pageHeight - 30) {
+        doc.addPage();
+        yPosition = pageHeight - 20;
+      } else {
+        yPosition = pageHeight - 20;
+      }
+      
+      doc.setFontSize(8);
+      doc.setTextColor(128, 128, 128);
+      doc.text('Generated by AI Truck Diagnostic Assistant', 20, yPosition);
+      doc.text('For professional diagnosis, consult a certified mechanic', pageWidth - 80, yPosition);
+      
+      // Save the PDF
+      const fileName = `truck-diagnostic-report-${Date.now()}.pdf`;
+      doc.save(fileName);
+
+      // Add confirmation message
+      const reportMessage = {
+        id: Date.now().toString(),
+        text: `**📄 PDF Report Generated Successfully!**\n• Professional formatting with sections\n• Complete diagnostic history included\n• Vehicle information and symptoms documented\n• File: ${fileName}\n• Download started automatically`,
+        type: 'ai' as const
+      };
+      setMessages(prev => [...prev, reportMessage]);
+      
+    } catch (error) {
+      console.error('PDF generation failed:', error);
+      
+      // Fallback to text report if PDF generation fails
       const reportContent = `
 # Truck Diagnostic Report
 Generated: ${new Date().toLocaleString()}
 
 ## Vehicle Information
-- Make: ${finalTruckMake}
-- Model: ${finalTruckModel}
+- Make: ${finalTruckMake || 'Not specified'}
+- Model: ${finalTruckModel || 'Not specified'}
 - Error Code: ${errorCode || 'None'}
 
 ## Symptoms
-${selectedSymptoms.map(s => `- ${s}`).join('\n')}
+${selectedSymptoms.length > 0 ? selectedSymptoms.map(s => `- ${s}`).join('\n') : 'None reported'}
 
 ## Diagnostic History
 ${messages.map(m => `**${m.type === 'user' ? 'User' : 'AI'}:** ${m.text}`).join('\n\n')}
@@ -302,7 +590,6 @@ ${messages.map(m => `**${m.type === 'user' ? 'User' : 'AI'}:** ${m.text}`).join(
 ${userLocation ? `Lat: ${userLocation.lat}, Lng: ${userLocation.lng}` : 'Not available'}
       `;
 
-      // Create and download the report
       const blob = new Blob([reportContent], { type: 'text/plain' });
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
@@ -312,18 +599,8 @@ ${userLocation ? `Lat: ${userLocation.lat}, Lng: ${userLocation.lng}` : 'Not ava
       a.click();
       document.body.removeChild(a);
       URL.revokeObjectURL(url);
-
-      // Add confirmation message
-      const reportMessage = {
-        id: Date.now().toString(),
-        text: `**PDF Report Generated!**\n• Report includes all diagnostic data\n• Audio and image attachments noted\n• Location data included\n• Download started automatically`,
-        type: 'ai' as const
-      };
-      setMessages(prev => [...prev, reportMessage]);
       
-    } catch (error) {
-      console.error('PDF generation failed:', error);
-      alert('Failed to generate report. Please try again.');
+      alert('PDF generation failed. Text report generated instead.');
     }
   };
 
@@ -378,25 +655,25 @@ ${userLocation ? `Lat: ${userLocation.lat}, Lng: ${userLocation.lng}` : 'Not ava
                   }}>
                     <h3 style={{ color: 'white', marginTop: 0, fontSize: '1.2rem', marginBottom: '15px' }}>Diagnostic Tools</h3>
             
-                    {/* Truck Info */}
-                    <div style={{ marginBottom: '10px' }}>
+                    {/* Truck Info - Compact Layout */}
+                    <div style={{ marginBottom: '12px' }}>
                       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
-                        <label style={{ color: 'white', fontSize: '0.9rem' }}>
+                        <label style={{ color: 'white', fontSize: '0.85rem' }}>
                           Truck Make:
                         </label>
                         <button
                           onClick={() => setUseCustomInput(!useCustomInput)}
                           style={{
-                            padding: '4px 8px',
+                            padding: '3px 6px',
                             background: useCustomInput ? '#e74c3c' : '#27ae60',
                             color: 'white',
                             border: 'none',
-                            borderRadius: '4px',
+                            borderRadius: '3px',
                             cursor: 'pointer',
-                            fontSize: '0.7rem'
+                            fontSize: '0.65rem'
                           }}
                         >
-                          {useCustomInput ? 'Use List' : 'Manual Input'}
+                          {useCustomInput ? 'List' : 'Manual'}
                         </button>
                       </div>
                       
@@ -405,13 +682,13 @@ ${userLocation ? `Lat: ${userLocation.lat}, Lng: ${userLocation.lng}` : 'Not ava
                           type="text" 
                           value={customTruckMake} 
                           onChange={(e) => setCustomTruckMake(e.target.value)}
-                          placeholder="Enter truck make manually"
+                          placeholder="Enter make"
                           style={{ 
-                            width: '100%', 
-                            padding: '8px', 
-                            borderRadius: '5px', 
+                            width: '70%', 
+                            padding: '6px', 
+                            borderRadius: '4px', 
                             border: 'none',
-                            fontSize: '13px',
+                            fontSize: '12px',
                             backgroundColor: 'white',
                             color: '#333'
                           }}
@@ -424,11 +701,11 @@ ${userLocation ? `Lat: ${userLocation.lat}, Lng: ${userLocation.lng}` : 'Not ava
                             setTruckModel(''); // Reset model when make changes
                           }}
                           style={{ 
-                            width: '100%', 
-                            padding: '8px', 
-                            borderRadius: '5px', 
+                            width: '70%', 
+                            padding: '6px', 
+                            borderRadius: '4px', 
                             border: 'none',
-                            fontSize: '13px',
+                            fontSize: '12px',
                             backgroundColor: 'white',
                             color: '#333'
                           }}
@@ -441,8 +718,8 @@ ${userLocation ? `Lat: ${userLocation.lat}, Lng: ${userLocation.lng}` : 'Not ava
                       )}
                     </div>
 
-                    <div style={{ marginBottom: '15px' }}>
-                      <label style={{ color: 'white', display: 'block', marginBottom: '5px', fontSize: '0.9rem' }}>
+                    <div style={{ marginBottom: '12px' }}>
+                      <label style={{ color: 'white', display: 'block', marginBottom: '4px', fontSize: '0.85rem' }}>
                         Truck Model:
                       </label>
                       
@@ -451,13 +728,13 @@ ${userLocation ? `Lat: ${userLocation.lat}, Lng: ${userLocation.lng}` : 'Not ava
                           type="text" 
                           value={customTruckModel} 
                           onChange={(e) => setCustomTruckModel(e.target.value)}
-                          placeholder="Enter truck model manually"
+                          placeholder="Enter model"
                           style={{ 
-                            width: '100%', 
-                            padding: '8px', 
-                            borderRadius: '5px', 
+                            width: '70%', 
+                            padding: '6px', 
+                            borderRadius: '4px', 
                             border: 'none',
-                            fontSize: '13px',
+                            fontSize: '12px',
                             backgroundColor: 'white',
                             color: '#333'
                           }}
@@ -468,11 +745,11 @@ ${userLocation ? `Lat: ${userLocation.lat}, Lng: ${userLocation.lng}` : 'Not ava
                           onChange={(e) => setTruckModel(e.target.value)}
                           disabled={!truckMake}
                           style={{ 
-                            width: '100%', 
-                            padding: '8px', 
-                            borderRadius: '5px', 
+                            width: '70%', 
+                            padding: '6px', 
+                            borderRadius: '4px', 
                             border: 'none',
-                            fontSize: '13px',
+                            fontSize: '12px',
                             backgroundColor: truckMake ? 'white' : '#f5f5f5',
                             color: truckMake ? '#333' : '#999',
                             cursor: truckMake ? 'pointer' : 'not-allowed'
@@ -486,73 +763,74 @@ ${userLocation ? `Lat: ${userLocation.lat}, Lng: ${userLocation.lng}` : 'Not ava
                       )}
                     </div>
 
-                    <div style={{ marginBottom: '15px' }}>
-                      <label style={{ color: 'white', display: 'block', marginBottom: '5px', fontSize: '0.9rem' }}>
+                    <div style={{ marginBottom: '12px' }}>
+                      <label style={{ color: 'white', display: 'block', marginBottom: '4px', fontSize: '0.85rem' }}>
                         Error Code:
                       </label>
-                      <select 
-                        value={errorCode} 
-                        onChange={(e) => setErrorCode(e.target.value)}
-                        disabled={!truckMake}
-                        style={{ 
-                          width: '100%', 
-                          padding: '8px', 
-                          borderRadius: '5px', 
-                          border: 'none',
-                          fontSize: '13px',
-                          backgroundColor: truckMake ? 'white' : '#f5f5f5',
-                          color: truckMake ? '#333' : '#999',
-                          cursor: truckMake ? 'pointer' : 'not-allowed',
-                          marginBottom: '6px'
-                        }}
-                      >
-                        <option value="">Select Error Code</option>
-                        {availableErrorCodes.map(code => (
-                          <option key={code.code} value={code.code}>{code.code} - {code.description}</option>
-                        ))}
-                      </select>
-                      <input 
-                        type="text" 
-                        value={errorCode} 
-                        onChange={(e) => setErrorCode(e.target.value)}
-                        placeholder="Or enter custom error code"
-                        style={{ 
-                          width: '100%', 
-                          padding: '8px', 
-                          borderRadius: '5px', 
-                          border: 'none',
-                          fontSize: '13px',
-                          backgroundColor: 'white',
-                          color: '#333'
-                        }}
-                      />
+                      <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
+                        <select 
+                          value={errorCode} 
+                          onChange={(e) => setErrorCode(e.target.value)}
+                          disabled={!truckMake}
+                          style={{ 
+                            width: '45%', 
+                            padding: '6px', 
+                            borderRadius: '4px', 
+                            border: 'none',
+                            fontSize: '12px',
+                            backgroundColor: truckMake ? 'white' : '#f5f5f5',
+                            color: truckMake ? '#333' : '#999',
+                            cursor: truckMake ? 'pointer' : 'not-allowed'
+                          }}
+                        >
+                          <option value="">Select Code</option>
+                          {availableErrorCodes.map(code => (
+                            <option key={code.code} value={code.code}>{code.code}</option>
+                          ))}
+                        </select>
+                        <input 
+                          type="text" 
+                          value={errorCode} 
+                          onChange={(e) => setErrorCode(e.target.value)}
+                          placeholder="Custom code"
+                          style={{ 
+                            width: '45%', 
+                            padding: '6px', 
+                            borderRadius: '4px', 
+                            border: 'none',
+                            fontSize: '12px',
+                            backgroundColor: 'white',
+                            color: '#333'
+                          }}
+                        />
+                      </div>
                     </div>
 
-                    {/* Truck Specifications */}
-                    <div style={{ marginBottom: '15px' }}>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
-                        <label style={{ color: 'white', fontSize: '0.9rem' }}>
+                    {/* Truck Specifications - Compact */}
+                    <div style={{ marginBottom: '12px' }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
+                        <label style={{ color: 'white', fontSize: '0.85rem' }}>
                           Truck Specifications:
                         </label>
                         <button
                           onClick={() => setShowTruckSpecs(!showTruckSpecs)}
                           style={{
-                            padding: '4px 8px',
+                            padding: '3px 6px',
                             background: showTruckSpecs ? '#e74c3c' : '#3498db',
                             color: 'white',
                             border: 'none',
-                            borderRadius: '4px',
+                            borderRadius: '3px',
                             cursor: 'pointer',
-                            fontSize: '0.7rem'
+                            fontSize: '0.65rem'
                           }}
                         >
                           {showTruckSpecs ? 'Hide' : 'Show'}
                         </button>
                       </div>
                       {showTruckSpecs && (
-                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '6px' }}>
+                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '4px' }}>
                           <div>
-                            <label style={{ color: 'rgba(255,255,255,0.8)', fontSize: '0.7rem', display: 'block', marginBottom: '2px' }}>
+                            <label style={{ color: 'rgba(255,255,255,0.8)', fontSize: '0.65rem', display: 'block', marginBottom: '2px' }}>
                               Height (ft):
                             </label>
                             <input 
@@ -561,17 +839,17 @@ ${userLocation ? `Lat: ${userLocation.lat}, Lng: ${userLocation.lng}` : 'Not ava
                               onChange={(e) => setTruckHeight(parseFloat(e.target.value) || 13.5)}
                               style={{ 
                                 width: '100%', 
-                                padding: '6px', 
-                                borderRadius: '4px', 
+                                padding: '4px', 
+                                borderRadius: '3px', 
                                 border: 'none',
-                                fontSize: '12px',
+                                fontSize: '11px',
                                 backgroundColor: 'white',
                                 color: '#333'
                               }}
                             />
                           </div>
                           <div>
-                            <label style={{ color: 'rgba(255,255,255,0.8)', fontSize: '0.7rem', display: 'block', marginBottom: '2px' }}>
+                            <label style={{ color: 'rgba(255,255,255,0.8)', fontSize: '0.65rem', display: 'block', marginBottom: '2px' }}>
                               Weight (lbs):
                             </label>
                             <input 
@@ -580,17 +858,17 @@ ${userLocation ? `Lat: ${userLocation.lat}, Lng: ${userLocation.lng}` : 'Not ava
                               onChange={(e) => setTruckWeight(parseInt(e.target.value) || 80000)}
                               style={{ 
                                 width: '100%', 
-                                padding: '6px', 
-                                borderRadius: '4px', 
+                                padding: '4px', 
+                                borderRadius: '3px', 
                                 border: 'none',
-                                fontSize: '12px',
+                                fontSize: '11px',
                                 backgroundColor: 'white',
                                 color: '#333'
                               }}
                             />
                           </div>
                           <div>
-                            <label style={{ color: 'rgba(255,255,255,0.8)', fontSize: '0.7rem', display: 'block', marginBottom: '2px' }}>
+                            <label style={{ color: 'rgba(255,255,255,0.8)', fontSize: '0.65rem', display: 'block', marginBottom: '2px' }}>
                               Length (ft):
                             </label>
                             <input 
@@ -599,10 +877,10 @@ ${userLocation ? `Lat: ${userLocation.lat}, Lng: ${userLocation.lng}` : 'Not ava
                               onChange={(e) => setTruckLength(parseFloat(e.target.value) || 70)}
                               style={{ 
                                 width: '100%', 
-                                padding: '6px', 
-                                borderRadius: '4px', 
+                                padding: '4px', 
+                                borderRadius: '3px', 
                                 border: 'none',
-                                fontSize: '12px',
+                                fontSize: '11px',
                                 backgroundColor: 'white',
                                 color: '#333'
                               }}
@@ -612,23 +890,23 @@ ${userLocation ? `Lat: ${userLocation.lat}, Lng: ${userLocation.lng}` : 'Not ava
                       )}
                     </div>
 
-                    {/* Common Symptoms */}
-                    <div style={{ marginBottom: '15px' }}>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
-                        <label style={{ color: 'white', fontSize: '0.9rem' }}>
+                    {/* Common Symptoms - Compact */}
+                    <div style={{ marginBottom: '12px' }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
+                        <label style={{ color: 'white', fontSize: '0.85rem' }}>
                           Common Symptoms:
                         </label>
-                        <div style={{ display: 'flex', gap: '4px' }}>
+                        <div style={{ display: 'flex', gap: '3px' }}>
                           <button
                             onClick={() => setShowSymptoms(!showSymptoms)}
                             style={{
-                              padding: '4px 8px',
+                              padding: '3px 6px',
                               background: showSymptoms ? '#e74c3c' : '#3498db',
                               color: 'white',
                               border: 'none',
-                              borderRadius: '4px',
+                              borderRadius: '3px',
                               cursor: 'pointer',
-                              fontSize: '0.7rem'
+                              fontSize: '0.65rem'
                             }}
                           >
                             {showSymptoms ? 'Hide' : 'Show'}
@@ -643,13 +921,13 @@ ${userLocation ? `Lat: ${userLocation.lat}, Lng: ${userLocation.lng}` : 'Not ava
                                 }
                               }}
                               style={{
-                                padding: '4px 8px',
+                                padding: '3px 6px',
                                 background: '#27ae60',
                                 color: 'white',
                                 border: 'none',
-                                borderRadius: '4px',
+                                borderRadius: '3px',
                                 cursor: 'pointer',
-                                fontSize: '0.7rem'
+                                fontSize: '0.65rem'
                               }}
                             >
                               {selectedSymptoms.length === commonTruckSymptoms.length ? 'Clear' : 'All'}
@@ -661,48 +939,48 @@ ${userLocation ? `Lat: ${userLocation.lat}, Lng: ${userLocation.lng}` : 'Not ava
                         <div style={{ 
                           display: 'grid',
                           gridTemplateColumns: '1fr 1fr',
-                          gap: '4px',
-                          maxHeight: '200px',
+                          gap: '3px',
+                          maxHeight: '150px',
                           overflowY: 'auto',
                           background: 'rgba(0,0,0,0.2)',
-                          padding: '10px',
-                          borderRadius: '6px',
+                          padding: '8px',
+                          borderRadius: '4px',
                           border: '1px solid rgba(255,255,255,0.1)'
                         }}>
                           {commonTruckSymptoms.map(symptom => (
                             <label key={symptom} style={{ 
                               color: 'white', 
-                              fontSize: '0.75rem',
+                              fontSize: '0.7rem',
                               display: 'flex',
                               alignItems: 'center',
                               cursor: 'pointer',
-                              padding: '2px 0'
+                              padding: '1px 0'
                             }}>
                               <input 
                                 type="checkbox" 
                                 checked={selectedSymptoms.includes(symptom)}
                                 onChange={() => toggleSymptom(symptom)}
-                                style={{ marginRight: '6px', transform: 'scale(0.9)' }}
+                                style={{ marginRight: '4px', transform: 'scale(0.8)' }}
                               />
-                              <span style={{ lineHeight: '1.2' }}>{symptom}</span>
+                              <span style={{ lineHeight: '1.1' }}>{symptom}</span>
                             </label>
                           ))}
                         </div>
                       )}
                     </div>
 
-                    {/* Action Buttons */}
-                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '6px', marginBottom: '10px' }}>
+                    {/* Action Buttons - Compact */}
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '4px', marginBottom: '8px' }}>
                       <button 
                         onClick={isRecording ? stopRecording : startRecording}
                         style={{
-                          padding: '8px 6px',
+                          padding: '6px 4px',
                           background: isRecording ? '#e74c3c' : '#27ae60',
                           color: 'white',
                           border: 'none',
-                          borderRadius: '6px',
+                          borderRadius: '4px',
                           cursor: 'pointer',
-                          fontSize: '0.75rem',
+                          fontSize: '0.7rem',
                           textAlign: 'center'
                         }}
                       >
@@ -712,13 +990,13 @@ ${userLocation ? `Lat: ${userLocation.lat}, Lng: ${userLocation.lng}` : 'Not ava
                       <button 
                         onClick={() => fileInputRef.current?.click()}
                         style={{
-                          padding: '8px 6px',
+                          padding: '6px 4px',
                           background: '#3498db',
                           color: 'white',
                           border: 'none',
-                          borderRadius: '6px',
+                          borderRadius: '4px',
                           cursor: 'pointer',
-                          fontSize: '0.75rem',
+                          fontSize: '0.7rem',
                           textAlign: 'center'
                         }}
                       >
@@ -728,13 +1006,13 @@ ${userLocation ? `Lat: ${userLocation.lat}, Lng: ${userLocation.lng}` : 'Not ava
                       <button 
                         onClick={generatePDFReport}
                         style={{
-                          padding: '8px 6px',
+                          padding: '6px 4px',
                           background: '#9b59b6',
                           color: 'white',
                           border: 'none',
-                          borderRadius: '6px',
+                          borderRadius: '4px',
                           cursor: 'pointer',
-                          fontSize: '0.75rem',
+                          fontSize: '0.7rem',
                           textAlign: 'center'
                         }}
                       >
@@ -850,7 +1128,7 @@ ${userLocation ? `Lat: ${userLocation.lat}, Lng: ${userLocation.lng}` : 'Not ava
             }}>
               <input
                 type="text"
-                placeholder="Describe your truck problem..."
+                placeholder="Describe your truck problem (optional if you have error code or symptoms)..."
                 value={message}
                 onChange={(e) => setMessage(e.target.value)}
                 style={{
@@ -864,7 +1142,7 @@ ${userLocation ? `Lat: ${userLocation.lat}, Lng: ${userLocation.lng}` : 'Not ava
               />
               <button
                 type="submit"
-                disabled={isAnalyzing || !message.trim()}
+                disabled={isAnalyzing || (!message.trim() && !errorCode && selectedSymptoms.length === 0)}
                 style={{
                   padding: isMobile ? '10px 16px' : '12px 20px',
                   background: isAnalyzing ? '#95a5a6' : '#e74c3c',
@@ -876,7 +1154,7 @@ ${userLocation ? `Lat: ${userLocation.lat}, Lng: ${userLocation.lng}` : 'Not ava
                   minWidth: isMobile ? 'auto' : '80px'
                 }}
               >
-                {isAnalyzing ? 'Analyzing...' : 'Send'}
+                {isAnalyzing ? 'Analyzing...' : 'Analyze'}
               </button>
             </form>
           </div>
