@@ -1,8 +1,0 @@
-{
-  "imports": {
-    "npm:hono": "https://deno.land/x/hono@v4.6.15/mod.ts",
-    "npm:hono/cors": "https://deno.land/x/hono@v4.6.15/middleware/cors/index.ts",
-    "npm:hono/logger": "https://deno.land/x/hono@v4.6.15/middleware/logger/index.ts",
-    "@supabase/supabase-js": "https://esm.sh/@supabase/supabase-js@2.45.4"
-  }
-}
