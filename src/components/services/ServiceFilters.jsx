@@ -1,0 +1,133 @@
+import React from 'react';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { Card } from '@/components/ui/card';
+import { 
+  Wrench, 
+  Zap, 
+  Gauge, 
+  Car,
+  Sun,
+  Moon,
+  Star,
+  X,
+  Settings
+} from 'lucide-react';
+import { motion } from 'framer-motion';
+
+const SERVICE_TYPES = [
+  { id: 'engine', label: 'Engine Repair', icon: Settings },
+  { id: 'electrical', label: 'Electrical', icon: Zap },
+  { id: 'tires', label: 'Tires', icon: Gauge },
+  { id: 'brakes', label: 'Brakes', icon: Car },
+  { id: 'transmission', label: 'Transmission', icon: Settings },
+  { id: 'diagnostic', label: 'Diagnostic', icon: Wrench },
+];
+
+export default function ServiceFilters({ filters, onFilterChange }) {
+  const toggleServiceType = (typeId) => {
+    const current = filters.serviceTypes || [];
+    const updated = current.includes(typeId)
+      ? current.filter(t => t !== typeId)
+      : [...current, typeId];
+    onFilterChange({ ...filters, serviceTypes: updated });
+  };
+
+  const clearFilters = () => {
+    onFilterChange({ 
+      serviceTypes: [], 
+      is24Hours: false, 
+      minRating: 0 
+    });
+  };
+
+  const hasActiveFilters = 
+    (filters.serviceTypes?.length > 0) || 
+    filters.is24Hours || 
+    filters.minRating > 0;
+
+  return (
+    <Card className="p-4 bg-white/5 border-white/10">
+      <div className="flex items-center justify-between mb-4">
+        <h3 className="text-sm font-semibold text-white flex items-center gap-2">
+          <Wrench className="w-4 h-4 text-orange-500" />
+          Filters
+        </h3>
+        {hasActiveFilters && (
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={clearFilters}
+            className="h-7 text-xs text-white/60 hover:text-white"
+          >
+            <X className="w-3 h-3 mr-1" />
+            Clear
+          </Button>
+        )}
+      </div>
+
+      {/* Service Types */}
+      <div className="space-y-3">
+        <label className="text-xs text-white/60 font-medium">Service Type</label>
+        <div className="flex flex-wrap gap-2">
+          {SERVICE_TYPES.map((type) => {
+            const Icon = type.icon;
+            const isActive = filters.serviceTypes?.includes(type.id);
+            return (
+              <motion.button
+                key={type.id}
+                whileTap={{ scale: 0.95 }}
+                onClick={() => toggleServiceType(type.id)}
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
+                  isActive
+                    ? 'bg-orange-500 text-white'
+                    : 'bg-white/5 text-white/60 hover:bg-white/10 hover:text-white'
+                }`}
+              >
+                <Icon className="w-3.5 h-3.5" />
+                {type.label}
+              </motion.button>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* 24/7 and Rating Filters */}
+      <div className="grid grid-cols-2 gap-3 mt-4">
+        <motion.button
+          whileTap={{ scale: 0.95 }}
+          onClick={() => onFilterChange({ ...filters, is24Hours: !filters.is24Hours })}
+          className={`flex items-center justify-center gap-2 px-3 py-2 rounded-lg text-xs font-medium transition-all ${
+            filters.is24Hours
+              ? 'bg-blue-500 text-white'
+              : 'bg-white/5 text-white/60 hover:bg-white/10 hover:text-white'
+          }`}
+        >
+          <Moon className="w-4 h-4" />
+          24/7
+        </motion.button>
+
+        <div className="flex items-center gap-1">
+          {[4, 4.5, 5].map((rating) => (
+            <motion.button
+              key={rating}
+              whileTap={{ scale: 0.95 }}
+              onClick={() => onFilterChange({ 
+                ...filters, 
+                minRating: filters.minRating === rating ? 0 : rating 
+              })}
+              className={`flex-1 flex items-center justify-center gap-1 px-2 py-2 rounded-lg text-xs font-medium transition-all ${
+                filters.minRating === rating
+                  ? 'bg-yellow-500 text-black'
+                  : 'bg-white/5 text-white/60 hover:bg-white/10 hover:text-white'
+              }`}
+            >
+              <Star className="w-3 h-3 fill-current" />
+              {rating}+
+            </motion.button>
+          ))}
+        </div>
+      </div>
+    </Card>
+  );
+}
