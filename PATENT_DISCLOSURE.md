@@ -178,7 +178,7 @@ The following aspects are believed to be novel individually and in combination:
 
 | Date | Milestone |
 |------|-----------|
-| 2024 | v1.0 — Initial prototype with basic AI chat diagnostics |
+| June 6, 2025 | v1.0 — Initial prototype with basic AI chat diagnostics (first commit) |
 | June 7, 2025 | v1.0 Patent Disclosure published on GitHub |
 | 2025 | v2.0 — TypeScript rewrite, expanded services, Supabase integration |
 | February 2026 | v3.0 — Complete architectural rewrite: multi-modal diagnostics, bilingual i18n (EN/RU), new JSX architecture, production deployment |
@@ -199,7 +199,7 @@ This document supersedes and extends the prior Patent Disclosure v1.0 dated June
 
 ### 10. Intellectual Property Notice
 
-Copyright 2024-2026 Margarita Makeeva. All Rights Reserved.
+Copyright 2025-2026 Margarita Makeeva. All Rights Reserved.
 
 This document and the associated software constitute proprietary intellectual property. No license is granted for commercial reproduction, adaptation, or implementation of the methods, algorithms, systems, or architectural patterns described herein without explicit written permission from the inventor.
 
