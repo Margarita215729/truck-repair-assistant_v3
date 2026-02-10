@@ -1,19 +1,13 @@
 /**
- * Entity Service
- * Manages entities: Truck, DiagnosticReport, Conversation, KnowledgeBase,
- * ServiceReview, SolutionVote, Part, DiagnosticToolkit, RepairGuideRating
- *
- * Storage strategy:
- *   - With Supabase: Uses Supabase tables
- *   - Without Supabase: Uses localStorage as a JSON store (dev mode)
- *
- * Each entity has: create, list, filter, get, update, delete
+ * Entity Service — Production
+ * Manages entities via Supabase with proper user_id, UUID PKs, and no localStorage fallback for auth-required tables.
+ * localStorage is ONLY used as offline cache when Supabase is unreachable.
  */
 import { supabase, hasSupabaseConfig } from '@/api/supabaseClient';
 
 const STORAGE_PREFIX = 'trv3_entity_';
 
-// ─── LocalStorage Adapter ────────────────────────────────────────────
+// ─── LocalStorage Cache (offline fallback only) ──────────────────────
 
 function getLocalCollection(entityName) {
   try {
@@ -25,11 +19,23 @@ function getLocalCollection(entityName) {
 }
 
 function saveLocalCollection(entityName, items) {
-  localStorage.setItem(STORAGE_PREFIX + entityName, JSON.stringify(items));
+  try {
+    localStorage.setItem(STORAGE_PREFIX + entityName, JSON.stringify(items));
+  } catch {
+    // storage full or unavailable
+  }
 }
 
-function generateId() {
-  return `local_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+// ─── Get current user ID ─────────────────────────────────────────────
+
+async function getCurrentUserId() {
+  if (!hasSupabaseConfig || !supabase) return null;
+  try {
+    const { data: { user } } = await supabase.auth.getUser();
+    return user?.id || null;
+  } catch {
+    return null;
+  }
 }
 
 // ─── Supabase table name mapping ─────────────────────────────────────
@@ -46,156 +52,188 @@ const TABLE_MAP = {
   RepairGuideRating: 'repair_guide_ratings',
 };
 
+// Tables where user_id should be auto-injected
+const USER_SCOPED_TABLES = new Set([
+  'trucks', 'conversations', 'diagnostic_reports', 'knowledge_base',
+  'service_reviews', 'solution_votes', 'diagnostic_toolkits', 'repair_guide_ratings',
+]);
+
 // ─── Generic Entity CRUD ─────────────────────────────────────────────
 
 function createEntityAPI(entityName) {
   const tableName = TABLE_MAP[entityName] || entityName.toLowerCase() + 's';
+  const isUserScoped = USER_SCOPED_TABLES.has(tableName);
 
   return {
     /**
-     * Create a new record
+     * Create a new record — lets Supabase generate UUID
      */
     async create(data) {
-      const record = {
-        ...data,
-        id: generateId(),
-        created_date: new Date().toISOString(),
-        updated_date: new Date().toISOString(),
-      };
-
-      if (hasSupabaseConfig && supabase) {
-        const { data: inserted, error } = await supabase
-          .from(tableName)
-          .insert(record)
-          .select()
-          .single();
-        if (error) {
-          console.warn(`Supabase insert to ${tableName} failed, using local:`, error);
-        } else {
-          return inserted;
-        }
+      if (!hasSupabaseConfig || !supabase) {
+        throw new Error('Database is not configured. Please try again later.');
       }
 
-      // Local storage fallback
-      const collection = getLocalCollection(entityName);
-      collection.unshift(record);
-      saveLocalCollection(entityName, collection);
-      return record;
+      const userId = await getCurrentUserId();
+      if (isUserScoped && !userId) {
+        throw new Error('You must be logged in to perform this action.');
+      }
+
+      // Strip client-generated IDs — let DB generate UUID
+      const { id: _ignoreId, created_date, updated_date, ...cleanData } = data;
+
+      const record = {
+        ...cleanData,
+        ...(isUserScoped ? { user_id: userId } : {}),
+      };
+
+      const { data: inserted, error } = await supabase
+        .from(tableName)
+        .insert(record)
+        .select()
+        .single();
+
+      if (error) {
+        console.error(`Insert to ${tableName} failed:`, error);
+        throw new Error(error.message || 'Failed to save data.');
+      }
+
+      return inserted;
     },
 
     /**
      * List records with optional sorting
-     * @param {string} sortField - e.g. '-created_date' (prefix '-' for descending)
-     * @param {number} limit
      */
-    async list(sortField = '-created_date', limit = 50) {
-      if (hasSupabaseConfig && supabase) {
-        let query = supabase.from(tableName).select('*');
-
-        if (sortField) {
-          const desc = sortField.startsWith('-');
-          const field = desc ? sortField.slice(1) : sortField;
-          query = query.order(field, { ascending: !desc });
-        }
-
-        query = query.limit(limit);
-
-        const { data, error } = await query;
-        if (!error && data) return data;
-        console.warn(`Supabase list ${tableName} failed, using local:`, error);
+    async list(sortField = '-created_at', limit = 50) {
+      if (!hasSupabaseConfig || !supabase) {
+        return getLocalCollection(entityName);
       }
 
-      // Local
-      let items = getLocalCollection(entityName);
+      let query = supabase.from(tableName).select('*');
+
       if (sortField) {
         const desc = sortField.startsWith('-');
         const field = desc ? sortField.slice(1) : sortField;
-        items.sort((a, b) => {
-          const va = a[field] || '';
-          const vb = b[field] || '';
-          return desc ? (vb > va ? 1 : -1) : (va > vb ? 1 : -1);
-        });
+        query = query.order(field, { ascending: !desc });
       }
-      return items.slice(0, limit);
+
+      query = query.limit(limit);
+
+      const { data, error } = await query;
+      if (error) {
+        console.warn(`List ${tableName} failed:`, error);
+        return getLocalCollection(entityName);
+      }
+
+      // Cache for offline use
+      saveLocalCollection(entityName, data);
+      return data;
     },
 
     /**
      * Filter records by field values
      */
     async filter(filterObj) {
-      if (hasSupabaseConfig && supabase) {
-        let query = supabase.from(tableName).select('*');
-        Object.entries(filterObj).forEach(([key, value]) => {
-          query = query.eq(key, value);
-        });
-        const { data, error } = await query;
-        if (!error && data) return data;
+      if (!hasSupabaseConfig || !supabase) {
+        const items = getLocalCollection(entityName);
+        return items.filter((item) =>
+          Object.entries(filterObj).every(([key, value]) => item[key] === value)
+        );
       }
 
-      // Local
-      const items = getLocalCollection(entityName);
-      return items.filter((item) =>
-        Object.entries(filterObj).every(([key, value]) => item[key] === value)
-      );
+      let query = supabase.from(tableName).select('*');
+      Object.entries(filterObj).forEach(([key, value]) => {
+        if (Array.isArray(value)) {
+          query = query.in(key, value);
+        } else {
+          query = query.eq(key, value);
+        }
+      });
+
+      const { data, error } = await query;
+      if (error) {
+        console.warn(`Filter ${tableName} failed:`, error);
+        return [];
+      }
+      return data;
     },
 
     /**
      * Get a single record by ID
      */
     async get(id) {
-      if (hasSupabaseConfig && supabase) {
-        const { data, error } = await supabase
-          .from(tableName)
-          .select('*')
-          .eq('id', id)
-          .single();
-        if (!error && data) return data;
+      if (!hasSupabaseConfig || !supabase) {
+        const items = getLocalCollection(entityName);
+        return items.find((item) => item.id === id) || null;
       }
 
-      const items = getLocalCollection(entityName);
-      return items.find((item) => item.id === id) || null;
+      const { data, error } = await supabase
+        .from(tableName)
+        .select('*')
+        .eq('id', id)
+        .single();
+
+      if (error) {
+        console.warn(`Get ${tableName} failed:`, error);
+        return null;
+      }
+      return data;
     },
 
     /**
      * Update a record
      */
     async update(id, updates) {
-      const patchData = { ...updates, updated_date: new Date().toISOString() };
-
-      if (hasSupabaseConfig && supabase) {
-        const { data, error } = await supabase
-          .from(tableName)
-          .update(patchData)
-          .eq('id', id)
-          .select()
-          .single();
-        if (!error && data) return data;
+      if (!hasSupabaseConfig || !supabase) {
+        throw new Error('Database is not configured.');
       }
 
-      // Local
-      const items = getLocalCollection(entityName);
-      const index = items.findIndex((item) => item.id === id);
-      if (index !== -1) {
-        items[index] = { ...items[index], ...patchData };
-        saveLocalCollection(entityName, items);
-        return items[index];
+      // Remove fields that shouldn't be updated directly
+      const { id: _id, user_id: _uid, created_at, ...cleanUpdates } = updates;
+
+      const { data, error } = await supabase
+        .from(tableName)
+        .update(cleanUpdates)
+        .eq('id', id)
+        .select()
+        .single();
+
+      if (error) {
+        console.error(`Update ${tableName} failed:`, error);
+        throw new Error(error.message || 'Failed to update data.');
       }
-      return null;
+      return data;
     },
 
     /**
      * Delete a record
      */
     async delete(id) {
-      if (hasSupabaseConfig && supabase) {
-        const { error } = await supabase.from(tableName).delete().eq('id', id);
-        if (!error) return true;
+      if (!hasSupabaseConfig || !supabase) {
+        throw new Error('Database is not configured.');
       }
 
-      const items = getLocalCollection(entityName);
-      const filtered = items.filter((item) => item.id !== id);
-      saveLocalCollection(entityName, filtered);
+      const { error } = await supabase.from(tableName).delete().eq('id', id);
+      if (error) {
+        console.error(`Delete ${tableName} failed:`, error);
+        throw new Error(error.message || 'Failed to delete data.');
+      }
       return true;
+    },
+
+    /**
+     * Count records (useful for limit checks)
+     */
+    async count(filterObj = {}) {
+      if (!hasSupabaseConfig || !supabase) return 0;
+
+      let query = supabase.from(tableName).select('id', { count: 'exact', head: true });
+      Object.entries(filterObj).forEach(([key, value]) => {
+        query = query.eq(key, value);
+      });
+
+      const { count, error } = await query;
+      if (error) return 0;
+      return count || 0;
     },
   };
 }

@@ -1,77 +1,125 @@
 /**
  * AI Service (LLM Integration)
- * Uses GitHub Models API (Grok-3) with local fallback
+ * Uses server-side AI proxy (/api/ai-proxy) to keep API keys secure.
+ * Falls back to direct GitHub Models API call only in dev with VITE_GITHUB_TOKEN.
  */
 import { env } from '@/config/env';
+import { supabase, hasSupabaseConfig } from '@/api/supabaseClient';
 
+const AI_PROXY_URL = '/api/ai-proxy';
 const GITHUB_MODELS_URL = 'https://models.github.ai/inference/chat/completions';
 const DEFAULT_MODEL = 'xai/grok-3';
 
 /**
- * Call the LLM API
- * @param {Object} options
- * @param {string} options.prompt - The prompt text
- * @param {boolean} options.add_context_from_internet - Hint for internet search
- * @param {Object} options.response_json_schema - Expected JSON schema for structured output
- * @returns {Object} Parsed response
+ * Call the LLM API via secure server proxy
  */
 export async function invokeLLM({ prompt, response_json_schema, add_context_from_internet = false }) {
-  const token = env.GITHUB_TOKEN;
+  const systemPrompt = buildSystemPrompt(response_json_schema, add_context_from_internet);
 
-  if (!token) {
-    console.warn('No GitHub token configured, using local fallback');
-    return generateFallbackResponse(prompt, response_json_schema);
-  }
+  const messages = [
+    { role: 'system', content: systemPrompt },
+    { role: 'user', content: prompt },
+  ];
 
   try {
-    const systemPrompt = buildSystemPrompt(response_json_schema, add_context_from_internet);
-
-    const response = await fetch(GITHUB_MODELS_URL, {
-      method: 'POST',
-      headers: {
-        Authorization: `Bearer ${token}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        messages: [
-          { role: 'system', content: systemPrompt },
-          { role: 'user', content: prompt },
-        ],
-        model: DEFAULT_MODEL,
-        temperature: 0.3,
-        max_tokens: 4000,
-        ...(response_json_schema
-          ? { response_format: { type: 'json_object' } }
-          : {}),
-      }),
-    });
-
-    if (!response.ok) {
-      const errorText = await response.text();
-      throw new Error(`GitHub Models API error: ${response.status} - ${errorText}`);
-    }
-
-    const data = await response.json();
-    const content = data.choices?.[0]?.message?.content;
-
-    if (!content) {
-      throw new Error('Empty response from LLM');
-    }
-
-    // Parse JSON response if schema was requested
-    if (response_json_schema) {
-      try {
-        return JSON.parse(content);
-      } catch {
-        return { response: content };
+    // Try server-side proxy first (production path)
+    if (hasSupabaseConfig && supabase) {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (session?.access_token) {
+        const data = await callViaProxy(messages, response_json_schema, session.access_token);
+        return parseResponse(data, response_json_schema);
       }
     }
 
-    return { response: content };
+    // Dev fallback: direct API call with client-side token
+    const devToken = env.GITHUB_TOKEN;
+    if (devToken) {
+      const data = await callDirect(messages, response_json_schema, devToken);
+      return parseResponse(data, response_json_schema);
+    }
+
+    console.warn('No AI service configured, using fallback');
+    return generateFallbackResponse(prompt, response_json_schema);
   } catch (error) {
+    // If rate limited (429), throw specific error for UI to handle
+    if (error.status === 429 || error.message?.includes('limit')) {
+      throw error;
+    }
     console.error('LLM invocation failed:', error);
     return generateFallbackResponse(prompt, response_json_schema);
   }
+}
+
+async function callViaProxy(messages, schema, accessToken) {
+  const response = await fetch(AI_PROXY_URL, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${accessToken}`,
+    },
+    body: JSON.stringify({
+      messages,
+      model: DEFAULT_MODEL,
+      temperature: 0.3,
+      max_tokens: 4000,
+      ...(schema ? { response_format: { type: 'json_object' } } : {}),
+    }),
+  });
+
+  if (response.status === 429) {
+    const err = await response.json().catch(() => ({}));
+    const error = new Error(err.error || 'Daily AI request limit reached');
+    error.status = 429;
+    error.limit = err.limit;
+    throw error;
+  }
+
+  if (!response.ok) {
+    throw new Error(`AI proxy error: ${response.status}`);
+  }
+
+  return response.json();
+}
+
+async function callDirect(messages, schema, token) {
+  const response = await fetch(GITHUB_MODELS_URL, {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${token}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      messages,
+      model: DEFAULT_MODEL,
+      temperature: 0.3,
+      max_tokens: 4000,
+      ...(schema ? { response_format: { type: 'json_object' } } : {}),
+    }),
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    throw new Error(`GitHub Models API error: ${response.status} - ${errorText}`);
+  }
+
+  return response.json();
+}
+
+function parseResponse(data, schema) {
+  const content = data.choices?.[0]?.message?.content;
+  if (!content) {
+    throw new Error('Empty response from LLM');
+  }
+
+  if (schema) {
+    try {
+      return JSON.parse(content);
+    } catch {
+      return { response: content };
+    }
+  }
+
+  return { response: content };
 }
 
 function buildSystemPrompt(schema, useInternet) {

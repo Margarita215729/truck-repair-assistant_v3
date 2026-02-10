@@ -1,76 +1,41 @@
 /**
- * Auth Service
- * Uses Supabase Auth with localStorage fallback for dev
+ * Auth Service — Production
+ * Uses Supabase Auth + profiles table (no localStorage for profile data)
  */
 import { supabase, hasSupabaseConfig } from '@/api/supabaseClient';
-import { isDevelopment } from '@/config/env';
-
-const STORAGE_KEY = 'truck_repair_user_profile';
-
-// Mock user for development without Supabase
-const mockUser = {
-  id: 'dev-user-001',
-  email: 'demo@truckrepair.com',
-  full_name: 'Demo Driver',
-  avatar_url: null,
-  phone: '',
-  company_name: '',
-  role: 'technician',
-  trucks: [],
-  preferred_shops: [],
-  notification_preferences: {
-    email_reports: true,
-    maintenance_reminders: true,
-  },
-};
-
-function getStoredProfile() {
-  try {
-    const stored = localStorage.getItem(STORAGE_KEY);
-    return stored ? JSON.parse(stored) : null;
-  } catch {
-    return null;
-  }
-}
-
-function saveStoredProfile(profile) {
-  try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(profile));
-  } catch {
-    // silent
-  }
-}
 
 export const authService = {
   /**
-   * Get current user
+   * Get current user with profile from DB
    */
   async me() {
-    if (hasSupabaseConfig && supabase) {
-      const { data: { user }, error } = await supabase.auth.getUser();
-      if (error || !user) return null;
+    if (!hasSupabaseConfig || !supabase) return null;
 
-      // Merge Supabase user with stored profile data
-      const storedProfile = getStoredProfile();
-      return {
-        id: user.id,
-        email: user.email,
-        full_name: user.user_metadata?.display_name || storedProfile?.full_name || '',
-        avatar_url: user.user_metadata?.avatar_url || storedProfile?.avatar_url || null,
-        phone: storedProfile?.phone || '',
-        company_name: storedProfile?.company_name || '',
-        role: user.user_metadata?.role || 'technician',
-        trucks: storedProfile?.trucks || [],
-        preferred_shops: storedProfile?.preferred_shops || [],
-        notification_preferences: storedProfile?.notification_preferences || {
-          email_reports: true,
-          maintenance_reminders: true,
-        },
-      };
-    }
+    const { data: { user }, error } = await supabase.auth.getUser();
+    if (error || !user) return null;
 
-    // No Supabase config — no user (require real auth)
-    return null;
+    // Fetch profile from profiles table
+    const { data: profile } = await supabase
+      .from('profiles')
+      .select('*')
+      .eq('id', user.id)
+      .single();
+
+    return {
+      id: user.id,
+      email: user.email,
+      email_confirmed_at: user.email_confirmed_at,
+      full_name: profile?.full_name || user.user_metadata?.display_name || '',
+      avatar_url: profile?.avatar_url || user.user_metadata?.avatar_url || null,
+      phone: profile?.phone || '',
+      company_name: profile?.company_name || '',
+      role: profile?.role || user.user_metadata?.role || 'technician',
+      preferred_language: profile?.preferred_language || 'en',
+      notification_preferences: profile?.notification_preferences || {
+        email_reports: true,
+        maintenance_reminders: true,
+      },
+    };
   },
 
   /**
@@ -97,11 +62,35 @@ export const authService = {
       password,
       options: {
         data: { display_name: name, role: 'technician' },
-        emailRedirectTo: window.location.origin,
+        emailRedirectTo: `${window.location.origin}/auth/confirm`,
       },
     });
     if (error) throw error;
     return data;
+  },
+
+  /**
+   * Send password reset email
+   */
+  async resetPassword(email) {
+    if (!hasSupabaseConfig || !supabase) {
+      throw new Error('Authentication service is not configured.');
+    }
+    const { error } = await supabase.auth.resetPasswordForEmail(email, {
+      redirectTo: `${window.location.origin}/auth/confirm`,
+    });
+    if (error) throw error;
+  },
+
+  /**
+   * Update password (for logged-in user)
+   */
+  async updatePassword(newPassword) {
+    if (!hasSupabaseConfig || !supabase) {
+      throw new Error('Authentication service is not configured.');
+    }
+    const { error } = await supabase.auth.updateUser({ password: newPassword });
+    if (error) throw error;
   },
 
   /**
@@ -111,30 +100,50 @@ export const authService = {
     if (hasSupabaseConfig && supabase) {
       await supabase.auth.signOut();
     }
-    localStorage.removeItem(STORAGE_KEY);
   },
 
   /**
-   * Update user profile
+   * Update user profile in profiles table
    */
   async updateMe(updates) {
-    if (hasSupabaseConfig && supabase) {
-      // Update Supabase user metadata for core fields
-      if (updates.full_name || updates.avatar_url) {
-        await supabase.auth.updateUser({
-          data: {
-            ...(updates.full_name && { display_name: updates.full_name }),
-            ...(updates.avatar_url && { avatar_url: updates.avatar_url }),
-          },
-        });
-      }
+    if (!hasSupabaseConfig || !supabase) {
+      throw new Error('Authentication service is not configured.');
     }
 
-    // Store extended profile in localStorage (or Supabase table in production)
-    const current = getStoredProfile() || { ...mockUser };
-    const updated = { ...current, ...updates };
-    saveStoredProfile(updated);
-    return updated;
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) throw new Error('Not authenticated');
+
+    // Update Supabase Auth metadata for core fields
+    if (updates.full_name || updates.avatar_url) {
+      await supabase.auth.updateUser({
+        data: {
+          ...(updates.full_name && { display_name: updates.full_name }),
+          ...(updates.avatar_url && { avatar_url: updates.avatar_url }),
+        },
+      });
+    }
+
+    // Update profiles table
+    const { data: profile, error } = await supabase
+      .from('profiles')
+      .update({
+        full_name: updates.full_name,
+        phone: updates.phone,
+        company_name: updates.company_name,
+        avatar_url: updates.avatar_url,
+        preferred_language: updates.preferred_language,
+        notification_preferences: updates.notification_preferences,
+      })
+      .eq('id', user.id)
+      .select()
+      .single();
+
+    if (error) {
+      console.error('Profile update failed:', error);
+      throw new Error('Failed to update profile');
+    }
+
+    return profile;
   },
 
   /**

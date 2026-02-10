@@ -3,8 +3,9 @@ import { Link } from 'react-router-dom';
 import { createPageUrl } from './utils';
 import { useAuth } from '@/lib/AuthContext';
 import { useLanguage } from '@/lib/LanguageContext';
-import { MessageSquare, MapPin, FileText, Menu, X, User, LogIn, Package, Users, Globe } from 'lucide-react';
+import { MessageSquare, MapPin, FileText, Menu, X, User, LogIn, Package, Users, Globe, Crown, Zap } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem,
@@ -13,7 +14,7 @@ import {
 
 export default function Layout({ children, currentPageName }) {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-  const { user, isAuthenticated, isLoadingAuth, logout } = useAuth();
+  const { user, isAuthenticated, isLoadingAuth, logout, subscription, isProUser } = useAuth();
   const { t, language, setLanguage, languages } = useLanguage();
 
   const navItems = [
@@ -81,11 +82,26 @@ export default function Layout({ children, currentPageName }) {
                     <div className="px-3 py-2">
                       <p className="text-sm font-medium">{user.full_name || t('common.user')}</p>
                       <p className="text-xs text-white/50">{user.email}</p>
+                      {subscription?.plan && (
+                        <Badge className={`mt-1 text-xs border-0 ${
+                          isProUser
+                            ? 'bg-brand-orange/20 text-brand-orange'
+                            : 'bg-white/10 text-white/50'
+                        }`}>
+                          {isProUser ? <Crown className="w-3 h-3 mr-1" /> : null}
+                          {subscription.plan === 'lifetime' ? 'Lifetime' : subscription.plan === 'fleet' ? 'Fleet' : subscription.plan === 'owner' ? 'Owner-Operator' : subscription.plan === 'pro' ? 'Pro' : 'Free'}
+                        </Badge>
+                      )}
                     </div>
                     <DropdownMenuSeparator className="bg-brand-dark/30" />
                     <DropdownMenuItem asChild className="hover:bg-white/10 cursor-pointer">
                       <Link to={createPageUrl('Profile')} className="flex items-center gap-2">
                         <User className="w-4 h-4" />{t('nav.profile')}
+                      </Link>
+                    </DropdownMenuItem>
+                    <DropdownMenuItem asChild className="hover:bg-white/10 cursor-pointer">
+                      <Link to="/Pricing" className="flex items-center gap-2">
+                        <Zap className="w-4 h-4" />{t('nav.pricing')}
                       </Link>
                     </DropdownMenuItem>
                     <DropdownMenuSeparator className="bg-brand-dark/30" />
