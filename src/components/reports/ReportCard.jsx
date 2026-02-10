@@ -15,8 +15,29 @@ import { format } from 'date-fns';
 import { motion } from 'framer-motion';
 
 export default function ReportCard({ report, onClick, onDelete }) {
-  const issueCount = report.identified_issues?.length || 0;
-  const hasHighUrgency = report.identified_issues?.some(i => i.urgency === 'high');
+  const rd = report.report_data || {};
+  const isNewFormat = rd.report_type === 'INTAKE_Triage_Roadside';
+  
+  // New format: use severity_triage; old format: use identified_issues
+  const urgency = rd.severity_triage?.overall_urgency;
+  const issueCount = report.identified_issues?.length || rd.conclusions?.length || 0;
+
+  const urgencyBadge = {
+    high: 'bg-red-500/20 text-red-400 border-red-500/30',
+    medium: 'bg-yellow-500/20 text-yellow-400 border-yellow-500/30',
+    low: 'bg-blue-500/20 text-blue-400 border-blue-500/30',
+  };
+
+  // Card summary text
+  const summaryText = isNewFormat
+    ? (rd.conclusions?.[0]?.statement || rd.verified_facts?.[0] || report.diagnosis_summary || 'Intake & Triage Report')
+    : report.diagnosis_summary;
+
+  const vehicleInfo = isNewFormat
+    ? rd.vehicle_info
+    : report.truck_info;
+
+  const reportDate = report.created_date || report.created_at || Date.now();
 
   return (
     <motion.div
@@ -32,28 +53,41 @@ export default function ReportCard({ report, onClick, onDelete }) {
             
             <div className="min-w-0">
               <h3 className="font-semibold text-white truncate pr-4">
-                {report.diagnosis_summary?.substring(0, 60)}...
+                {summaryText?.substring(0, 80)}{summaryText?.length > 80 ? '...' : ''}
               </h3>
               
               <div className="flex items-center gap-3 mt-2 flex-wrap">
-                {report.truck_info?.make && (
+                {vehicleInfo?.make && (
                   <Badge variant="outline" className="bg-white/5 border-white/20 text-white/70">
                     <Truck className="w-3 h-3 mr-1" />
-                    {report.truck_info.year} {report.truck_info.make} {report.truck_info.model}
+                    {vehicleInfo.year_reported || vehicleInfo.year} {vehicleInfo.make} {vehicleInfo.model}
+                  </Badge>
+                )}
+
+                {urgency && (
+                  <Badge className={`${urgencyBadge[urgency] || urgencyBadge.medium} border`}>
+                    <AlertCircle className="w-3 h-3 mr-1" />
+                    {urgency.toUpperCase()}
                   </Badge>
                 )}
                 
-                {issueCount > 0 && (
-                  <Badge className={`${hasHighUrgency ? 'bg-red-500/20 text-red-400 border-red-500/30' : 'bg-yellow-500/20 text-yellow-400 border-yellow-500/30'} border`}>
+                {!urgency && issueCount > 0 && (
+                  <Badge className="bg-yellow-500/20 text-yellow-400 border-yellow-500/30 border">
                     <AlertCircle className="w-3 h-3 mr-1" />
-                    {issueCount} issue{issueCount !== 1 ? 's' : ''} found
+                    {issueCount} item{issueCount !== 1 ? 's' : ''}
+                  </Badge>
+                )}
+
+                {rd.severity_triage?.tow_recommended && (
+                  <Badge className="bg-red-500/20 text-red-400 border-red-500/30 border text-xs">
+                    TOW
                   </Badge>
                 )}
               </div>
               
               <div className="flex items-center gap-2 mt-2 text-sm text-white/40">
                 <Calendar className="w-4 h-4" />
-                {format(new Date(report.created_date), 'MMM d, yyyy h:mm a')}
+                {format(new Date(reportDate), 'MMM d, yyyy h:mm a')}
               </div>
             </div>
           </div>

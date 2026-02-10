@@ -8,6 +8,8 @@ import { AuthProvider, useAuth } from '@/lib/AuthContext';
 import { LanguageProvider, useLanguage } from '@/lib/LanguageContext';
 import UserNotRegisteredError from '@/components/UserNotRegisteredError';
 import LoginPage from '@/pages/LoginPage';
+import AuthCallbackPage from '@/pages/AuthCallbackPage';
+import PricingPage from '@/pages/PricingPage';
 
 const { Pages, Layout, mainPage } = pagesConfig;
 const mainPageKey = mainPage ?? Object.keys(Pages)[0];
@@ -51,6 +53,11 @@ const AuthenticatedApp = () => {
           <MainPage />
         </LayoutWrapper>
       } />
+      <Route path="/Pricing" element={
+        <LayoutWrapper currentPageName="Pricing">
+          <PricingPage />
+        </LayoutWrapper>
+      } />
       {Object.entries(Pages).map(([path, Page]) => (
         <Route
           key={path}
@@ -73,7 +80,11 @@ function App() {
       <AuthProvider>
         <QueryClientProvider client={queryClientInstance}>
           <Router>
-            <AuthenticatedApp />
+            <Routes>
+              {/* Auth callback — outside authenticated route to handle unauthenticated redirects */}
+              <Route path="/auth/confirm" element={<AuthCallbackPage />} />
+              <Route path="/*" element={<AuthenticatedApp />} />
+            </Routes>
           </Router>
           <Toaster />
         </QueryClientProvider>

@@ -1,13 +1,14 @@
 import React, { useState } from 'react';
-import { Mail, Lock, User, Eye, EyeOff, AlertCircle, Loader2, Globe } from 'lucide-react';
+import { Mail, Lock, User, Eye, EyeOff, AlertCircle, Loader2, Globe, ArrowLeft, CheckCircle2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useLanguage } from '@/lib/LanguageContext';
+import { authService } from '@/services/authService';
 
 export default function LoginPage({ onLogin }) {
   const { t, language, setLanguage, languages } = useLanguage();
-  const [mode, setMode] = useState('signin'); // 'signin' | 'signup'
+  const [mode, setMode] = useState('signin'); // 'signin' | 'signup' | 'forgot' | 'check-email'
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [name, setName] = useState('');
@@ -23,6 +24,13 @@ export default function LoginPage({ onLogin }) {
     setLoading(true);
 
     try {
+      if (mode === 'forgot') {
+        await authService.resetPassword(email);
+        setMode('check-email');
+        setLoading(false);
+        return;
+      }
+
       if (mode === 'signup') {
         if (!name.trim()) {
           setError(t('login.enterName'));
@@ -34,15 +42,24 @@ export default function LoginPage({ onLogin }) {
           setLoading(false);
           return;
         }
-        await onLogin('signup', { email, password, name });
-        setSuccess(t('login.accountCreated'));
-        setMode('signin');
-        setPassword('');
+        const result = await onLogin('signup', { email, password, name });
+        // If Supabase requires email confirmation, user.identities will be empty
+        if (result?.user && !result.user.email_confirmed_at) {
+          setMode('check-email');
+        } else {
+          setSuccess(t('login.accountCreated'));
+          setMode('signin');
+          setPassword('');
+        }
       } else {
         await onLogin('signin', { email, password });
       }
     } catch (err) {
-      setError(err.message || t('login.authFailed'));
+      if (err.message?.includes('Email not confirmed')) {
+        setMode('check-email');
+      } else {
+        setError(err.message || t('login.authFailed'));
+      }
     } finally {
       setLoading(false);
     }
@@ -85,31 +102,67 @@ export default function LoginPage({ onLogin }) {
 
         {/* Card */}
         <div className="brand-card rounded-2xl p-6 shadow-2xl">
-          {/* Tab switcher */}
-          <div className="flex bg-[#0b1012] rounded-lg p-1 mb-6">
-            <button
-              type="button"
-              onClick={() => { setMode('signin'); setError(''); setSuccess(''); }}
-              className={`flex-1 py-2.5 text-sm font-medium rounded-md transition-all ${
-                mode === 'signin'
-                  ? 'bg-brand-orange text-white shadow-lg shadow-brand-orange/20'
-                  : 'text-white/50 hover:text-white/70'
-              }`}
-            >
-              {t('login.signIn')}
-            </button>
-            <button
-              type="button"
-              onClick={() => { setMode('signup'); setError(''); setSuccess(''); }}
-              className={`flex-1 py-2.5 text-sm font-medium rounded-md transition-all ${
-                mode === 'signup'
-                  ? 'bg-brand-orange text-white shadow-lg shadow-brand-orange/20'
-                  : 'text-white/50 hover:text-white/70'
-              }`}
-            >
-              {t('login.signUp')}
-            </button>
-          </div>
+          {/* Check Email Screen */}
+          {mode === 'check-email' ? (
+            <div className="text-center py-4">
+              <div className="w-16 h-16 bg-brand-orange/10 rounded-full flex items-center justify-center mx-auto mb-4">
+                <Mail className="w-8 h-8 text-brand-orange" />
+              </div>
+              <h2 className="text-lg font-semibold text-white mb-2">{t('login.checkYourEmail')}</h2>
+              <p className="text-white/50 text-sm mb-6">{t('login.checkEmailDesc', { email })}</p>
+              <Button
+                onClick={() => { setMode('signin'); setError(''); setSuccess(''); }}
+                variant="outline"
+                className="border-white/20 text-white/70 hover:text-white hover:bg-white/5"
+              >
+                <ArrowLeft className="w-4 h-4 mr-2" />
+                {t('login.backToSignIn')}
+              </Button>
+            </div>
+          ) : (
+            <>
+              {/* Tab switcher — only show for signin/signup */}
+              {mode !== 'forgot' && (
+                <div className="flex bg-[#0b1012] rounded-lg p-1 mb-6">
+                  <button
+                    type="button"
+                    onClick={() => { setMode('signin'); setError(''); setSuccess(''); }}
+                    className={`flex-1 py-2.5 text-sm font-medium rounded-md transition-all ${
+                      mode === 'signin'
+                        ? 'bg-brand-orange text-white shadow-lg shadow-brand-orange/20'
+                        : 'text-white/50 hover:text-white/70'
+                    }`}
+                  >
+                    {t('login.signIn')}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => { setMode('signup'); setError(''); setSuccess(''); }}
+                    className={`flex-1 py-2.5 text-sm font-medium rounded-md transition-all ${
+                      mode === 'signup'
+                        ? 'bg-brand-orange text-white shadow-lg shadow-brand-orange/20'
+                        : 'text-white/50 hover:text-white/70'
+                    }`}
+                  >
+                    {t('login.signUp')}
+                  </button>
+                </div>
+              )}
+
+              {/* Forgot Password Header */}
+              {mode === 'forgot' && (
+                <div className="mb-6">
+                  <button
+                    type="button"
+                    onClick={() => { setMode('signin'); setError(''); }}
+                    className="flex items-center gap-1 text-white/50 hover:text-white text-sm mb-3 transition-colors"
+                  >
+                    <ArrowLeft className="w-4 h-4" /> {t('login.backToSignIn')}
+                  </button>
+                  <h2 className="text-lg font-semibold text-white">{t('login.forgotPassword')}</h2>
+                  <p className="text-white/50 text-sm mt-1">{t('login.forgotPasswordDesc')}</p>
+                </div>
+              )}
 
           {/* Success message */}
           {success && (
@@ -167,31 +220,44 @@ export default function LoginPage({ onLogin }) {
               </div>
             </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="password" className="text-white/70 text-sm">
-                {t('login.password')}
-              </Label>
-              <div className="relative">
-                <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-white/30" />
-                <Input
-                  id="password"
-                  type={showPassword ? 'text' : 'password'}
-                  placeholder={mode === 'signup' ? t('login.passwordPlaceholderNew') : t('login.passwordPlaceholder')}
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  className="pl-10 pr-10 bg-[#0b1012] border-brand-dark/30 text-white placeholder:text-white/25 focus:border-brand-orange/50 focus:ring-brand-orange/20 h-11"
-                  required
-                  minLength={6}
-                />
-                <button
-                  type="button"
-                  onClick={() => setShowPassword(!showPassword)}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-white/30 hover:text-white/60 transition"
-                >
-                  {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                </button>
+            {mode !== 'forgot' && (
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <Label htmlFor="password" className="text-white/70 text-sm">
+                    {t('login.password')}
+                  </Label>
+                  {mode === 'signin' && (
+                    <button
+                      type="button"
+                      onClick={() => { setMode('forgot'); setError(''); setSuccess(''); }}
+                      className="text-brand-orange/70 hover:text-brand-orange text-xs transition-colors"
+                    >
+                      {t('login.forgotPassword')}
+                    </button>
+                  )}
+                </div>
+                <div className="relative">
+                  <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-white/30" />
+                  <Input
+                    id="password"
+                    type={showPassword ? 'text' : 'password'}
+                    placeholder={mode === 'signup' ? t('login.passwordPlaceholderNew') : t('login.passwordPlaceholder')}
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    className="pl-10 pr-10 bg-[#0b1012] border-brand-dark/30 text-white placeholder:text-white/25 focus:border-brand-orange/50 focus:ring-brand-orange/20 h-11"
+                    required
+                    minLength={6}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword(!showPassword)}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-white/30 hover:text-white/60 transition"
+                  >
+                    {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                  </button>
+                </div>
               </div>
-            </div>
+            )}
 
             <Button
               type="submit"
@@ -201,20 +267,32 @@ export default function LoginPage({ onLogin }) {
               {loading ? (
                 <>
                   <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                  {mode === 'signin' ? t('login.signingIn') : t('login.creatingAccount')}
+                  {mode === 'forgot'
+                    ? t('login.sending')
+                    : mode === 'signin'
+                      ? t('login.signingIn')
+                      : t('login.creatingAccount')}
                 </>
               ) : (
-                mode === 'signin' ? t('login.signIn') : t('login.createAccount')
+                mode === 'forgot'
+                  ? t('login.sendResetLink')
+                  : mode === 'signin'
+                    ? t('login.signIn')
+                    : t('login.createAccount')
               )}
             </Button>
           </form>
 
           {/* Footer */}
-          <p className="text-center text-white/30 text-xs mt-6">
-            {mode === 'signin'
-              ? t('login.noAccount')
-              : t('login.hasAccount')}
-          </p>
+          {mode !== 'forgot' && (
+            <p className="text-center text-white/30 text-xs mt-6">
+              {mode === 'signin'
+                ? t('login.noAccount')
+                : t('login.hasAccount')}
+            </p>
+          )}
+            </>
+          )}
         </div>
 
         {/* Bottom text */}
