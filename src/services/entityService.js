@@ -58,6 +58,47 @@ const USER_SCOPED_TABLES = new Set([
   'service_reviews', 'solution_votes', 'diagnostic_toolkits', 'repair_guide_ratings',
 ]);
 
+// ─── Field mapping: app field name → DB column name ──────────────────
+// The app uses `make` everywhere, but the DB column is `manufacturer`.
+const FIELD_MAP = {
+  trucks: { make: 'manufacturer' },
+};
+
+/** Convert app-side object → DB-side object (e.g. make → manufacturer) */
+function toDbFields(tableName, data) {
+  const map = FIELD_MAP[tableName];
+  if (!map) return data;
+  const converted = { ...data };
+  for (const [appField, dbField] of Object.entries(map)) {
+    if (appField in converted) {
+      converted[dbField] = converted[appField];
+      delete converted[appField];
+    }
+  }
+  return converted;
+}
+
+/** Convert DB-side object → app-side object (e.g. manufacturer → make) */
+function fromDbFields(tableName, row) {
+  const map = FIELD_MAP[tableName];
+  if (!map || !row) return row;
+  const converted = { ...row };
+  for (const [appField, dbField] of Object.entries(map)) {
+    if (dbField in converted) {
+      converted[appField] = converted[dbField];
+      delete converted[dbField];
+    }
+  }
+  return converted;
+}
+
+/** Convert an array of DB rows → app-side objects */
+function fromDbFieldsArray(tableName, rows) {
+  const map = FIELD_MAP[tableName];
+  if (!map || !rows) return rows;
+  return rows.map((row) => fromDbFields(tableName, row));
+}
+
 // ─── Generic Entity CRUD ─────────────────────────────────────────────
 
 function createEntityAPI(entityName) {
@@ -81,10 +122,10 @@ function createEntityAPI(entityName) {
       // Strip client-generated IDs — let DB generate UUID
       const { id: _ignoreId, created_date, updated_date, ...cleanData } = data;
 
-      const record = {
+      const record = toDbFields(tableName, {
         ...cleanData,
         ...(isUserScoped ? { user_id: userId } : {}),
-      };
+      });
 
       const { data: inserted, error } = await supabase
         .from(tableName)
@@ -97,7 +138,7 @@ function createEntityAPI(entityName) {
         throw new Error(error.message || 'Failed to save data.');
       }
 
-      return inserted;
+      return fromDbFields(tableName, inserted);
     },
 
     /**
@@ -124,9 +165,10 @@ function createEntityAPI(entityName) {
         return getLocalCollection(entityName);
       }
 
+      const mapped = fromDbFieldsArray(tableName, data);
       // Cache for offline use
-      saveLocalCollection(entityName, data);
-      return data;
+      saveLocalCollection(entityName, mapped);
+      return mapped;
     },
 
     /**
@@ -140,8 +182,9 @@ function createEntityAPI(entityName) {
         );
       }
 
+      const dbFilter = toDbFields(tableName, filterObj);
       let query = supabase.from(tableName).select('*');
-      Object.entries(filterObj).forEach(([key, value]) => {
+      Object.entries(dbFilter).forEach(([key, value]) => {
         if (Array.isArray(value)) {
           query = query.in(key, value);
         } else {
@@ -154,7 +197,7 @@ function createEntityAPI(entityName) {
         console.warn(`Filter ${tableName} failed:`, error);
         return [];
       }
-      return data;
+      return fromDbFieldsArray(tableName, data);
     },
 
     /**
@@ -176,7 +219,7 @@ function createEntityAPI(entityName) {
         console.warn(`Get ${tableName} failed:`, error);
         return null;
       }
-      return data;
+      return fromDbFields(tableName, data);
     },
 
     /**
@@ -190,9 +233,10 @@ function createEntityAPI(entityName) {
       // Remove fields that shouldn't be updated directly
       const { id: _id, user_id: _uid, created_at, ...cleanUpdates } = updates;
 
+      const dbUpdates = toDbFields(tableName, cleanUpdates);
       const { data, error } = await supabase
         .from(tableName)
-        .update(cleanUpdates)
+        .update(dbUpdates)
         .eq('id', id)
         .select()
         .single();
@@ -201,7 +245,7 @@ function createEntityAPI(entityName) {
         console.error(`Update ${tableName} failed:`, error);
         throw new Error(error.message || 'Failed to update data.');
       }
-      return data;
+      return fromDbFields(tableName, data);
     },
 
     /**

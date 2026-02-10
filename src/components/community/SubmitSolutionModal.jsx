@@ -25,7 +25,6 @@ export default function SubmitSolutionModal({ open, onClose }) {
     solution: '',
     difficulty: 'moderate',
     time_required: '',
-    cost_saved: '',
     tags: []
   });
   const [uploading, setUploading] = useState(false);
@@ -44,8 +43,7 @@ export default function SubmitSolutionModal({ open, onClose }) {
     submitMutation.mutate({
       ...formData,
       truck_year_start: formData.truck_year_start ? parseInt(formData.truck_year_start) : undefined,
-      truck_year_end: formData.truck_year_end ? parseInt(formData.truck_year_end) : undefined,
-      cost_saved: formData.cost_saved ? parseFloat(formData.cost_saved) : undefined
+      truck_year_end: formData.truck_year_end ? parseInt(formData.truck_year_end) : undefined
     });
   };
 
@@ -184,17 +182,6 @@ export default function SubmitSolutionModal({ open, onClose }) {
               onChange={(e) => setFormData({ ...formData, solution: e.target.value })}
               placeholder="Step-by-step solution..."
               rows={6}
-              className="bg-white/5 border-white/10 text-white"
-            />
-          </div>
-
-          <div>
-            <Label className="text-white/70">Cost Saved (vs shop)</Label>
-            <Input
-              type="number"
-              value={formData.cost_saved}
-              onChange={(e) => setFormData({ ...formData, cost_saved: e.target.value })}
-              placeholder="500"
               className="bg-white/5 border-white/10 text-white"
             />
           </div>

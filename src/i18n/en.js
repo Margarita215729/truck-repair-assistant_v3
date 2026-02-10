@@ -178,7 +178,7 @@ export default {
     generateReport: 'Generate Report',
     thinking: 'Analyzing...',
     inputPlaceholder: 'Describe your truck problem...',
-    disclaimer: 'AI can make mistakes. Always verify critical repairs with a professional.',
+    disclaimer: 'Recommendations are based on the information provided and are not a definitive diagnosis. Always verify critical repairs with a qualified mechanic.',
     reportGenerated: 'Report generated! View it in the Reports section.',
     reportError: 'Failed to generate report',
     responseFailed: 'Failed to get response. Please try again.',

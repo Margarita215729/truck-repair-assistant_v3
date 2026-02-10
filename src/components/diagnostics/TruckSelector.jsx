@@ -26,7 +26,7 @@ const US_TRUCK_DATA = {
   'Isuzu': ['NPR', 'NQR', 'NRR', 'FTR'],
 };
 
-const YEARS = Array.from({ length: 27 }, (_, i) => 2000 + i);
+const YEARS = Array.from({ length: 27 }, (_, i) => 2026 - i);
 
 export default function TruckSelector({ open, onClose, onSelect, currentTruck }) {
   const [mode, setMode] = useState('saved');
@@ -212,7 +212,7 @@ export default function TruckSelector({ open, onClose, onSelect, currentTruck })
                   <SelectValue placeholder="Select year" />
                 </SelectTrigger>
                 <SelectContent className="bg-[#1a1a1a] border-white/10 max-h-60">
-                  {YEARS.reverse().map((y) => (
+                  {YEARS.map((y) => (
                     <SelectItem key={y} value={y.toString()} className="text-white hover:bg-white/10 focus:bg-white/10">
                       {y}
                     </SelectItem>
