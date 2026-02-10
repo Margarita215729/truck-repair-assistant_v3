@@ -13,7 +13,13 @@ let supabase = null;
 
 try {
   if (hasSupabaseConfig) {
-    supabase = createClient(supabaseUrl, supabaseAnonKey);
+    supabase = createClient(supabaseUrl, supabaseAnonKey, {
+      auth: {
+        autoRefreshToken: true,
+        persistSession: true,
+        detectSessionInUrl: true,
+      },
+    });
   }
 } catch (error) {
   console.warn('Supabase client initialization failed:', error);
