@@ -10,6 +10,8 @@ import { Switch } from '@/components/ui/switch';
 import { Separator } from '@/components/ui/separator';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { Badge } from '@/components/ui/badge';
+import { Progress } from '@/components/ui/progress';
 import { 
   User, 
   Mail, 
@@ -20,11 +22,17 @@ import {
   LogOut,
   Bell,
   Shield,
-  Loader2
+  Loader2,
+  Crown,
+  CreditCard,
+  Zap
 } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { toast } from 'sonner';
 import { useLanguage } from '@/lib/LanguageContext';
+import { useAuth } from '@/lib/AuthContext';
+import { subscriptionService } from '@/services/subscriptionService';
+import { useNavigate } from 'react-router-dom';
 
 import ProfileStats from '@/components/profile/ProfileStats';
 import TruckGarage from '@/components/profile/TruckGarage';
@@ -32,8 +40,11 @@ import SavedShops from '@/components/profile/SavedShops';
 
 export default function Profile() {
   const { t } = useLanguage();
+  const { subscription, isProUser, planLimits, aiUsage } = useAuth();
+  const navigate = useNavigate();
   const [isEditing, setIsEditing] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
+  const [isManagingSubscription, setIsManagingSubscription] = useState(false);
   const [formData, setFormData] = useState({
     full_name: '',
     phone: '',
@@ -285,6 +296,112 @@ export default function Profile() {
 
         {/* Stats */}
         <ProfileStats stats={stats} />
+
+        {/* Subscription */}
+        <Card className="p-6 bg-white/5 border-white/10">
+          <h3 className="text-lg font-semibold text-white flex items-center gap-2 mb-4">
+            <CreditCard className="w-5 h-5 text-orange-500" />
+            {t('profile.subscription')}
+          </h3>
+          
+          <div className="space-y-4">
+            {/* Current Plan */}
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <span className="text-white/60">{t('profile.currentPlan')}</span>
+                <Badge 
+                  variant={isProUser ? 'default' : 'secondary'}
+                  className={isProUser ? 'bg-orange-500/20 text-orange-400 border-orange-500/30' : 'bg-white/10 text-white/60'}
+                >
+                  {isProUser && <Crown className="w-3 h-3 mr-1" />}
+                  {subscription?.plan === 'lifetime' 
+                    ? t('profile.lifetimePlan')
+                    : subscription?.plan === 'pro' 
+                      ? t('profile.proPlan') 
+                      : t('profile.freePlan')}
+                </Badge>
+              </div>
+              
+              {isProUser && subscription?.plan !== 'lifetime' ? (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  disabled={isManagingSubscription}
+                  className="border-white/20 hover:bg-white/10"
+                  onClick={async () => {
+                    setIsManagingSubscription(true);
+                    try {
+                      await subscriptionService.openBillingPortal();
+                    } catch (err) {
+                      toast.error(t('pricing.portalFailed'));
+                    } finally {
+                      setIsManagingSubscription(false);
+                    }
+                  }}
+                >
+                  {isManagingSubscription ? (
+                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  ) : (
+                    <CreditCard className="w-4 h-4 mr-2" />
+                  )}
+                  {t('profile.manageSubscription')}
+                </Button>
+              ) : !isProUser && (
+                <Button
+                  size="sm"
+                  className="bg-orange-500 hover:bg-orange-600"
+                  onClick={() => navigate('/Pricing')}
+                >
+                  <Zap className="w-4 h-4 mr-2" />
+                  {t('profile.upgradeToPro')}
+                </Button>
+              )}
+            </div>
+
+            {/* Next payment date for Pro */}
+            {subscription?.plan === 'pro' && subscription?.current_period_end && (
+              <>
+                <Separator className="bg-white/10" />
+                <div className="flex items-center justify-between">
+                  <span className="text-white/60">{t('profile.nextPayment')}</span>
+                  <span className="text-white">
+                    {new Date(subscription.current_period_end).toLocaleDateString()}
+                  </span>
+                </div>
+              </>
+            )}
+
+            <Separator className="bg-white/10" />
+
+            {/* AI Usage */}
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <span className="text-white/60">{t('profile.aiRequestsToday')}</span>
+                <span className="text-white">
+                  {isProUser 
+                    ? t('profile.unlimited')
+                    : `${aiUsage?.used || 0} ${t('profile.of')} ${planLimits?.aiRequestsPerDay || 10}`}
+                </span>
+              </div>
+              {!isProUser && (
+                <Progress 
+                  value={((aiUsage?.used || 0) / (planLimits?.aiRequestsPerDay || 10)) * 100} 
+                  className="h-2 bg-white/10"
+                />
+              )}
+            </div>
+
+            {/* Truck Usage */}
+            <div className="flex items-center justify-between">
+              <span className="text-white/60">{t('profile.trucksUsed')}</span>
+              <span className="text-white">
+                {isProUser 
+                  ? `${stats.trucksCount} — ${t('profile.unlimited')}`
+                  : `${stats.trucksCount} ${t('profile.of')} ${planLimits?.maxTrucks || 3}`}
+              </span>
+            </div>
+          </div>
+        </Card>
 
         {/* Notifications */}
         <Card className="p-6 bg-white/5 border-white/10">

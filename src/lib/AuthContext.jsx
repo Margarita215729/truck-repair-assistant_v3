@@ -1,5 +1,7 @@
-import React, { createContext, useState, useContext, useEffect } from 'react';
+import React, { createContext, useState, useContext, useEffect, useCallback } from 'react';
 import { authService } from '@/services/authService';
+import { subscriptionService } from '@/services/subscriptionService';
+import { LIMITS } from '@/config/stripe';
 
 const AuthContext = createContext();
 
@@ -8,6 +10,11 @@ export const AuthProvider = ({ children }) => {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [isLoadingAuth, setIsLoadingAuth] = useState(true);
   const [authError, setAuthError] = useState(null);
+  const [subscription, setSubscription] = useState({ plan: 'free', status: 'active' });
+  const [aiUsage, setAiUsage] = useState({ used: 0, limit: 10, remaining: 10 });
+
+  const isProUser = subscription?.plan === 'pro' || subscription?.plan === 'owner' || subscription?.plan === 'fleet' || subscription?.plan === 'lifetime';
+  const planLimits = LIMITS[subscription?.plan] || LIMITS.free;
 
   useEffect(() => {
     checkUserAuth();
@@ -17,13 +24,21 @@ export const AuthProvider = ({ children }) => {
         setUser({
           id: session.user.id,
           email: session.user.email,
+          email_confirmed_at: session.user.email_confirmed_at,
           full_name: session.user.user_metadata?.display_name || session.user.email?.split('@')[0],
           avatar_url: session.user.user_metadata?.avatar_url,
         });
         setIsAuthenticated(true);
+        // Load subscription after sign-in
+        loadSubscription();
       } else if (event === 'SIGNED_OUT') {
         setUser(null);
         setIsAuthenticated(false);
+        setSubscription({ plan: 'free', status: 'active' });
+        setAiUsage({ used: 0, limit: 10, remaining: 10 });
+      } else if (event === 'TOKEN_REFRESHED') {
+        // Session refreshed - reload subscription data
+        loadSubscription();
       }
     });
 
@@ -31,6 +46,29 @@ export const AuthProvider = ({ children }) => {
       if (typeof unsubscribe === 'function') unsubscribe();
     };
   }, []);
+
+  const loadSubscription = useCallback(async () => {
+    try {
+      const [sub, usage] = await Promise.all([
+        subscriptionService.getCurrentSubscription(),
+        subscriptionService.checkAiLimit(),
+      ]);
+      setSubscription(sub);
+      setAiUsage(usage);
+    } catch (err) {
+      console.warn('Failed to load subscription:', err);
+    }
+  }, []);
+
+  const refreshAiUsage = useCallback(async () => {
+    try {
+      const usage = await subscriptionService.checkAiLimit();
+      setAiUsage(usage);
+      return usage;
+    } catch {
+      return aiUsage;
+    }
+  }, [aiUsage]);
 
   const checkUserAuth = async () => {
     try {
@@ -40,11 +78,11 @@ export const AuthProvider = ({ children }) => {
       if (currentUser) {
         setUser(currentUser);
         setIsAuthenticated(true);
+        await loadSubscription();
       } else {
         setIsAuthenticated(false);
       }
     } catch (error) {
-      // Not authenticated — normal, show login
       setIsAuthenticated(false);
     } finally {
       setIsLoadingAuth(false);
@@ -61,6 +99,7 @@ export const AuthProvider = ({ children }) => {
         const profile = await authService.me();
         setUser(profile);
         setIsAuthenticated(true);
+        await loadSubscription();
       }
       return result;
     }
@@ -74,6 +113,8 @@ export const AuthProvider = ({ children }) => {
     }
     setUser(null);
     setIsAuthenticated(false);
+    setSubscription({ plan: 'free', status: 'active' });
+    setAiUsage({ used: 0, limit: 10, remaining: 10 });
   };
 
   return (
@@ -84,6 +125,12 @@ export const AuthProvider = ({ children }) => {
       authError,
       login,
       logout,
+      subscription,
+      isProUser,
+      planLimits,
+      aiUsage,
+      refreshAiUsage,
+      loadSubscription,
       checkAppState: checkUserAuth,
     }}>
       {children}

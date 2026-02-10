@@ -3,7 +3,7 @@ import { entities } from '@/services/entityService';
 import { invokeLLM, uploadFile } from '@/services/aiService';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
-import { Send, Loader2, FileText, Wrench, Plus } from 'lucide-react';
+import { Send, Loader2, FileText, Wrench, Plus, AlertTriangle } from 'lucide-react';
 import { toast } from 'sonner';
 import { motion, AnimatePresence } from 'framer-motion';
 
@@ -22,10 +22,17 @@ import RepairInstructions from '@/components/diagnostics/RepairInstructions.jsx'
 import ClarifyingQuestions from '@/components/diagnostics/ClarifyingQuestions.jsx';
 import PartPhotoAnalyzer from '@/components/diagnostics/PartPhotoAnalyzer';
 import InteractiveRepairGuide from '@/components/diagnostics/InteractiveRepairGuide';
+import RoadsideContextPanel from '@/components/diagnostics/RoadsideContextPanel';
+import UpgradePrompt from '@/components/subscription/UpgradePrompt';
+import { useAiLimit } from '@/hooks/useAiLimit';
+import { useAuth } from '@/lib/AuthContext';
 import { useLanguage } from '@/lib/LanguageContext';
+import { buildNormalizedPayload } from '@/utils/normalizeIntake';
 
 export default function Diagnostics() {
   const { t } = useLanguage();
+  const { isProUser } = useAuth();
+  const { canUse, checkAndIncrement, isLimitReached, dismissLimit, usage } = useAiLimit();
   const [messages, setMessages] = useState([]);
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -37,6 +44,19 @@ export default function Diagnostics() {
   const [symptoms, setSymptoms] = useState([]);
   const [pendingAudio, setPendingAudio] = useState(null);
   const [activeToolkit, setActiveToolkit] = useState(null);
+  
+  // Roadside context
+  const [roadsideContext, setRoadsideContext] = useState({
+    mode: 'roadside',
+    vin: '',
+    noCodesAvailable: false,
+    faultCodes: [],
+    historyFaultCodes: [],
+    whenItHappens: '',
+    recentEvents: [],
+    dashboardMessage: '',
+    checksAlreadyDone: '',
+  });
   
   // Modal states
   const [showTruckSelector, setShowTruckSelector] = useState(false);
@@ -76,6 +96,17 @@ export default function Diagnostics() {
     setPendingAnswers([]);
     setAskedQuestions(new Set());
     setQuestionRounds(0);
+    setRoadsideContext({
+      mode: 'roadside',
+      vin: '',
+      noCodesAvailable: false,
+      faultCodes: [],
+      historyFaultCodes: [],
+      whenItHappens: '',
+      recentEvents: [],
+      dashboardMessage: '',
+      checksAlreadyDone: '',
+    });
     toast.success(t('diagnostics.newChatStarted'));
     };
 
@@ -142,6 +173,18 @@ export default function Diagnostics() {
     if (symptoms.length > 0) {
       context += `\n\n🔍 Symptoms: ${symptoms.join(', ')}`;
     }
+
+    // Roadside context fields
+    const rc = roadsideContext || {};
+    if (rc.mode) context += `\n\n📍 Mode: ${rc.mode === 'roadside' ? 'Roadside / Breakdown' : 'Shop / Follow-up'}`;
+    if (rc.noCodesAvailable) context += `\nℹ️ Driver reports NO active fault codes available.`;
+    if (rc.faultCodes?.length > 0) context += `\n⚠️ Reported fault codes: ${rc.faultCodes.join(', ')}`;
+    if (rc.historyFaultCodes?.length > 0) context += `\n📋 History/inactive codes: ${rc.historyFaultCodes.join(', ')}`;
+    if (rc.whenItHappens) context += `\n⏱️ When it happens: ${rc.whenItHappens}`;
+    if (rc.recentEvents?.length > 0) context += `\n📅 Recent events: ${rc.recentEvents.join(', ')}`;
+    if (rc.dashboardMessage) context += `\n🔔 Dashboard message: ${rc.dashboardMessage}`;
+    if (rc.checksAlreadyDone) context += `\n✅ Already checked/replaced: ${rc.checksAlreadyDone}`;
+    if (rc.vin) context += `\n🔑 VIN: ${rc.vin}`;
     
     return context;
   };
@@ -177,9 +220,18 @@ export default function Diagnostics() {
   const sendMessage = async (messageText, audioUrl = null) => {
     if (!messageText.trim() && !audioUrl) return;
 
-    if (!truck && messages.length === 0) {
+    // Roadside mode: VIN and fault codes are optional. No truck requirement.
+    // Only suggest truck selection, never block.
+    if (!truck && messages.length === 0 && roadsideContext.mode === 'shop') {
       toast.error(t('diagnostics.selectTruck'));
       setShowTruckSelector(true);
+      return;
+    }
+
+    // Check AI usage limit before sending
+    const allowed = await checkAndIncrement();
+    if (!allowed) {
+      toast.error(t('diagnostics.aiLimitReached'));
       return;
     }
     
@@ -563,86 +615,201 @@ Provide a helpful, detailed diagnostic response:`;
 
     setIsGeneratingReport(true);
     try {
+      // Compute normalized payload — vin_status and dtc_status are deterministic
+      const normalized = buildNormalizedPayload({
+        truck,
+        roadsideContext,
+        messages,
+        errorCodes: [...new Set([...errorCodes, ...(roadsideContext.faultCodes || [])])],
+        symptoms,
+      });
+
       const response = await invokeLLM({
-        prompt: `Based on the following diagnostic conversation, generate a comprehensive diagnostic report:
+        prompt: `You are a roadside truck intake and triage system.
 
-Truck: ${truck ? `${truck.year} ${truck.make} ${truck.model}` : 'Not specified'}
-Error Codes: ${errorCodes.length > 0 ? errorCodes.join(', ') : 'None'}
-Symptoms: ${symptoms.length > 0 ? symptoms.join(', ') : 'None'}
+CRITICAL RULES:
+- Produce valid JSON only. No markdown. No commentary.
+- NEVER hallucinate VINs, fault codes, sensor readings, modules, URLs, or external sources.
+- NEVER claim definitive diagnosis. This is roadside intake & triage.
+- Missing VIN is NORMAL. Missing fault codes is NORMAL. Work with what you have.
+- Perform symptom-driven triage when no codes are available.
+- All conclusions must be evidence-based, operational, and honest about confidence.
+- The "sources" field must ALWAYS be an empty array.
+- The "estimated_costs" field must ALWAYS be null.
 
-Conversation:
+CONTEXT (PRE-COMPUTED — do NOT re-derive these values):
+${JSON.stringify(normalized, null, 2)}
+
+CONVERSATION HISTORY:
 ${messages.map(m => `${m.role}: ${m.content}`).join('\n\n')}
 
-Generate a detailed diagnostic report with:
-1. A summary of the diagnosis
-2. Analysis of any error codes mentioned
-3. List of identified issues with confidence and urgency levels
-4. Specific recommendations
-5. Estimated repair cost range
-6. Sources/references if applicable`,
-        add_context_from_internet: true,
+Generate an INTAKE & TRIAGE REPORT (Roadside) following the exact JSON schema provided.
+Focus on:
+1. What verified facts exist
+2. Most likely hypotheses ranked by probability
+3. Actionable conclusions with clear next steps
+4. Severity triage — can the driver continue or should they stop?
+5. What to tell a mechanic if they need to hand off`,
         response_json_schema: {
           type: "object",
           properties: {
-            diagnosis_summary: { type: "string" },
-            error_codes_analysis: {
-              type: "array",
-              items: {
-                type: "object",
-                properties: {
-                  code: { type: "string" },
-                  description: { type: "string" },
-                  severity: { type: "string", enum: ["critical", "high", "medium", "low"] },
-                  recommended_action: { type: "string" }
-                }
-              }
-            },
-            identified_issues: {
-              type: "array",
-              items: {
-                type: "object",
-                properties: {
-                  issue: { type: "string" },
-                  confidence: { type: "string", enum: ["high", "medium", "low"] },
-                  urgency: { type: "string", enum: ["high", "medium", "low"] }
-                }
-              }
-            },
-            recommendations: {
-              type: "array",
-              items: { type: "string" }
-            },
-            estimated_costs: {
+            report_type: { type: "string", enum: ["INTAKE_Triage_Roadside"] },
+            generated_at_iso: { type: "string" },
+            disclaimer: { type: "string" },
+            vehicle_info: {
               type: "object",
               properties: {
-                low: { type: "number" },
-                high: { type: "number" }
+                year_reported: { type: ["number", "null"] },
+                make: { type: ["string", "null"] },
+                model: { type: ["string", "null"] },
+                engine: { type: ["string", "null"] },
+                transmission: { type: ["string", "null"] },
+                mileage_reported: { type: ["string", "null"] },
+                vin: { type: ["string", "null"] },
+                vin_status: { type: "string", enum: ["provided", "unavailable", "unknown"] }
               }
             },
-            sources: {
+            fault_codes: {
+              type: "object",
+              properties: {
+                dtc_status: { type: "string", enum: ["active_reported", "history_only", "none_reported", "unknown"] },
+                active_codes: {
+                  type: "array",
+                  items: {
+                    type: "object",
+                    properties: {
+                      raw_code: { type: "string" },
+                      module: { type: ["string", "null"] },
+                      system: { type: ["string", "null"] },
+                      status: { type: "string", enum: ["active"] },
+                      notes: { type: ["string", "null"] }
+                    }
+                  }
+                },
+                history_codes: {
+                  type: "array",
+                  items: {
+                    type: "object",
+                    properties: {
+                      raw_code: { type: "string" },
+                      module: { type: ["string", "null"] },
+                      system: { type: ["string", "null"] },
+                      status: { type: "string", enum: ["history"] },
+                      notes: { type: ["string", "null"] }
+                    }
+                  }
+                },
+                notes: { type: ["string", "null"] }
+              }
+            },
+            evidence: {
+              type: "object",
+              properties: {
+                driver_reported_symptoms: { type: "array", items: { type: "string" } },
+                when_it_happens: { type: ["string", "null"] },
+                recent_events: { type: "array", items: { type: "string" } },
+                dashboard_messages: { type: "array", items: { type: "string" } },
+                checks_already_done: { type: "array", items: { type: "string" } },
+                attachments: {
+                  type: "object",
+                  properties: {
+                    photos: { type: "boolean" },
+                    audio: { type: "boolean" }
+                  }
+                }
+              }
+            },
+            verified_facts: { type: "array", items: { type: "string" } },
+            hypotheses: {
               type: "array",
               items: {
                 type: "object",
                 properties: {
-                  title: { type: "string" },
-                  url: { type: "string" },
-                  type: { type: "string" }
+                  possible_cause: { type: "string" },
+                  confidence: { type: "number" },
+                  reason: { type: "string" }
                 }
               }
-            }
-          }
+            },
+            conclusions: {
+              type: "array",
+              items: {
+                type: "object",
+                properties: {
+                  type: { type: "string", enum: ["primary", "secondary"] },
+                  statement: { type: "string" },
+                  confidence: { type: "number" },
+                  based_on: { type: "array", items: { type: "string" } },
+                  recommended_action_now: { type: "string" },
+                  success_criteria: { type: "string" },
+                  fallback_if_not_confirmed: { type: "string" },
+                  escalate_if: { type: "array", items: { type: "string" } }
+                }
+              }
+            },
+            next_checks: {
+              type: "array",
+              items: {
+                type: "object",
+                properties: {
+                  step: { type: "number" },
+                  action: { type: "string" },
+                  why: { type: "string" },
+                  how: { type: "string" },
+                  expected_result: { type: "string" },
+                  if_failed_next: { type: "string" }
+                }
+              }
+            },
+            severity_triage: {
+              type: "object",
+              properties: {
+                overall_urgency: { type: "string", enum: ["low", "medium", "high"] },
+                tow_recommended: { type: "boolean" },
+                do_not_drive_conditions: { type: "array", items: { type: "string" } }
+              }
+            },
+            handoff_to_mechanic: {
+              type: "object",
+              properties: {
+                what_to_tell_shop: { type: "array", items: { type: "string" } },
+                questions_for_shop: { type: "array", items: { type: "string" } }
+              }
+            },
+            limitations: { type: "array", items: { type: "string" } },
+            estimated_costs: { type: "null" },
+            sources: { type: "array", maxItems: 0 }
+          },
+          required: ["report_type", "disclaimer", "vehicle_info", "fault_codes", "evidence", "verified_facts", "hypotheses", "conclusions", "next_checks", "severity_triage", "handoff_to_mechanic", "limitations"]
         }
       });
+
+      // Override AI-computed status fields with our deterministic values
+      if (response.vehicle_info) {
+        response.vehicle_info.vin_status = normalized.vehicle_info.vin_status;
+        response.vehicle_info.vin = normalized.vehicle_info.vin;
+      }
+      if (response.fault_codes) {
+        response.fault_codes.dtc_status = normalized.fault_codes.dtc_status;
+      }
+      response.estimated_costs = null;
+      response.sources = [];
 
       await entities.DiagnosticReport.create({
         conversation_id: conversation?.id,
         truck_info: truck ? { make: truck.make, model: truck.model, year: truck.year } : null,
-        diagnosis_summary: response.diagnosis_summary,
-        error_codes_analysis: response.error_codes_analysis || [],
-        identified_issues: response.identified_issues || [],
-        recommendations: response.recommendations || [],
-        estimated_costs: response.estimated_costs,
-        sources: response.sources || []
+        report_type: 'INTAKE_Triage_Roadside',
+        diagnosis_summary: response.conclusions?.[0]?.statement || 'Intake & Triage Report generated',
+        report_data: response,
+        error_codes_analysis: response.fault_codes?.active_codes || [],
+        identified_issues: (response.hypotheses || []).map(h => ({
+          issue: h.possible_cause,
+          confidence: h.confidence >= 0.7 ? 'high' : h.confidence >= 0.4 ? 'medium' : 'low',
+          urgency: response.severity_triage?.overall_urgency || 'medium',
+        })),
+        recommendations: (response.conclusions || []).map(c => c.recommended_action_now),
+        estimated_costs: null,
+        sources: [],
       });
 
       toast.success(t('diagnostics.reportGenerated'));
@@ -678,6 +845,14 @@ Generate a detailed diagnostic report with:
               <p className="text-lg text-white/60 max-w-md mb-8">
                 {t('diagnostics.welcomeDesc')}
               </p>
+
+              {/* Roadside Context Panel */}
+              <div className="w-full max-w-2xl mb-6 text-left">
+                <RoadsideContextPanel
+                  context={roadsideContext}
+                  onChange={setRoadsideContext}
+                />
+              </div>
 
               <div className="w-full max-w-2xl mb-8 space-y-4">
                 <div className="flex items-center justify-between gap-4">
@@ -932,6 +1107,23 @@ Generate a detailed diagnostic report with:
               )}
             </Button>
           </div>
+
+          {/* AI Limit Warning */}
+          {isLimitReached && (
+            <div className="mt-3">
+              <UpgradePrompt type="ai" onDismiss={dismissLimit} />
+            </div>
+          )}
+
+          {/* AI Usage Counter for free users */}
+          {!isProUser && usage && !isLimitReached && (
+            <div className="flex items-center justify-center gap-2 mt-2">
+              <AlertTriangle className="w-3 h-3 text-yellow-500/70" />
+              <span className="text-xs text-white/40">
+                {usage.remaining} {t('diagnostics.requestsRemaining')}
+              </span>
+            </div>
+          )}
           
           <p className="text-center text-xs text-white/30 mt-3">
             {t('diagnostics.disclaimer')}
