@@ -34,19 +34,8 @@ export default function PartPhotoAnalyzer({ open, onClose, onPartIdentified }) {
     setAnalyzing(true);
     try {
       const response = await invokeLLM({
-        prompt: `Analyze this truck/automotive part image and provide detailed identification:
-
-1. Part Name and Type
-2. Manufacturer/Brand (if visible)
-3. Visible Part Numbers or Markings
-4. Condition Assessment (worn, damaged, corroded, etc.)
-5. Common truck makes/models this part fits
-6. OEM part numbers for replacement
-7. Compatible aftermarket alternatives (brands like Dorman, ACDelco, Motorcraft, etc.)
-8. Estimated price range
-9. Common issues with this part
-10. Installation difficulty`,
-        file_urls: [url],
+        prompt: `Analyze this truck/automotive part image and identify:\n1. Part name and type\n2. Manufacturer/brand (if visible)\n3. Visible part numbers or markings\n4. Condition (worn, damaged, corroded, etc.)\n5. Common truck makes/models this fits\n6. OEM part numbers for replacement\n7. Compatible aftermarket alternatives (Dorman, ACDelco, Motorcraft, etc.)\n8. Approximate price range\n9. Common failure modes for this part\n10. Installation difficulty`,
+        image_urls: [url],
         add_context_from_internet: true,
         response_json_schema: {
           type: "object",

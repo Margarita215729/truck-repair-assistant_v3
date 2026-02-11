@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { uploadFile, invokeLLM } from '@/services/aiService';
+import { uploadFile } from '@/services/aiService';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
@@ -90,43 +90,16 @@ export default function AudioRecorder({ open, onClose, onAudioCaptured }) {
       if (animationRef.current) cancelAnimationFrame(animationRef.current);
       setVisualizerData(new Array(32).fill(0));
       
-      // Analyze audio after recording stops
-      await analyzeAudio();
+      // Show description input immediately — no AI model can analyze audio files,
+      // so we let the user describe the sound in their own words.
+      setShowDescription(true);
     }
   };
 
+  // No-op placeholder — real audio analysis is not possible via LLM.
+  // The user types their own description which is then sent to the diagnostic chat.
   const analyzeAudio = async () => {
-    if (!audioBlob) return;
-    
-    setIsAnalyzing(true);
-    try {
-      // Upload audio file
-      const file = new File([audioBlob], 'engine-sound.webm', { type: 'audio/webm' });
-      const { file_url } = await uploadFile({ file });
-      
-      // Analyze with AI
-      const response = await invokeLLM({
-        prompt: `Analyze this engine/truck sound recording and provide a detailed technical description. Focus on:
-- Type of sound (knocking, rattling, whining, grinding, hissing, etc.)
-- Pitch and rhythm (high-pitched, low rumble, steady, intermittent)
-- Timing (constant, only when accelerating, at idle, under load)
-- Intensity (loud, faint, increasing over time)
-- Any unusual patterns or irregularities
-- Possible source of the sound (engine, transmission, exhaust, brakes, etc.)
-
-Provide a clear, concise description that a mechanic would understand.`,
-        file_urls: [file_url]
-      });
-      
-      setAudioDescription(response);
-      setShowDescription(true);
-    } catch (error) {
-      console.error('Audio analysis error:', error);
-      toast.error(t('audio.analysisFailed'));
-      setAudioDescription('');
-    } finally {
-      setIsAnalyzing(false);
-    }
+    // kept for backward-compat; does nothing
   };
 
   const togglePlayback = () => {

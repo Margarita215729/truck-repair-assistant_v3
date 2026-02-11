@@ -2,23 +2,63 @@
  * AI Service (LLM Integration)
  * Uses server-side AI proxy (/api/ai-proxy) to keep API keys secure.
  * Falls back to direct GitHub Models API call only in dev with VITE_GITHUB_TOKEN.
+ *
+ * Models:
+ *   DEFAULT_MODEL  – fast & cheap, used for text-only tasks (chat, reports, guides)
+ *   VISION_MODEL   – supports image_url content, used for photo analysis
  */
 import { env } from '@/config/env';
 import { supabase, hasSupabaseConfig } from '@/api/supabaseClient';
 
 const AI_PROXY_URL = '/api/ai-proxy';
 const GITHUB_MODELS_URL = 'https://models.github.ai/inference/chat/completions';
-const DEFAULT_MODEL = 'xai/grok-3';
+const DEFAULT_MODEL = 'openai/gpt-4o-mini';
+const VISION_MODEL  = 'openai/gpt-4o';
 
 /**
- * Call the LLM API via secure server proxy
+ * Call the LLM API via secure server proxy.
+ *
+ * @param {Object} opts
+ * @param {string}   opts.prompt                  – user message text
+ * @param {Object}  [opts.response_json_schema]   – if provided, force JSON mode
+ * @param {boolean} [opts.add_context_from_internet] – hint for system prompt
+ * @param {string}  [opts.model]                  – override model id
+ * @param {string[]}[opts.image_urls]             – public URLs of images (triggers vision model)
  */
-export async function invokeLLM({ prompt, response_json_schema, add_context_from_internet = false }) {
+export async function invokeLLM({
+  prompt,
+  response_json_schema,
+  add_context_from_internet = false,
+  model,
+  image_urls,
+  // Legacy alias used by PartPhotoAnalyzer / AudioRecorder
+  file_urls,
+}) {
+  // Merge legacy field
+  const images = image_urls || file_urls || [];
+
+  // Pick model: explicit override → vision model if images → default
+  const effectiveModel = model || (images.length > 0 ? VISION_MODEL : DEFAULT_MODEL);
+
   const systemPrompt = buildSystemPrompt(response_json_schema, add_context_from_internet);
+
+  // Build user content — multimodal when images are present
+  let userContent;
+  if (images.length > 0) {
+    userContent = [
+      { type: 'text', text: prompt },
+      ...images.map(url => ({
+        type: 'image_url',
+        image_url: { url, detail: 'auto' },
+      })),
+    ];
+  } else {
+    userContent = prompt;
+  }
 
   const messages = [
     { role: 'system', content: systemPrompt },
-    { role: 'user', content: prompt },
+    { role: 'user', content: userContent },
   ];
 
   try {
@@ -26,7 +66,7 @@ export async function invokeLLM({ prompt, response_json_schema, add_context_from
     if (hasSupabaseConfig && supabase) {
       const { data: { session } } = await supabase.auth.getSession();
       if (session?.access_token) {
-        const data = await callViaProxy(messages, response_json_schema, session.access_token);
+        const data = await callViaProxy(messages, response_json_schema, session.access_token, effectiveModel);
         return parseResponse(data, response_json_schema);
       }
     }
@@ -34,7 +74,7 @@ export async function invokeLLM({ prompt, response_json_schema, add_context_from
     // Dev fallback: direct API call with client-side token
     const devToken = env.GITHUB_TOKEN;
     if (devToken) {
-      const data = await callDirect(messages, response_json_schema, devToken);
+      const data = await callDirect(messages, response_json_schema, devToken, effectiveModel);
       return parseResponse(data, response_json_schema);
     }
 
@@ -50,7 +90,7 @@ export async function invokeLLM({ prompt, response_json_schema, add_context_from
   }
 }
 
-async function callViaProxy(messages, schema, accessToken) {
+async function callViaProxy(messages, schema, accessToken, model) {
   const response = await fetch(AI_PROXY_URL, {
     method: 'POST',
     headers: {
@@ -59,9 +99,9 @@ async function callViaProxy(messages, schema, accessToken) {
     },
     body: JSON.stringify({
       messages,
-      model: DEFAULT_MODEL,
-      temperature: 0.3,
-      max_tokens: 4000,
+      model: model || DEFAULT_MODEL,
+      temperature: 0.2,
+      max_tokens: 4096,
       ...(schema ? { response_format: { type: 'json_object' } } : {}),
     }),
   });
@@ -81,7 +121,7 @@ async function callViaProxy(messages, schema, accessToken) {
   return response.json();
 }
 
-async function callDirect(messages, schema, token) {
+async function callDirect(messages, schema, token, model) {
   const response = await fetch(GITHUB_MODELS_URL, {
     method: 'POST',
     headers: {
@@ -90,9 +130,9 @@ async function callDirect(messages, schema, token) {
     },
     body: JSON.stringify({
       messages,
-      model: DEFAULT_MODEL,
-      temperature: 0.3,
-      max_tokens: 4000,
+      model: model || DEFAULT_MODEL,
+      temperature: 0.2,
+      max_tokens: 4096,
       ...(schema ? { response_format: { type: 'json_object' } } : {}),
     }),
   });
@@ -123,10 +163,16 @@ function parseResponse(data, schema) {
 }
 
 function buildSystemPrompt(schema, useInternet) {
-  let systemMsg = `You are Truck Repair Assistant AI, an expert truck mechanic with 20+ years of experience diagnosing and repairing heavy-duty commercial trucks. You specialize in all major US truck brands including Peterbilt, Kenworth, Freightliner, Volvo, Mack, International, and Western Star.`;
+  let systemMsg = `You are Truck Repair Assistant AI — an expert truck mechanic with 20+ years of experience diagnosing and repairing heavy-duty commercial trucks (Peterbilt, Kenworth, Freightliner, Volvo, Mack, International, Western Star and others).
+
+RULES:
+- Answer in the SAME LANGUAGE as the user's message.
+- Be practical and actionable — get the driver back on the road.
+- NEVER invent URLs, phone numbers, addresses, or usernames.
+- If you are unsure, say so honestly and suggest next diagnostic steps.`;
 
   if (useInternet) {
-    systemMsg += `\n\nUse your training knowledge to provide the most current and accurate information possible, citing known forums like TruckersReport.com, TheTruckersPlace.com, and Reddit r/Truckers.`;
+    systemMsg += `\n\nUse your training knowledge to provide accurate information. You may reference well-known truck forums (TruckersReport, TheDieselStop, Reddit r/Truckers) as general sources, but NEVER fabricate specific posts, usernames, or URLs.`;
   }
 
   if (schema) {

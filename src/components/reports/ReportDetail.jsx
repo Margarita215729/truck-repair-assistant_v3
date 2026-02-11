@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -16,15 +16,25 @@ import {
   MessageSquare,
   HelpCircle,
   XCircle,
-  Info
+  Info,
+  FileDown,
+  ChevronDown
 } from 'lucide-react';
 import { format } from 'date-fns';
+import jsPDF from 'jspdf';
 
 const urgencyConfig = {
   high: { icon: AlertCircle, color: 'text-red-500 bg-red-500/20 border-red-500/30', label: 'HIGH' },
   medium: { icon: AlertTriangle, color: 'text-yellow-500 bg-yellow-500/20 border-yellow-500/30', label: 'MEDIUM' },
   low: { icon: Clock, color: 'text-blue-500 bg-blue-500/20 border-blue-500/30', label: 'LOW' }
 };
+
+/** Normalize confidence: handles both 0.85 (decimal) and 85 (percent) */
+function fmtConf(val) {
+  if (typeof val !== 'number') return val || '—';
+  const pct = val > 1 ? Math.round(val) : Math.round(val * 100);
+  return `${Math.min(pct, 100)}%`;
+}
 
 const dtcStatusLabels = {
   active_reported: 'Active fault codes reported',
@@ -40,27 +50,111 @@ const vinStatusLabels = {
 };
 
 export default function ReportDetail({ report, open, onClose }) {
+  const [showExportMenu, setShowExportMenu] = useState(false);
   if (!report) return null;
 
   // Support both old and new report formats
   const rd = report.report_data || {};
   const isNewFormat = rd.report_type === 'INTAKE_Triage_Roadside';
 
-  const handleExport = () => {
-    let content;
-    if (isNewFormat) {
-      content = buildTriageExport(report, rd);
-    } else {
-      content = buildLegacyExport(report);
-    }
+  const getTextContent = () => isNewFormat ? buildTriageExport(report, rd) : buildLegacyExport(report);
 
-    const blob = new Blob([content], { type: 'text/plain' });
+  const fileDate = format(new Date(report.created_date || report.created_at || Date.now()), 'yyyy-MM-dd');
+
+  const downloadFile = (blob, filename) => {
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `intake-triage-report-${format(new Date(report.created_date || report.created_at || Date.now()), 'yyyy-MM-dd')}.txt`;
+    a.download = filename;
     a.click();
     URL.revokeObjectURL(url);
+    setShowExportMenu(false);
+  };
+
+  const handleExportTxt = () => {
+    const blob = new Blob([getTextContent()], { type: 'text/plain' });
+    downloadFile(blob, `report-${fileDate}.txt`);
+  };
+
+  const handleExportPdf = () => {
+    try {
+      const content = getTextContent();
+      const doc = new jsPDF({ unit: 'mm', format: 'a4' });
+      const pageWidth = doc.internal.pageSize.getWidth();
+      const margin = 15;
+      const maxWidth = pageWidth - margin * 2;
+      let y = 20;
+
+      doc.setFontSize(16);
+      doc.setFont('helvetica', 'bold');
+      doc.text('INTAKE & TRIAGE REPORT', margin, y);
+      y += 8;
+      doc.setFontSize(9);
+      doc.setFont('helvetica', 'normal');
+      doc.setTextColor(120);
+      doc.text(`Generated: ${format(new Date(report.created_date || report.created_at || Date.now()), 'MMMM d, yyyy h:mm a')}`, margin, y);
+      doc.setTextColor(0);
+      y += 10;
+
+      doc.setFontSize(10);
+      const lines = content.split('\n');
+      for (const line of lines) {
+        if (y > 275) { doc.addPage(); y = 15; }
+        const isHeader = line === line.toUpperCase() && line.trim().length > 2 && !line.startsWith(' ');
+        if (isHeader) {
+          y += 3;
+          doc.setFont('helvetica', 'bold');
+          doc.setFontSize(11);
+        } else {
+          doc.setFont('helvetica', 'normal');
+          doc.setFontSize(9);
+        }
+        const wrapped = doc.splitTextToSize(line || ' ', maxWidth);
+        for (const wl of wrapped) {
+          if (y > 275) { doc.addPage(); y = 15; }
+          doc.text(wl, margin, y);
+          y += isHeader ? 5.5 : 4.2;
+        }
+      }
+
+      doc.save(`report-${fileDate}.pdf`);
+      setShowExportMenu(false);
+    } catch (err) {
+      console.error('PDF export failed:', err);
+      handleExportTxt(); // fallback
+    }
+  };
+
+  const handleExportDocx = () => {
+    try {
+      const content = getTextContent();
+      const reportDateStr = format(new Date(report.created_date || report.created_at || Date.now()), 'MMMM d, yyyy h:mm a');
+
+      // Build simple HTML-based DOCX (Word accepts HTML in .doc)
+      const html = `
+<html xmlns:o="urn:schemas-microsoft-com:office:office"
+      xmlns:w="urn:schemas-microsoft-com:office:word"
+      xmlns="http://www.w3.org/TR/REC-html40">
+<head><meta charset="utf-8">
+<style>
+  body { font-family: Calibri, Arial, sans-serif; font-size: 11pt; line-height: 1.5; color: #222; margin: 2cm; }
+  h1 { font-size: 18pt; color: #d35400; border-bottom: 2px solid #d35400; padding-bottom: 4pt; }
+  h2 { font-size: 13pt; color: #333; margin-top: 14pt; }
+  pre { font-family: Consolas, monospace; font-size: 9pt; white-space: pre-wrap; background: #f8f8f8; padding: 8pt; border: 1px solid #ddd; border-radius: 4pt; }
+  .meta { color: #888; font-size: 9pt; }
+</style></head>
+<body>
+<h1>INTAKE &amp; TRIAGE REPORT</h1>
+<p class="meta">Generated: ${reportDateStr}</p>
+<pre>${content.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')}</pre>
+</body></html>`;
+
+      const blob = new Blob(['\ufeff', html], { type: 'application/msword' });
+      downloadFile(blob, `report-${fileDate}.doc`);
+    } catch (err) {
+      console.error('DOCX export failed:', err);
+      handleExportTxt();
+    }
   };
 
   const reportDate = report.created_date || report.created_at || Date.now();
@@ -81,15 +175,31 @@ export default function ReportDetail({ report, open, onClose }) {
                 </p>
               </div>
             </div>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={handleExport}
-              className="border-white/20 hover:bg-white/10"
-            >
-              <Download className="w-4 h-4 mr-2" />
-              Export
-            </Button>
+            <div className="relative">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setShowExportMenu(!showExportMenu)}
+                className="border-white/20 hover:bg-white/10"
+              >
+                <Download className="w-4 h-4 mr-2" />
+                Export
+                <ChevronDown className="w-3 h-3 ml-1" />
+              </Button>
+              {showExportMenu && (
+                <div className="absolute right-0 top-full mt-1 z-50 bg-[#1a1a1a] border border-white/10 rounded-lg shadow-xl py-1 min-w-[140px]">
+                  <button onClick={handleExportPdf} className="w-full flex items-center gap-2 px-3 py-2 text-sm text-white/80 hover:bg-white/10 transition-colors">
+                    <FileDown className="w-4 h-4 text-red-400" /> PDF
+                  </button>
+                  <button onClick={handleExportDocx} className="w-full flex items-center gap-2 px-3 py-2 text-sm text-white/80 hover:bg-white/10 transition-colors">
+                    <FileDown className="w-4 h-4 text-blue-400" /> Word (.doc)
+                  </button>
+                  <button onClick={handleExportTxt} className="w-full flex items-center gap-2 px-3 py-2 text-sm text-white/80 hover:bg-white/10 transition-colors">
+                    <FileText className="w-4 h-4 text-white/40" /> Text (.txt)
+                  </button>
+                </div>
+              )}
+            </div>
           </DialogTitle>
         </DialogHeader>
 
@@ -151,7 +261,7 @@ export default function ReportDetail({ report, open, onClose }) {
                         {c.type === 'primary' ? 'PRIMARY' : 'SECONDARY'}
                       </Badge>
                       <Badge variant="outline" className="border-white/20 text-white/50 text-xs">
-                        Confidence: {typeof c.confidence === 'number' ? `${Math.round(c.confidence * 100)}%` : c.confidence}
+                        Confidence: {fmtConf(c.confidence)}
                       </Badge>
                     </div>
                     <p className="text-white font-medium mb-2">{c.statement}</p>
@@ -183,7 +293,7 @@ export default function ReportDetail({ report, open, onClose }) {
                       <div className="flex items-center gap-2 mb-1">
                         <p className="text-white/90 font-medium">{h.possible_cause}</p>
                         <Badge variant="outline" className="border-white/20 text-white/50 text-xs">
-                          {typeof h.confidence === 'number' ? `${Math.round(h.confidence * 100)}%` : h.confidence}
+                          {fmtConf(h.confidence)}
                         </Badge>
                       </div>
                       <p className="text-xs text-white/50">{h.reason}</p>
@@ -577,7 +687,7 @@ function buildTriageExport(report, rd) {
     lines.push('CONCLUSIONS');
     rd.conclusions.forEach((c, i) => {
       lines.push(`  ${i + 1}. [${c.type?.toUpperCase()}] ${c.statement}`);
-      lines.push(`     Confidence: ${typeof c.confidence === 'number' ? `${Math.round(c.confidence * 100)}%` : c.confidence}`);
+      lines.push(`     Confidence: ${fmtConf(c.confidence)}`);
       lines.push(`     Action now: ${c.recommended_action_now}`);
       lines.push(`     Success if: ${c.success_criteria}`);
       lines.push(`     Fallback: ${c.fallback_if_not_confirmed}`);
