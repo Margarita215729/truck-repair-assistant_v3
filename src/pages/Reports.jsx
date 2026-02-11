@@ -32,7 +32,7 @@ export default function Reports() {
 
   const { data: reports = [], isLoading } = useQuery({
     queryKey: ['diagnostic-reports'],
-    queryFn: () => entities.DiagnosticReport.list('-created_date', 50),
+    queryFn: () => entities.DiagnosticReport.list('-created_at', 50),
   });
 
   const deleteMutation = useMutation({

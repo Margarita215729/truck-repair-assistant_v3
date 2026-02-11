@@ -22,7 +22,6 @@ import RepairInstructions from '@/components/diagnostics/RepairInstructions.jsx'
 import ClarifyingQuestions from '@/components/diagnostics/ClarifyingQuestions.jsx';
 import PartPhotoAnalyzer from '@/components/diagnostics/PartPhotoAnalyzer';
 import InteractiveRepairGuide from '@/components/diagnostics/InteractiveRepairGuide';
-import RoadsideContextPanel from '@/components/diagnostics/RoadsideContextPanel';
 import UpgradePrompt from '@/components/subscription/UpgradePrompt';
 import { useAiLimit } from '@/hooks/useAiLimit';
 import { useAuth } from '@/lib/AuthContext';
@@ -48,11 +47,6 @@ export default function Diagnostics() {
   
   // Roadside context
   const [roadsideContext, setRoadsideContext] = useState({
-    mode: 'roadside',
-    vin: '',
-    noCodesAvailable: false,
-    faultCodes: [],
-    historyFaultCodes: [],
     whenItHappens: '',
     recentEvents: [],
     dashboardMessage: '',
@@ -98,11 +92,6 @@ export default function Diagnostics() {
     setAskedQuestions(new Set());
     setQuestionRounds(0);
     setRoadsideContext({
-      mode: 'roadside',
-      vin: '',
-      noCodesAvailable: false,
-      faultCodes: [],
-      historyFaultCodes: [],
       whenItHappens: '',
       recentEvents: [],
       dashboardMessage: '',
@@ -177,15 +166,11 @@ export default function Diagnostics() {
 
     // Roadside context fields
     const rc = roadsideContext || {};
-    if (rc.mode) context += `\n\n📍 Mode: ${rc.mode === 'roadside' ? 'Roadside / Breakdown' : 'Shop / Follow-up'}`;
-    if (rc.noCodesAvailable) context += `\nℹ️ Driver reports NO active fault codes available.`;
-    if (rc.faultCodes?.length > 0) context += `\n⚠️ Reported fault codes: ${rc.faultCodes.join(', ')}`;
-    if (rc.historyFaultCodes?.length > 0) context += `\n📋 History/inactive codes: ${rc.historyFaultCodes.join(', ')}`;
     if (rc.whenItHappens) context += `\n⏱️ When it happens: ${rc.whenItHappens}`;
     if (rc.recentEvents?.length > 0) context += `\n📅 Recent events: ${rc.recentEvents.join(', ')}`;
     if (rc.dashboardMessage) context += `\n🔔 Dashboard message: ${rc.dashboardMessage}`;
     if (rc.checksAlreadyDone) context += `\n✅ Already checked/replaced: ${rc.checksAlreadyDone}`;
-    if (rc.vin) context += `\n🔑 VIN: ${rc.vin}`;
+    if (truck?.vin) context += `\n🔑 VIN: ${truck.vin}`;
     
     return context;
   };
@@ -221,12 +206,9 @@ export default function Diagnostics() {
   const sendMessage = async (messageText, audioUrl = null) => {
     if (!messageText.trim() && !audioUrl) return;
 
-    // Roadside mode: VIN and fault codes are optional. No truck requirement.
-    // Only suggest truck selection, never block.
-    if (!truck && messages.length === 0 && roadsideContext.mode === 'shop') {
-      toast.error(t('diagnostics.selectTruck'));
-      setShowTruckSelector(true);
-      return;
+    // Roadside mode: No truck requirement for first message.
+    if (!truck && messages.length === 0) {
+      // Suggest truck selection but never block
     }
 
     // Check AI usage limit before sending
@@ -630,7 +612,7 @@ Provide a helpful, detailed diagnostic response:`;
         truck,
         roadsideContext,
         messages,
-        errorCodes: [...new Set([...errorCodes, ...(roadsideContext.faultCodes || [])])],
+        errorCodes,
         symptoms,
       });
 
@@ -856,13 +838,7 @@ Focus on:
                 {t('diagnostics.welcomeDesc')}
               </p>
 
-              {/* Roadside Context Panel */}
-              <div className="w-full max-w-2xl mb-6 text-left">
-                <RoadsideContextPanel
-                  context={roadsideContext}
-                  onChange={setRoadsideContext}
-                />
-              </div>
+              {/* Roadside Context Panel removed — VIN moved to TruckSelector */}
 
               <div className="w-full max-w-2xl mb-8 space-y-4">
                 <div className="flex items-center justify-between gap-4">

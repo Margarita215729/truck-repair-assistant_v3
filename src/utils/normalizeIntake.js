@@ -10,7 +10,7 @@
  * @returns {"provided" | "unavailable" | "unknown"}
  */
 export function computeVinStatus(truck, roadsideContext) {
-  const vin = roadsideContext?.vin || truck?.details?.vin;
+  const vin = roadsideContext?.vin || truck?.vin || truck?.details?.vin;
   if (vin && vin.trim().length >= 11) return 'provided';
   return 'unavailable';
 }
@@ -36,7 +36,7 @@ export function buildNormalizedPayload({ truck, roadsideContext, messages, error
   const activeCodes = [...new Set([...(ctx.faultCodes || []), ...(errorCodes || [])])];
   const historyCodes = [...new Set(ctx.historyFaultCodes || [])];
 
-  const vinValue = ctx.vin || truck?.details?.vin || null;
+  const vinValue = ctx.vin || truck?.vin || truck?.details?.vin || null;
 
   return {
     vehicle_info: {

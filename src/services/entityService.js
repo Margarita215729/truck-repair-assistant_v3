@@ -50,6 +50,9 @@ const TABLE_MAP = {
   Part: 'parts',
   DiagnosticToolkit: 'diagnostic_toolkits',
   RepairGuideRating: 'repair_guide_ratings',
+  TruckParking: 'truck_parking',
+  WeighStation: 'weigh_stations',
+  TruckRestriction: 'truck_restrictions',
 };
 
 // Tables where user_id should be auto-injected
@@ -312,6 +315,9 @@ export const SolutionVote = createEntityAPI('SolutionVote');
 export const Part = createEntityAPI('Part');
 export const DiagnosticToolkit = createEntityAPI('DiagnosticToolkit');
 export const RepairGuideRating = createEntityAPI('RepairGuideRating');
+export const TruckParking = createEntityAPI('TruckParking');
+export const WeighStation = createEntityAPI('WeighStation');
+export const TruckRestriction = createEntityAPI('TruckRestriction');
 
 /**
  * Convenience object for entity access
@@ -326,6 +332,9 @@ export const entities = {
   Part,
   DiagnosticToolkit,
   RepairGuideRating,
+  TruckParking,
+  WeighStation,
+  TruckRestriction,
 };
 
 export default entities;
