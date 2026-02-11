@@ -1,12 +1,15 @@
 import Stripe from 'stripe';
 import { createClient } from '@supabase/supabase-js';
 
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
+if (!process.env.STRIPE_SECRET_KEY) {
+  console.error('STRIPE_SECRET_KEY is not set in environment variables');
+}
 
-const supabase = createClient(
-  process.env.VITE_SUPABASE_URL || process.env.SUPABASE_URL,
-  process.env.SUPABASE_SERVICE_ROLE_KEY
-);
+const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || 'sk_missing');
+
+const supabaseUrl = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL;
+const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+const supabase = createClient(supabaseUrl || 'https://placeholder.supabase.co', supabaseServiceKey || 'placeholder');
 
 export default async function handler(req, res) {
   if (req.method !== 'POST') {
@@ -14,20 +17,32 @@ export default async function handler(req, res) {
   }
 
   try {
+    // Validate server config
+    if (!process.env.STRIPE_SECRET_KEY) {
+      console.error('[checkout] STRIPE_SECRET_KEY missing');
+      return res.status(500).json({ error: 'Payment system not configured' });
+    }
+    if (!supabaseUrl || !supabaseServiceKey) {
+      console.error('[checkout] Supabase env missing:', { url: !!supabaseUrl, key: !!supabaseServiceKey });
+      return res.status(500).json({ error: 'Auth system not configured' });
+    }
+
     // Verify JWT from Authorization header
     const token = req.headers.authorization?.replace('Bearer ', '');
     if (!token) {
-      return res.status(401).json({ error: 'Unauthorized' });
+      return res.status(401).json({ error: 'Unauthorized — no token provided' });
     }
 
     const { data: { user }, error: authError } = await supabase.auth.getUser(token);
     if (authError || !user) {
-      return res.status(401).json({ error: 'Invalid token' });
+      console.error('[checkout] Auth error:', authError?.message);
+      return res.status(401).json({ error: 'Invalid or expired token. Please log in again.' });
     }
 
     const { priceId } = req.body;
     if (!priceId) {
-      return res.status(400).json({ error: 'Missing priceId' });
+      console.error('[checkout] Missing priceId in request body');
+      return res.status(400).json({ error: 'Missing price ID. Please refresh the page and try again.' });
     }
 
     // Get or create Stripe customer
@@ -48,11 +63,15 @@ export default async function handler(req, res) {
       });
       stripeCustomerId = customer.id;
 
-      // Save customer ID
+      // Upsert subscription row — handles case where row doesn't exist yet
       await supabase
         .from('subscriptions')
-        .update({ stripe_customer_id: stripeCustomerId })
-        .eq('user_id', user.id);
+        .upsert({
+          user_id: user.id,
+          stripe_customer_id: stripeCustomerId,
+          plan: 'free',
+          status: 'active',
+        }, { onConflict: 'user_id' });
     }
 
     // Create checkout session
@@ -75,7 +94,11 @@ export default async function handler(req, res) {
 
     return res.status(200).json({ url: session.url });
   } catch (error) {
-    console.error('Checkout session error:', error);
+    console.error('[checkout] Error:', error.type || error.code, error.message);
+    // Stripe-specific errors
+    if (error.type === 'StripeInvalidRequestError') {
+      return res.status(400).json({ error: `Stripe error: ${error.message}` });
+    }
     return res.status(500).json({ error: error.message || 'Internal server error' });
   }
 }

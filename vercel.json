@@ -12,6 +12,9 @@
     },
     "api/ai-proxy.js": {
       "maxDuration": 60
+    },
+    "api/parts/search.js": {
+      "maxDuration": 30
     }
   }
 }
