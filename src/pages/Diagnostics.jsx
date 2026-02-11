@@ -28,6 +28,7 @@ import { useAiLimit } from '@/hooks/useAiLimit';
 import { useAuth } from '@/lib/AuthContext';
 import { useLanguage } from '@/lib/LanguageContext';
 import { buildNormalizedPayload } from '@/utils/normalizeIntake';
+import { saveAIPartRecommendations } from '@/services/partsService';
 
 export default function Diagnostics() {
   const { t } = useLanguage();
@@ -549,6 +550,15 @@ Provide a helpful, detailed diagnostic response:`;
       };
 
       setMessages(prev => [...prev, assistantMessage]);
+
+      // Save AI part recommendations to user's catalog (non-blocking, no prices)
+      if (response.suggested_parts?.length > 0) {
+        saveAIPartRecommendations(
+          response.suggested_parts,
+          truck ? { make: truck.make, model: truck.model, year: truck.year } : {},
+          errorCodes || []
+        ).catch(err => console.warn('Parts catalog save failed:', err));
+      }
 
       // Save conversation
       const allMessages = [...messages, userMessage, assistantMessage];

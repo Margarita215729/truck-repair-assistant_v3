@@ -30,11 +30,26 @@ export default function PricingPage() {
   const isCanceled = searchParams.get('canceled') === 'true';
 
   const handleCheckout = async (priceId) => {
+    // Auth guard — redirect to login if not authenticated
+    if (!user) {
+      toast.error(t('pricing.loginRequired') || 'Please log in to subscribe');
+      window.location.href = '/login?redirect=/Pricing';
+      return;
+    }
+    if (!priceId) {
+      toast.error('Price configuration error. Please try again later.');
+      return;
+    }
     setIsCheckingOut(true);
     try {
       const url = await subscriptionService.createCheckoutSession(priceId);
-      window.location.href = url;
+      if (url) {
+        window.location.href = url;
+      } else {
+        throw new Error('No checkout URL returned');
+      }
     } catch (err) {
+      console.error('Checkout error:', err);
       toast.error(err.message || t('pricing.checkoutFailed'));
     } finally {
       setIsCheckingOut(false);

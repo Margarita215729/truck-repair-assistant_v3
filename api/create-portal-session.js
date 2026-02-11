@@ -1,11 +1,12 @@
 import Stripe from 'stripe';
 import { createClient } from '@supabase/supabase-js';
 
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
+const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || 'sk_missing');
 
+const supabaseUrl = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL;
 const supabase = createClient(
-  process.env.VITE_SUPABASE_URL || process.env.SUPABASE_URL,
-  process.env.SUPABASE_SERVICE_ROLE_KEY
+  supabaseUrl || 'https://placeholder.supabase.co',
+  process.env.SUPABASE_SERVICE_ROLE_KEY || 'placeholder'
 );
 
 export default async function handler(req, res) {
