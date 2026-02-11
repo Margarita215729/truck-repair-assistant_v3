@@ -67,7 +67,9 @@ export const subscriptionService = {
    */
   async createCheckoutSession(priceId) {
     const { data: { session } } = await supabase.auth.getSession();
-    if (!session) throw new Error('Not authenticated');
+    if (!session) throw new Error('Not authenticated. Please log in and try again.');
+
+    if (!priceId) throw new Error('Price not configured. Please refresh the page.');
 
     const response = await fetch('/api/create-checkout-session', {
       method: 'POST',
@@ -80,10 +82,14 @@ export const subscriptionService = {
 
     if (!response.ok) {
       const err = await response.json().catch(() => ({}));
-      throw new Error(err.error || 'Failed to create checkout session');
+      console.error('Checkout API error:', response.status, err);
+      throw new Error(err.error || `Checkout failed (${response.status})`);
     }
 
     const data = await response.json();
+    if (!data.url) {
+      throw new Error('No checkout URL returned from server');
+    }
     return data.url;
   },
 

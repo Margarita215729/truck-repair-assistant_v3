@@ -1,24 +1,16 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Package, DollarSign, Wrench, ExternalLink, Star, CheckCircle } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { Package, DollarSign, Wrench, ExternalLink, Search, Loader2, Trash2, ShoppingCart } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { Checkbox } from '@/components/ui/checkbox';
+import { searchVendorsForPart, getSearchUrls, VENDOR_INFO, aggregateListings } from '@/services/vendorService';
 
 const categoryIcons = {
-  engine: '🔧',
-  transmission: '⚙️',
-  brakes: '🛑',
-  electrical: '⚡',
-  exhaust: '💨',
-  fuel_system: '⛽',
-  cooling: '❄️',
-  suspension: '🔩',
-  drivetrain: '🔄',
-  body: '🚛',
-  filters: '🔍',
-  sensors: '📡',
-  other: '📦'
+  engine: '🔧', transmission: '⚙️', brakes: '🛑', electrical: '⚡',
+  exhaust: '💨', fuel_system: '⛽', cooling: '❄️', suspension: '🔩',
+  drivetrain: '🔄', body: '🚛', filters: '🔍', sensors: '📡', other: '📦'
 };
 
 const difficultyColors = {
@@ -28,37 +20,129 @@ const difficultyColors = {
   professional: 'bg-red-500/20 text-red-400 border-red-500/30'
 };
 
-export default function PartCard({ part, onClick, compareMode, isSelected }) {
+const importanceColors = {
+  required: 'bg-red-500/20 text-red-400 border-red-500/30',
+  recommended: 'bg-orange-500/20 text-orange-400 border-orange-500/30',
+  optional: 'bg-white/10 text-white/60 border-white/20',
+};
+
+/**
+ * PartCard — dual-mode card component.
+ * variant="recommended" — shows AI recommendation metadata + "Find Prices" button
+ * variant="vendor" — shows a live vendor listing with price, image, vendor link
+ */
+export default function PartCard({ part, variant = 'recommended', onClick, onDelete, compareMode, isSelected }) {
+  const [vendorPrices, setVendorPrices] = useState(null);
+  const [priceLoading, setPriceLoading] = useState(false);
+
+  const handleFindPrices = async (e) => {
+    e.stopPropagation();
+    setPriceLoading(true);
+    try {
+      const results = await searchVendorsForPart(part);
+      setVendorPrices(results);
+    } catch {
+      setVendorPrices({ ebay: [], finditparts: [], searchUrls: getSearchUrls(part.part_number, part.name) });
+    }
+    setPriceLoading(false);
+  };
+
+  // ═══ VENDOR LISTING CARD ═══
+  if (variant === 'vendor') {
+    return (
+      <motion.div whileHover={{ scale: 1.02 }} transition={{ duration: 0.2 }}>
+        <Card
+          onClick={onClick}
+          className={`bg-white/5 border-white/10 hover:bg-white/10 hover:border-white/20 transition-all cursor-pointer ${isSelected ? 'ring-2 ring-orange-500 bg-orange-500/10' : ''}`}
+        >
+          <CardContent className="p-4">
+            {compareMode && (
+              <div className="flex justify-end mb-2">
+                <Checkbox checked={isSelected} className="border-white/20" />
+              </div>
+            )}
+
+            {/* Image + Title */}
+            <div className="flex items-start gap-3 mb-3">
+              {part.imageUrl ? (
+                <img src={part.imageUrl} alt={part.title} className="w-16 h-16 rounded-lg object-cover bg-white/10 flex-shrink-0" />
+              ) : (
+                <div className="w-16 h-16 rounded-lg bg-white/10 flex items-center justify-center flex-shrink-0">
+                  <ShoppingCart className="w-6 h-6 text-white/30" />
+                </div>
+              )}
+              <div className="flex-1 min-w-0">
+                <h3 className="font-semibold text-white mb-1 line-clamp-2 text-sm">{part.title}</h3>
+                {part.partNumber && (
+                  <p className="text-xs text-white/50 font-mono">{part.partNumber}</p>
+                )}
+              </div>
+            </div>
+
+            {/* Vendor + Condition */}
+            <div className="flex flex-wrap gap-2 mb-3">
+              <Badge variant="outline" className="text-xs border-blue-500/30 text-blue-400">
+                {part.vendor}
+              </Badge>
+              {part.condition && part.condition !== 'Unknown' && (
+                <Badge variant="outline" className="text-xs border-white/20 text-white/70">
+                  {part.condition}
+                </Badge>
+              )}
+              {part.listingType && (
+                <Badge variant="outline" className="text-xs border-white/20 text-white/60">
+                  {part.listingType}
+                </Badge>
+              )}
+            </div>
+
+            {/* Shipping & Seller */}
+            {(part.shipping || part.sellerRating) && (
+              <div className="text-xs text-white/50 mb-3">
+                {part.shipping && <span>Shipping: {part.shipping}</span>}
+                {part.shipping && part.sellerRating && <span> · </span>}
+                {part.sellerRating && <span>Seller: {part.sellerRating}</span>}
+              </div>
+            )}
+
+            {/* Footer: Price + Link */}
+            <div className="flex items-center justify-between pt-3 border-t border-white/10">
+              <div className="text-lg font-bold text-orange-400">
+                {part.price > 0 ? `$${part.price.toFixed(2)}` : 'See listing'}
+              </div>
+              <a
+                href={part.itemUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                onClick={(e) => e.stopPropagation()}
+                className="inline-flex items-center gap-1 text-xs text-blue-400 hover:text-blue-300"
+              >
+                View on {part.vendor}
+                <ExternalLink className="w-3 h-3" />
+              </a>
+            </div>
+          </CardContent>
+        </Card>
+      </motion.div>
+    );
+  }
+
+  // ═══ RECOMMENDED PART CARD ═══
   const categoryIcon = categoryIcons[part.category] || '📦';
-  const priceRange = part.price_range 
-    ? `$${part.price_range.min} - $${part.price_range.max}`
-    : 'Price varies';
 
   return (
-    <motion.div
-      whileHover={{ scale: 1.02 }}
-      transition={{ duration: 0.2 }}
-    >
-      <Card 
+    <motion.div whileHover={{ scale: 1.02 }} transition={{ duration: 0.2 }}>
+      <Card
         onClick={onClick}
-        className={`bg-white/5 border-white/10 hover:bg-white/10 hover:border-white/20 transition-all cursor-pointer ${
-          isSelected ? 'ring-2 ring-orange-500 bg-orange-500/10' : ''
-        }`}
+        className={`bg-white/5 border-white/10 hover:bg-white/10 hover:border-white/20 transition-all cursor-pointer ${isSelected ? 'ring-2 ring-orange-500 bg-orange-500/10' : ''}`}
       >
         <CardContent className="p-4">
-          {/* Compare Checkbox */}
           {compareMode && (
             <div className="flex justify-end mb-2">
-              <Checkbox 
-                checked={isSelected} 
-                onCheckedChange={(e) => {
-                  e.stopPropagation();
-                  onClick();
-                }}
-                className="border-white/20"
-              />
+              <Checkbox checked={isSelected} className="border-white/20" />
             </div>
           )}
+
           {/* Header */}
           <div className="flex items-start gap-3 mb-3">
             <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-orange-500/20 to-orange-600/20 flex items-center justify-center text-2xl flex-shrink-0">
@@ -66,54 +150,115 @@ export default function PartCard({ part, onClick, compareMode, isSelected }) {
             </div>
             <div className="flex-1 min-w-0">
               <h3 className="font-semibold text-white mb-1 line-clamp-1">{part.name}</h3>
-              <p className="text-xs text-white/50 font-mono">{part.part_number}</p>
+              {part.part_number && (
+                <p className="text-xs text-white/50 font-mono">{part.part_number}</p>
+              )}
             </div>
+            {onDelete && (
+              <button
+                onClick={(e) => { e.stopPropagation(); onDelete(); }}
+                className="p-1.5 rounded-md hover:bg-red-500/20 text-white/30 hover:text-red-400 transition-colors"
+              >
+                <Trash2 className="w-4 h-4" />
+              </button>
+            )}
           </div>
 
-          {/* Description */}
-          {part.description && (
-            <p className="text-sm text-white/70 mb-3 line-clamp-2">{part.description}</p>
+          {/* Description / why_needed */}
+          {(part.description || part.why_needed) && (
+            <p className="text-sm text-white/70 mb-3 line-clamp-2">{part.description || part.why_needed}</p>
           )}
 
           {/* Badges */}
           <div className="flex flex-wrap gap-2 mb-3">
-            <Badge variant="outline" className="border-white/20 text-white/70 text-xs">
-              {part.part_type === 'OEM' ? 'OEM' : part.part_type === 'aftermarket' ? 'Aftermarket' : 'Remanufactured'}
-            </Badge>
             {part.installation_difficulty && (
-              <Badge 
-                variant="outline" 
-                className={`text-xs ${difficultyColors[part.installation_difficulty]}`}
-              >
-                <Wrench className="w-3 h-3 mr-1" />
-                {part.installation_difficulty}
+              <Badge variant="outline" className={`text-xs ${difficultyColors[part.installation_difficulty] || 'border-white/20 text-white/60'}`}>
+                <Wrench className="w-3 h-3 mr-1" />{part.installation_difficulty}
+              </Badge>
+            )}
+            {part.importance && part.importance !== 'recommended' && (
+              <Badge variant="outline" className={`text-xs ${importanceColors[part.importance] || ''}`}>
+                {part.importance}
               </Badge>
             )}
           </div>
 
-          {/* Compatible Trucks */}
-          {part.compatible_makes && part.compatible_makes.length > 0 && (
-            <div className="text-xs text-white/50 mb-3">
-              Compatible: {part.compatible_makes.slice(0, 3).join(', ')}
-              {part.compatible_makes.length > 3 && ` +${part.compatible_makes.length - 3}`}
+          {/* Compatible trucks + error codes */}
+          {part.compatible_makes?.length > 0 && (
+            <div className="text-xs text-white/50 mb-2">
+              🚛 {part.compatible_makes.slice(0, 3).join(', ')}
+            </div>
+          )}
+          {part.related_error_codes?.length > 0 && (
+            <div className="flex flex-wrap gap-1 mb-3">
+              {part.related_error_codes.slice(0, 3).map((code, i) => (
+                <Badge key={i} variant="outline" className="border-red-500/30 text-red-400 font-mono text-[10px] h-5">{code}</Badge>
+              ))}
             </div>
           )}
 
-          {/* Rating */}
-          {part.average_rating > 0 && (
-            <div className="flex items-center gap-1 mb-3">
-              <Star className="w-3 h-3 fill-yellow-400 text-yellow-400" />
-              <span className="text-xs text-white/70 font-medium">{part.average_rating.toFixed(1)}</span>
-              <span className="text-xs text-white/50">({part.review_count})</span>
-            </div>
-          )}
+          {/* Find Prices button */}
+          <div className="pt-3 border-t border-white/10">
+            {!vendorPrices && !priceLoading && (
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={handleFindPrices}
+                className="w-full border-orange-500/30 text-orange-400 hover:bg-orange-500/10"
+              >
+                <Search className="w-3.5 h-3.5 mr-2" />
+                Find Live Prices
+              </Button>
+            )}
 
-          {/* Footer */}
-          <div className="flex items-center justify-between pt-3 border-t border-white/10">
-            <div className="text-sm font-semibold text-orange-400">
-              {priceRange}
-            </div>
-            <ExternalLink className="w-4 h-4 text-white/40" />
+            {priceLoading && (
+              <div className="flex items-center justify-center py-2 gap-2">
+                <Loader2 className="w-4 h-4 animate-spin text-orange-400" />
+                <span className="text-xs text-white/50">Searching vendors...</span>
+              </div>
+            )}
+
+            {vendorPrices && !priceLoading && (
+              <div className="space-y-2">
+                {aggregateListings(vendorPrices).slice(0, 3).map((listing, i) => (
+                  <a
+                    key={i}
+                    href={listing.itemUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    onClick={(e) => e.stopPropagation()}
+                    className="flex items-center justify-between p-2 rounded-lg bg-white/5 hover:bg-white/10 transition text-xs"
+                  >
+                    <div className="flex items-center gap-2">
+                      <span className="text-white/50">{listing.vendor}</span>
+                      <span className="text-white/70 line-clamp-1 max-w-[140px]">{listing.title}</span>
+                    </div>
+                    <div className="flex items-center gap-2 flex-shrink-0">
+                      <span className="font-semibold text-orange-400">${listing.price?.toFixed(2)}</span>
+                      <ExternalLink className="w-3 h-3 text-white/40" />
+                    </div>
+                  </a>
+                ))}
+
+                {/* Search URL links */}
+                {vendorPrices.searchUrls && (
+                  <div className="flex flex-wrap gap-1.5 pt-2">
+                    {Object.entries(vendorPrices.searchUrls).slice(0, 4).map(([key, url]) => (
+                      <a
+                        key={key}
+                        href={url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        onClick={(e) => e.stopPropagation()}
+                        className="text-[10px] text-white/40 hover:text-white/70 underline capitalize"
+                      >
+                        {key === 'googleShopping' ? 'Google' : key}
+                      </a>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
           </div>
         </CardContent>
       </Card>

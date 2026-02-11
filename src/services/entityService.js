@@ -56,6 +56,7 @@ const TABLE_MAP = {
 const USER_SCOPED_TABLES = new Set([
   'trucks', 'conversations', 'diagnostic_reports', 'knowledge_base',
   'service_reviews', 'solution_votes', 'diagnostic_toolkits', 'repair_guide_ratings',
+  'parts',
 ]);
 
 // ─── Field mapping: app field name → DB column name ──────────────────
@@ -64,15 +65,26 @@ const FIELD_MAP = {
   trucks: { make: 'manufacturer' },
 };
 
+// ─── Composite transforms for complex field mappings ─────────────────
+// Currently no composite transforms needed (parts pricing is now live from vendors)
+const TRANSFORM_TO_DB = {};
+const TRANSFORM_FROM_DB = {};
+
 /** Convert app-side object → DB-side object (e.g. make → manufacturer) */
 function toDbFields(tableName, data) {
+  let converted = { ...data };
+  // Apply composite transforms first
+  if (TRANSFORM_TO_DB[tableName]) {
+    converted = TRANSFORM_TO_DB[tableName](converted);
+  }
+  // Then simple 1:1 field renames
   const map = FIELD_MAP[tableName];
-  if (!map) return data;
-  const converted = { ...data };
-  for (const [appField, dbField] of Object.entries(map)) {
-    if (appField in converted) {
-      converted[dbField] = converted[appField];
-      delete converted[appField];
+  if (map) {
+    for (const [appField, dbField] of Object.entries(map)) {
+      if (appField in converted) {
+        converted[dbField] = converted[appField];
+        delete converted[appField];
+      }
     }
   }
   return converted;
@@ -80,14 +92,21 @@ function toDbFields(tableName, data) {
 
 /** Convert DB-side object → app-side object (e.g. manufacturer → make) */
 function fromDbFields(tableName, row) {
+  if (!row) return row;
+  let converted = { ...row };
+  // Simple 1:1 renames first
   const map = FIELD_MAP[tableName];
-  if (!map || !row) return row;
-  const converted = { ...row };
-  for (const [appField, dbField] of Object.entries(map)) {
-    if (dbField in converted) {
-      converted[appField] = converted[dbField];
-      delete converted[dbField];
+  if (map) {
+    for (const [appField, dbField] of Object.entries(map)) {
+      if (dbField in converted) {
+        converted[appField] = converted[dbField];
+        delete converted[dbField];
+      }
     }
+  }
+  // Then composite transforms
+  if (TRANSFORM_FROM_DB[tableName]) {
+    converted = TRANSFORM_FROM_DB[tableName](converted);
   }
   return converted;
 }

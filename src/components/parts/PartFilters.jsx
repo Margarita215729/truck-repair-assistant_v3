@@ -1,6 +1,5 @@
 import React from 'react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Input } from '@/components/ui/input';
 
 const CATEGORIES = [
   { value: 'all', label: 'All Categories' },
@@ -18,24 +17,87 @@ const CATEGORIES = [
   { value: 'other', label: 'Other' }
 ];
 
-const PART_TYPES = [
-  { value: 'all', label: 'All Types' },
-  { value: 'OEM', label: 'OEM' },
-  { value: 'aftermarket', label: 'Aftermarket' },
-  { value: 'remanufactured', label: 'Remanufactured' }
+const IMPORTANCE = [
+  { value: 'all', label: 'Any Importance' },
+  { value: 'required', label: 'Required' },
+  { value: 'recommended', label: 'Recommended' },
+  { value: 'optional', label: 'Optional' }
 ];
 
-export default function PartFilters({ filters, onFiltersChange }) {
+const DIFFICULTIES = [
+  { value: 'all', label: 'Any Difficulty' },
+  { value: 'easy', label: 'Easy — basic tools' },
+  { value: 'moderate', label: 'Moderate — some experience' },
+  { value: 'difficult', label: 'Difficult — advanced skills' },
+  { value: 'professional', label: 'Professional only' }
+];
+
+const CONDITIONS = [
+  { value: 'all', label: 'Any Condition' },
+  { value: 'new', label: 'New' },
+  { value: 'used', label: 'Used' },
+  { value: 'refurbished', label: 'Refurbished' }
+];
+
+const SORT_OPTIONS = [
+  { value: 'relevance', label: 'Most Relevant' },
+  { value: 'price_asc', label: 'Price: Low → High' },
+  { value: 'price_desc', label: 'Price: High → Low' }
+];
+
+/**
+ * Dual-mode filter component.
+ * mode="recommended" — filters for AI-recommended parts (category, importance, difficulty)
+ * mode="search" — filters for live vendor search results (condition, sort)
+ */
+export default function PartFilters({ filters, onFiltersChange, mode = 'recommended' }) {
   const updateFilter = (key, value) => {
     onFiltersChange({ ...filters, [key]: value });
   };
 
+  if (mode === 'search') {
+    return (
+      <div className="p-4 rounded-xl bg-white/5 border border-white/10">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div>
+            <label className="text-xs text-white/60 mb-2 block">Condition</label>
+            <Select value={filters.condition || 'all'} onValueChange={(v) => updateFilter('condition', v)}>
+              <SelectTrigger className="bg-white/5 border-white/10 text-white">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {CONDITIONS.map(c => (
+                  <SelectItem key={c.value} value={c.value}>{c.label}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div>
+            <label className="text-xs text-white/60 mb-2 block">Sort By</label>
+            <Select value={filters.sort || 'relevance'} onValueChange={(v) => updateFilter('sort', v)}>
+              <SelectTrigger className="bg-white/5 border-white/10 text-white">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {SORT_OPTIONS.map(s => (
+                  <SelectItem key={s.value} value={s.value}>{s.label}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // mode === 'recommended'
   return (
-    <div className="p-4 rounded-xl bg-white/5 border border-white/10 space-y-4">
+    <div className="p-4 rounded-xl bg-white/5 border border-white/10">
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <div>
           <label className="text-xs text-white/60 mb-2 block">Category</label>
-          <Select value={filters.category} onValueChange={(value) => updateFilter('category', value)}>
+          <Select value={filters.category || 'all'} onValueChange={(v) => updateFilter('category', v)}>
             <SelectTrigger className="bg-white/5 border-white/10 text-white">
               <SelectValue />
             </SelectTrigger>
@@ -48,27 +110,31 @@ export default function PartFilters({ filters, onFiltersChange }) {
         </div>
 
         <div>
-          <label className="text-xs text-white/60 mb-2 block">Part Type</label>
-          <Select value={filters.partType} onValueChange={(value) => updateFilter('partType', value)}>
+          <label className="text-xs text-white/60 mb-2 block">Importance</label>
+          <Select value={filters.importance || 'all'} onValueChange={(v) => updateFilter('importance', v)}>
             <SelectTrigger className="bg-white/5 border-white/10 text-white">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
-              {PART_TYPES.map(type => (
-                <SelectItem key={type.value} value={type.value}>{type.label}</SelectItem>
+              {IMPORTANCE.map(imp => (
+                <SelectItem key={imp.value} value={imp.value}>{imp.label}</SelectItem>
               ))}
             </SelectContent>
           </Select>
         </div>
 
         <div>
-          <label className="text-xs text-white/60 mb-2 block">Truck Make</label>
-          <Input
-            value={filters.make}
-            onChange={(e) => updateFilter('make', e.target.value)}
-            placeholder="e.g., Freightliner"
-            className="bg-white/5 border-white/10 text-white placeholder:text-white/40"
-          />
+          <label className="text-xs text-white/60 mb-2 block">Installation Difficulty</label>
+          <Select value={filters.difficulty || 'all'} onValueChange={(v) => updateFilter('difficulty', v)}>
+            <SelectTrigger className="bg-white/5 border-white/10 text-white">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {DIFFICULTIES.map(d => (
+                <SelectItem key={d.value} value={d.value}>{d.label}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
         </div>
       </div>
     </div>
