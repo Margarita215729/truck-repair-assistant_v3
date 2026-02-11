@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { entities } from '@/services/entityService';
 import { invokeLLM } from '@/services/aiService';
+import { fetchAllInfrastructure } from '@/services/truckInfraService';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -15,7 +16,9 @@ import {
   Truck, 
   List, 
   Map as MapIcon,
-  RefreshCw
+  RefreshCw,
+  Scale,
+  AlertTriangle
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { toast } from 'sonner';
@@ -23,6 +26,9 @@ import { toast } from 'sonner';
 import ServiceMap from '@/components/services/ServiceMap';
 import ServiceCard from '@/components/services/ServiceCard';
 import ServiceFilters from '@/components/services/ServiceFilters';
+import TruckParkingCard from '@/components/services/TruckParkingCard';
+import WeighStationCard from '@/components/services/WeighStationCard';
+import TruckRestrictionCard from '@/components/services/TruckRestrictionCard';
 import { useLanguage } from '@/lib/LanguageContext';
 
 export default function ServiceFinder() {
@@ -40,7 +46,15 @@ export default function ServiceFinder() {
     serviceTypes: [],
     is24Hours: false,
     minRating: 0,
+    // Infrastructure layers
+    showTruckParking: true,
+    showWeighStations: true,
+    showRestrictions: false,
   });
+
+  // Infrastructure data from Supabase
+  const [infraData, setInfraData] = useState({ parking: [], weighStations: [], restrictions: [] });
+  const [infraLoading, setInfraLoading] = useState(false);
 
   const queryClient = useQueryClient();
 
@@ -62,6 +76,31 @@ export default function ServiceFinder() {
       );
     }
   }, []);
+
+  // Fetch infrastructure data whenever userCoords change and layers are enabled
+  const loadInfrastructure = async (coords) => {
+    if (!coords) return;
+    const anyLayerOn = filters.showTruckParking || filters.showWeighStations || filters.showRestrictions;
+    if (!anyLayerOn) return;
+
+    setInfraLoading(true);
+    try {
+      const data = await fetchAllInfrastructure(coords[0], coords[1], 50);
+      setInfraData(data);
+    } catch (err) {
+      console.warn('Infrastructure fetch failed:', err);
+      toast.error(t('services.infraFailed'));
+    } finally {
+      setInfraLoading(false);
+    }
+  };
+
+  // Reload infra when coords change
+  useEffect(() => {
+    if (userCoords) {
+      loadInfrastructure(userCoords);
+    }
+  }, [userCoords]);
 
   const searchServices = async (searchLocation) => {
     if (!searchLocation && !userCoords) {
@@ -161,10 +200,16 @@ export default function ServiceFinder() {
       if (response.services && response.services.length > 0) {
         setServices(response.services);
         if (response.search_center) {
-          setUserCoords([response.search_center.lat, response.search_center.lng]);
+          const newCoords = [response.search_center.lat, response.search_center.lng];
+          setUserCoords(newCoords);
+          loadInfrastructure(newCoords);
         }
       } else {
         toast.info(t('services.noServicesFound'));
+        // Still try to load infrastructure even if no services found
+        if (userCoords) {
+          loadInfrastructure(userCoords);
+        }
       }
     } catch (error) {
       console.error('Error searching services:', error);
@@ -205,8 +250,19 @@ export default function ServiceFinder() {
   const serviceCounts = {
     repair: services.filter(s => s.type === 'repair').length,
     parking: services.filter(s => s.type === 'parking').length,
-    towing: services.filter(s => s.type === 'towing').length
+    towing: services.filter(s => s.type === 'towing').length,
+    truckParking: infraData.parking.length,
+    weighStations: infraData.weighStations.length,
+    restrictions: infraData.restrictions.length,
   };
+
+  // Combined list items for the list view (services + infrastructure)
+  const listItems = [
+    ...filteredServices.map(s => ({ ...s, _listType: 'service' })),
+    ...(filters.showTruckParking ? infraData.parking.map(p => ({ ...p, _listType: 'truck_parking' })) : []),
+    ...(filters.showWeighStations ? infraData.weighStations.map(w => ({ ...w, _listType: 'weigh_station' })) : []),
+    ...(filters.showRestrictions ? infraData.restrictions.map(r => ({ ...r, _listType: 'truck_restriction' })) : []),
+  ];
 
   return (
     <div className="min-h-screen">
@@ -283,6 +339,37 @@ export default function ServiceFinder() {
               {t('services.towing')} ({serviceCounts.towing})
             </Toggle>
 
+            <div className="w-px h-6 bg-white/10 mx-1" />
+            
+            <span className="text-sm text-white/40">{t('services.layers')}</span>
+
+            <Toggle
+              pressed={filters.showTruckParking}
+              onPressedChange={() => toggleFilter('showTruckParking')}
+              className={`h-9 px-3 ${filters.showTruckParking ? 'bg-cyan-500/20 text-cyan-400 border-cyan-500/30' : 'bg-white/5 text-white/60 border-white/10'} border`}
+            >
+              <ParkingCircle className="w-4 h-4 mr-2" />
+              {t('services.truckParking')} ({serviceCounts.truckParking})
+            </Toggle>
+
+            <Toggle
+              pressed={filters.showWeighStations}
+              onPressedChange={() => toggleFilter('showWeighStations')}
+              className={`h-9 px-3 ${filters.showWeighStations ? 'bg-purple-500/20 text-purple-400 border-purple-500/30' : 'bg-white/5 text-white/60 border-white/10'} border`}
+            >
+              <Scale className="w-4 h-4 mr-2" />
+              {t('services.weighStations')} ({serviceCounts.weighStations})
+            </Toggle>
+
+            <Toggle
+              pressed={filters.showRestrictions}
+              onPressedChange={() => toggleFilter('showRestrictions')}
+              className={`h-9 px-3 ${filters.showRestrictions ? 'bg-amber-500/20 text-amber-400 border-amber-500/30' : 'bg-white/5 text-white/60 border-white/10'} border`}
+            >
+              <AlertTriangle className="w-4 h-4 mr-2" />
+              {t('services.restrictions')} ({serviceCounts.restrictions})
+            </Toggle>
+
             <div className="ml-auto flex items-center gap-1 bg-white/5 rounded-lg p-1">
               <Button
                 variant="ghost"
@@ -314,7 +401,7 @@ export default function ServiceFinder() {
       </div>
 
       <div className="max-w-7xl mx-auto px-4 py-6">
-        {services.length === 0 && !isLoading ? (
+        {services.length === 0 && listItems.length === 0 && !isLoading && !infraLoading ? (
           <div className="flex flex-col items-center justify-center py-20 text-center">
             <div className="w-20 h-20 rounded-2xl bg-white/5 flex items-center justify-center mb-6">
               <Search className="w-10 h-10 text-white/20" />
@@ -350,12 +437,12 @@ export default function ServiceFinder() {
               <div className={`space-y-4 ${viewMode === 'split' ? 'lg:max-h-[calc(100vh-250px)] lg:overflow-y-auto lg:pr-2' : ''}`}>
                 <div className="flex items-center justify-between">
                   <p className="text-sm text-white/60">
-                    {filteredServices.length} {filteredServices.length !== 1 ? t('services.results') : t('services.result')}
+                    {listItems.length} {listItems.length !== 1 ? t('services.results') : t('services.result')}
                   </p>
                   <Button
                     variant="ghost"
                     size="sm"
-                    onClick={() => searchServices(location)}
+                    onClick={() => { searchServices(location); loadInfrastructure(userCoords); }}
                     className="text-white/60 hover:text-white"
                   >
                     <RefreshCw className="w-4 h-4 mr-1" />
@@ -364,22 +451,45 @@ export default function ServiceFinder() {
                 </div>
                 
                 <AnimatePresence>
-                  {filteredServices.map((service, index) => (
+                  {listItems.map((item, index) => (
                     <motion.div
-                      key={service.id}
+                      key={`${item._listType}-${item.id}`}
                       initial={{ opacity: 0, y: 10 }}
                       animate={{ opacity: 1, y: 0 }}
-                      transition={{ delay: index * 0.05 }}
+                      transition={{ delay: index * 0.03 }}
                     >
-                      <ServiceCard
-                        service={service}
-                        isSelected={selectedService?.id === service.id}
-                        onClick={() => setSelectedService(service)}
-                        reviews={allReviews.filter(r => 
-                          r.service_name === service.name && 
-                          r.service_address === service.address
-                        )}
-                      />
+                      {item._listType === 'service' && (
+                        <ServiceCard
+                          service={item}
+                          isSelected={selectedService?.id === item.id}
+                          onClick={() => setSelectedService(item)}
+                          reviews={allReviews.filter(r => 
+                            r.service_name === item.name && 
+                            r.service_address === item.address
+                          )}
+                        />
+                      )}
+                      {item._listType === 'truck_parking' && (
+                        <TruckParkingCard
+                          parking={item}
+                          isSelected={selectedService?.id === item.id}
+                          onClick={() => setSelectedService(item)}
+                        />
+                      )}
+                      {item._listType === 'weigh_station' && (
+                        <WeighStationCard
+                          station={item}
+                          isSelected={selectedService?.id === item.id}
+                          onClick={() => setSelectedService(item)}
+                        />
+                      )}
+                      {item._listType === 'truck_restriction' && (
+                        <TruckRestrictionCard
+                          restriction={item}
+                          isSelected={selectedService?.id === item.id}
+                          onClick={() => setSelectedService(item)}
+                        />
+                      )}
                     </motion.div>
                   ))}
                 </AnimatePresence>
@@ -394,6 +504,9 @@ export default function ServiceFinder() {
                   selectedService={selectedService}
                   onSelectService={setSelectedService}
                   filters={filters}
+                  truckParking={infraData.parking}
+                  weighStations={infraData.weighStations}
+                  restrictions={infraData.restrictions}
                 />
               </div>
             )}

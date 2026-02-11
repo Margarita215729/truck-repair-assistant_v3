@@ -11,9 +11,14 @@ import {
   Moon,
   Star,
   X,
-  Settings
+  Settings,
+  ParkingCircle,
+  Scale,
+  AlertTriangle,
+  Layers
 } from 'lucide-react';
 import { motion } from 'framer-motion';
+import { useLanguage } from '@/lib/LanguageContext';
 
 const SERVICE_TYPES = [
   { id: 'engine', label: 'Engine Repair', icon: Settings },
@@ -25,6 +30,8 @@ const SERVICE_TYPES = [
 ];
 
 export default function ServiceFilters({ filters, onFilterChange }) {
+  const { t } = useLanguage();
+
   const toggleServiceType = (typeId) => {
     const current = filters.serviceTypes || [];
     const updated = current.includes(typeId)
@@ -33,8 +40,13 @@ export default function ServiceFilters({ filters, onFilterChange }) {
     onFilterChange({ ...filters, serviceTypes: updated });
   };
 
+  const toggleLayer = (layer) => {
+    onFilterChange({ ...filters, [layer]: !filters[layer] });
+  };
+
   const clearFilters = () => {
     onFilterChange({ 
+      ...filters,
       serviceTypes: [], 
       is24Hours: false, 
       minRating: 0 
@@ -126,6 +138,54 @@ export default function ServiceFilters({ filters, onFilterChange }) {
               {rating}+
             </motion.button>
           ))}
+        </div>
+      </div>
+
+      {/* Infrastructure Layers */}
+      <div className="space-y-3 mt-4 pt-4 border-t border-white/10">
+        <label className="text-xs text-white/60 font-medium flex items-center gap-1.5">
+          <Layers className="w-3.5 h-3.5" />
+          {t('services.layers')}
+        </label>
+        <div className="flex flex-wrap gap-2">
+          <motion.button
+            whileTap={{ scale: 0.95 }}
+            onClick={() => toggleLayer('showTruckParking')}
+            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
+              filters.showTruckParking
+                ? 'bg-cyan-500/20 text-cyan-400 border border-cyan-500/30'
+                : 'bg-white/5 text-white/60 hover:bg-white/10 hover:text-white border border-transparent'
+            }`}
+          >
+            <ParkingCircle className="w-3.5 h-3.5" />
+            {t('services.truckParking')}
+          </motion.button>
+          
+          <motion.button
+            whileTap={{ scale: 0.95 }}
+            onClick={() => toggleLayer('showWeighStations')}
+            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
+              filters.showWeighStations
+                ? 'bg-purple-500/20 text-purple-400 border border-purple-500/30'
+                : 'bg-white/5 text-white/60 hover:bg-white/10 hover:text-white border border-transparent'
+            }`}
+          >
+            <Scale className="w-3.5 h-3.5" />
+            {t('services.weighStations')}
+          </motion.button>
+          
+          <motion.button
+            whileTap={{ scale: 0.95 }}
+            onClick={() => toggleLayer('showRestrictions')}
+            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
+              filters.showRestrictions
+                ? 'bg-amber-500/20 text-amber-400 border border-amber-500/30'
+                : 'bg-white/5 text-white/60 hover:bg-white/10 hover:text-white border border-transparent'
+            }`}
+          >
+            <AlertTriangle className="w-3.5 h-3.5" />
+            {t('services.restrictions')}
+          </motion.button>
         </div>
       </div>
     </Card>
