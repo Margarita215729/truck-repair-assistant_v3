@@ -102,8 +102,9 @@ export default function ServiceFinder() {
     }
   }, [userCoords]);
 
-  const searchServices = async (searchLocation) => {
-    if (!searchLocation && !userCoords) {
+  const searchServices = async (searchLocation, overrideCoords = null) => {
+    const coords = overrideCoords || userCoords;
+    if (!searchLocation && !coords) {
       toast.error(t('services.locationRequired'));
       return;
     }
@@ -112,7 +113,7 @@ export default function ServiceFinder() {
     setServices([]);
 
     try {
-      const locationQuery = searchLocation || `coordinates ${userCoords[0]}, ${userCoords[1]}`;
+      const locationQuery = searchLocation || `coordinates ${coords[0]}, ${coords[1]}`;
       
       const serviceTypesFilter = filters.serviceTypes.length > 0
         ? `Focus on services offering: ${filters.serviceTypes.map(t => {
@@ -132,35 +133,27 @@ export default function ServiceFinder() {
       const minRatingFilter = filters.minRating > 0 ? `Only include services with rating ${filters.minRating}+.` : '';
 
       const response = await invokeLLM({
-        prompt: `CRITICAL: Use real-time search data from Google Maps, Yelp, and TruckersReport to find actual truck services near ${locationQuery} in the USA.
+        prompt: `List well-known truck service locations near ${locationQuery} in the USA.
 
-        SEARCH REQUIREMENTS:
-        1. **Truck Repair Shops**: Search Google Maps for "truck repair near [location]", "semi truck mechanic [location]", "commercial truck service [location]"
-           - Prioritize shops that explicitly service heavy-duty trucks (Class 8): Peterbilt, Kenworth, Freightliner, Volvo, Mack, International, Western Star
-           - Include independent shops AND dealer service centers
-           
-        2. **Truck Parking & Rest Areas**: Search for "truck parking [location]", "truck stop [location]", "rest area [location]"
-           - Include truck stops (Love's, Pilot Flying J, TA, Petro)
-           - Public rest areas with truck parking
-           - Private truck parking facilities
-           
-        3. **Heavy-Duty Towing**: Search for "heavy duty towing [location]", "semi truck towing [location]", "commercial towing [location]"
-           - Must have equipment for Class 8 trucks (rotator wreckers, heavy-duty flatbeds)
+Include ONLY businesses you are confident actually exist based on your training data (major chains, well-known independents).
 
-        ${serviceTypesFilter}
-        ${is24HoursFilter}
-        ${minRatingFilter}
+TYPES TO INCLUDE:
+1. Truck Repair Shops — dealer service centers (Freightliner, Peterbilt, Volvo, etc.) and well-known independents that service Class 8 trucks
+2. Truck Stops & Parking — major chains: Love's, Pilot Flying J, TA/Petro, plus known public rest areas
+3. Heavy-Duty Towing — companies known for semi truck recovery
 
-        CRITICAL DATA REQUIREMENTS:
-        - Use REAL business names, addresses, and phone numbers from search results
-        - Use ACTUAL ratings and review counts from Google Maps/Yelp
-        - Get REAL coordinates (latitude/longitude) for accurate map placement
-        - Include REAL business hours from their listings
-        - For repair shops: List their actual specialties
-        - Calculate accurate distance from search center
-        - Verify businesses are CURRENTLY OPERATING
+${serviceTypesFilter}
+${is24HoursFilter}
+${minRatingFilter}
 
-        Return 8-12 results total (mix of all types), sorted by distance and rating.`,
+CRITICAL RULES:
+- ONLY include businesses you are reasonably sure exist. Do NOT fabricate names.
+- Use realistic GPS coordinates for the ${locationQuery} area.
+- For phone numbers: use the format (XXX) XXX-XXXX. If unsure, set phone to "Call for info".
+- For ratings: use realistic values (3.5-4.8). If unsure, default to 4.0.
+- Mark "ai_generated": true on every entry so the UI can show a disclaimer.
+
+Return 6-10 results sorted by estimated proximity to ${locationQuery}.`,
         add_context_from_internet: true,
         response_json_schema: {
           type: "object",
@@ -182,7 +175,8 @@ export default function ServiceFinder() {
                   hours: { type: "string" },
                   is24Hours: { type: "boolean" },
                   specialties: { type: "array", items: { type: "string" } },
-                  distance: { type: "number" }
+                  distance: { type: "number" },
+                  ai_generated: { type: "boolean", description: "Always true" }
                 }
               }
             },
@@ -226,18 +220,21 @@ export default function ServiceFinder() {
 
   const handleUseCurrentLocation = () => {
     if (userCoords) {
-      searchServices('');
+      searchServices('', userCoords);
     } else if (navigator.geolocation) {
       navigator.geolocation.getCurrentPosition(
         (position) => {
           const coords = [position.coords.latitude, position.coords.longitude];
           setUserCoords(coords);
-          searchServices('');
+          searchServices('', coords);
         },
         () => {
           toast.error(t('services.locationFailed'));
-        }
+        },
+        { enableHighAccuracy: false, timeout: 10000, maximumAge: 300000 }
       );
+    } else {
+      toast.error(t('services.locationFailed'));
     }
   };
 

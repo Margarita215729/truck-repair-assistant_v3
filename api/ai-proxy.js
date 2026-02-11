@@ -1,7 +1,7 @@
 import { createClient } from '@supabase/supabase-js';
 
 const GITHUB_MODELS_URL = 'https://models.github.ai/inference/chat/completions';
-const DEFAULT_MODEL = 'xai/grok-3';
+const DEFAULT_MODEL = 'openai/gpt-4o-mini';
 
 const supabase = createClient(
   process.env.VITE_SUPABASE_URL || process.env.SUPABASE_URL,

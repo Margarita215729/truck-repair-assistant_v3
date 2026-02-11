@@ -3,9 +3,10 @@ import { entities } from '@/services/entityService';
 import { invokeLLM, uploadFile } from '@/services/aiService';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
-import { Send, Loader2, FileText, Wrench, Plus, AlertTriangle } from 'lucide-react';
+import { Send, Loader2, FileText, Wrench, Plus, AlertTriangle, History } from 'lucide-react';
 import { toast } from 'sonner';
 import { motion, AnimatePresence } from 'framer-motion';
+import { useQueryClient } from '@tanstack/react-query';
 
 import TruckSelector from '@/components/diagnostics/TruckSelector';
 import AudioRecorder from '@/components/diagnostics/AudioRecorder';
@@ -22,6 +23,7 @@ import RepairInstructions from '@/components/diagnostics/RepairInstructions.jsx'
 import ClarifyingQuestions from '@/components/diagnostics/ClarifyingQuestions.jsx';
 import PartPhotoAnalyzer from '@/components/diagnostics/PartPhotoAnalyzer';
 import InteractiveRepairGuide from '@/components/diagnostics/InteractiveRepairGuide';
+import ChatHistory from '@/components/diagnostics/ChatHistory';
 import UpgradePrompt from '@/components/subscription/UpgradePrompt';
 import { useAiLimit } from '@/hooks/useAiLimit';
 import { useAuth } from '@/lib/AuthContext';
@@ -33,10 +35,14 @@ export default function Diagnostics() {
   const { t } = useLanguage();
   const { isProUser } = useAuth();
   const { canUse, checkAndIncrement, isLimitReached, dismissLimit, usage } = useAiLimit();
+  const queryClient = useQueryClient();
   const [messages, setMessages] = useState([]);
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [conversation, setConversation] = useState(null);
+  
+  // Chat history sidebar
+  const [showChatHistory, setShowChatHistory] = useState(false);
   
   // Diagnostic tools state
   const [truck, setTruck] = useState(null);
@@ -97,7 +103,37 @@ export default function Diagnostics() {
       dashboardMessage: '',
       checksAlreadyDone: '',
     });
+    queryClient.invalidateQueries({ queryKey: ['conversations'] });
     toast.success(t('diagnostics.newChatStarted'));
+    };
+
+    /** Load a conversation from chat history */
+    const handleLoadChat = (conv) => {
+      setMessages(Array.isArray(conv.messages) ? conv.messages : []);
+      setConversation(conv);
+      setInput('');
+      setPendingAnswers([]);
+      setAskedQuestions(new Set());
+      setQuestionRounds(0);
+      // Restore truck context if available
+      if (conv.truck_make || conv.truck_model) {
+        setTruck({
+          make: conv.truck_make || '',
+          model: conv.truck_model || '',
+          year: conv.truck_year || '',
+        });
+      }
+      setErrorCodes(conv.error_codes || []);
+      setSymptoms(conv.symptoms || []);
+      setRoadsideContext({
+        whenItHappens: '',
+        recentEvents: [],
+        dashboardMessage: '',
+        checksAlreadyDone: '',
+      });
+      setActiveToolkit(null);
+      // Scroll to the bottom once messages render
+      setTimeout(() => scrollToBottom(), 100);
     };
 
     const buildContextPrompt = () => {
@@ -261,106 +297,33 @@ export default function Diagnostics() {
         });
       }
       
-      let fullPrompt = `You are Truck Repair Assistant, an expert truck mechanic and diagnostic specialist. You help truckers diagnose and fix problems with their commercial trucks.
-
-      Your expertise includes:
-      - All major US truck brands (Peterbilt, Kenworth, Freightliner, Volvo, Mack, International, Western Star, Navistar, Ford, Chevrolet, RAM, GMC, Toyota, Nissan, Isuzu)
-      - Engine diagnostics (diesel engines, turbo systems, fuel systems)
-      - Transmission and drivetrain issues
-      - Electrical systems and OBD codes (J1939, SPN/FMI codes)
-      - Brake systems (air brakes, ABS)
-      - Exhaust/emissions systems (DPF, DEF, EGR)
-      - Audio pattern analysis for engine sounds
-
-      PRIMARY MISSION: Minimize downtime and repair costs for truckers.
-
-      CRITICAL COMMUNICATION RULES:
-      - Keep your initial responses SHORT and FOCUSED (2-3 sentences max)
-      - Lead with clarifying questions FIRST
-      - Only provide detailed analysis AFTER gathering enough info through questions
-      - Don't dump all information at once - use a conversational, step-by-step approach
-
-      **CRITICAL: RESPONSE FORMAT RULES**
-      - NEVER include questions in the "response" field if you're using "clarifying_questions"
-      - When asking questions, put them ONLY in "clarifying_questions" array
-      - Your "response" should be a brief statement (1-2 sentences) about what you're trying to determine
-      - Example good response: "I need to understand the driving conditions to narrow down the issue."
-      - Example BAD response: "Can you drive safely? Does this happen during cold starts?" (questions belong in clarifying_questions only)
-      - MAXIMUM 2 rounds of clarifying questions, then PROVIDE SOLUTION with repair_instructions and suggested_parts
-      - Current question round: ${questionRounds + 1}/2
-      ${questionRounds >= 1 ? '- THIS IS YOUR LAST ROUND OF QUESTIONS. Next response MUST include repair_instructions and suggested_parts.' : ''}
-      ${questionRounds >= 2 ? '- STOP ASKING QUESTIONS. Provide complete diagnosis with repair_instructions and suggested_parts NOW.' : ''}
-
-      PROGRESSIVE GUIDED TROUBLESHOOTING - Use strategic questioning to narrow down the root cause:
-      
-      **DIAGNOSTIC FLOW STAGES:**
-      1. INITIAL TRIAGE (1-3 questions max) - Determine urgency and system affected
-      2. SYSTEM FOCUS (2-4 questions) - Narrow to specific component/subsystem
-      3. ROOT CAUSE (2-3 questions) - Pinpoint exact failure point
-      4. SOLUTION DELIVERY - Present repair instructions + community solutions
-      
-      **STAGE 1: INITIAL TRIAGE - Critical first questions:**
-      - Safety: Can you drive safely? Any immediate danger signs?
-      - Timing: When does this occur? (cold start/hot engine/under load/idle)
-      - Severity: How bad is it? (intermittent/constant, power loss %, drivability impact)
-      - Recent changes: Any recent repairs, maintenance, or incidents?
-      
-      **STAGE 2: SYSTEM FOCUS - Based on triage, drill into the affected system:**
-      For ENGINE issues: fuel delivery, air intake, exhaust, sensors, mechanical
-      For TRANSMISSION: shifting behavior, fluid condition, clutch engagement
-      For BRAKES: air pressure, ABS behavior, pad/rotor condition
-      For ELECTRICAL: battery, alternator, wiring, modules
-      
-      **STAGE 3: ROOT CAUSE - Precision diagnostic questions:**
-      - "When you press the accelerator, does response change gradually or suddenly?"
-      - "Have you checked [specific fluid/filter/sensor]? What did you find?"
-      - "Does resetting the truck (key off/on) change the behavior?"
-      
-      **INTEGRATE COMMUNITY WISDOM:**
-      - After each question stage, check if community solutions match the narrowed symptoms
-      - Present relevant community fixes
-      - Show verification: "Solution rated 87% successful by the community"
-
-      CRITICAL FORUM INTEGRATION - Deep analysis required:
-      
-      PRIMARY FORUMS (search these EXTENSIVELY):
-      - TruckersReport.com, TheTruckersPlace.com, TheRanch.com
-      - Ford-Trucks.com, Chevy Truck Forum, TheDieselStop.com
-      - Reddit r/Truckers and r/MechanicAdvice
-      
-      PRESENT FORUM INSIGHTS AS:
-      - "🔥 TRENDING: [Number] drivers on [Forum] reporting [similar issue] with [truck model]"
-      - "✅ PROVEN FIX: User [username] on [Forum] solved this by [solution]"
-      - "⚠️ COMMON MISTAKE: Forum users warn against [mistake]"
-      - "💡 PRO TIP from [Forum]: [specific advice]"
-      - "📊 FORUM CONSENSUS: [X]% of drivers with this issue found [solution] worked"
-
-      When diagnosing, follow this PROGRESSIVE FLOW:
-      
-      1. **CLARIFYING QUESTIONS** (if diagnosis incomplete)
-      2. **INTERIM INSIGHTS** - After each question round
-      3. **TEMPORARY SOLUTIONS** - Safe roadside fixes
-      4. **PERMANENT SOLUTION** - Full diagnosis and repair plan
-      5. **COST SAVING TIPS**
-      6. **FORUM WISDOM** - Real trucker experiences
-
-      **ADVANCED PARTS COMPATIBILITY ENGINE:**
-      - Cross-reference ALL provided specs to ensure 100% compatibility
-      - VIN decoding for exact factory specs
-      - For EACH suggested part: OEM part number AND equivalent aftermarket options
-      - Quality tiers: Premium aftermarket, economy aftermarket, OEM, remanufactured
-      - Price comparison with warranty info
-
-      Keep responses practical, focused on getting the driver back on the road. Use simple language. Be their roadside buddy, not a textbook.
+      let fullPrompt = `DIAGNOSTIC CONTEXT:
 ${contextPrompt}
 ${communitySolutionsContext}
+
+COMMUNICATION RULES:
+- Keep initial responses SHORT (2-3 sentences)
+- Lead with clarifying questions FIRST, only provide detailed analysis after gathering info
+- NEVER include questions in "response" — use "clarifying_questions" array only
+- MAXIMUM 2 rounds of clarifying questions, then PROVIDE SOLUTION with repair_instructions and suggested_parts
+- Current question round: ${questionRounds + 1}/2
+${questionRounds >= 1 ? '- THIS IS YOUR LAST ROUND OF QUESTIONS. Next response MUST include repair_instructions and suggested_parts.' : ''}
+${questionRounds >= 2 ? '- STOP ASKING QUESTIONS. Provide complete diagnosis with repair_instructions and suggested_parts NOW.' : ''}
+
+DIAGNOSTIC APPROACH:
+1. TRIAGE: determine urgency + affected system
+2. NARROW DOWN: specific component / subsystem
+3. SOLUTION: repair instructions, parts, cost-saving tips
+
+PARTS SUGGESTIONS:
+- For each part: OEM number + aftermarket alternatives
+- Quality tiers: OEM, premium aftermarket, economy, remanufactured
+- NEVER invent specific prices — use approximate ranges only
 
 Previous conversation:
 ${messages.map(m => `${m.role}: ${m.content}`).join('\n')}
 
-User: ${messageText}${audioUrl ? '\n[User has attached an audio recording of engine sound]' : ''}
-
-Provide a helpful, detailed diagnostic response:`;
+User: ${messageText}${audioUrl ? '\n[User has attached an audio recording of engine sound]' : ''}`;
 
       const response = await invokeLLM({
         prompt: fullPrompt,
@@ -450,49 +413,15 @@ Provide a helpful, detailed diagnostic response:`;
                         brand: { type: "string" },
                         part_number: { type: "string" },
                         quality_tier: { type: "string", enum: ["OEM", "premium_aftermarket", "economy_aftermarket", "remanufactured"] },
-                        price: { type: "number" },
+                        estimated_price_range: { type: "string", description: "e.g. $50-$120" },
                         warranty: { type: "string" }
                       }
                     }
                   },
                   fitment_confidence: { type: "string" },
                   installation_difficulty: { type: "string" },
-                  installation_notes: { type: "string" },
                   why_needed: { type: "string" }
                 }
-              }
-            },
-            sources: {
-              type: "array",
-              items: {
-                type: "object",
-                properties: {
-                  title: { type: "string" },
-                  url: { type: "string" },
-                  type: { type: "string", enum: ["forum", "video", "manual", "article"] },
-                  forum_name: { type: "string" },
-                  relevance: { type: "string", enum: ["trending", "proven_solution", "warning", "pro_tip"] }
-                }
-              }
-            },
-            trending_issues: {
-              type: "array",
-              items: {
-                type: "object",
-                properties: {
-                  issue: { type: "string" },
-                  forum: { type: "string" },
-                  frequency: { type: "string" },
-                  affected_models: { type: "array", items: { type: "string" } }
-                }
-              }
-            },
-            forum_consensus: {
-              type: "object",
-              properties: {
-                top_solution: { type: "string" },
-                success_rate: { type: "string" },
-                common_mistakes: { type: "array", items: { type: "string" } }
               }
             },
             follow_up_questions: {
@@ -519,9 +448,6 @@ Provide a helpful, detailed diagnostic response:`;
         role: 'assistant',
         content: response.response,
         timestamp: new Date().toISOString(),
-        sources: response.sources || [],
-        trending_issues: response.trending_issues || [],
-        forum_consensus: response.forum_consensus || null,
         follow_up_questions: response.follow_up_questions || [],
         suggested_parts: response.suggested_parts || [],
         dtc_analysis: response.dtc_analysis || [],
@@ -566,6 +492,7 @@ Provide a helpful, detailed diagnostic response:`;
         });
         setConversation(newConversation);
       }
+      queryClient.invalidateQueries({ queryKey: ['conversations'] });
 
     } catch (error) {
       console.error('Error:', error);
@@ -834,9 +761,19 @@ Focus on:
                 <span className="brand-text-gradient">Truck Repair</span>
                 <span className="text-white ml-2">Assistant</span>
               </h1>
-              <p className="text-lg text-white/60 max-w-md mb-8">
+              <p className="text-lg text-white/60 max-w-md mb-6">
                 {t('diagnostics.welcomeDesc')}
               </p>
+
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setShowChatHistory(true)}
+                className="mb-6 border-white/20 bg-white/5 hover:bg-white/10 text-white/70 hover:text-white"
+              >
+                <History className="w-4 h-4 mr-2" />
+                {t('diagnostics.chatHistory') || 'Chat History'}
+              </Button>
 
               {/* Roadside Context Panel removed — VIN moved to TruckSelector */}
 
@@ -992,6 +929,15 @@ Focus on:
                 />
 
                 <div className="flex items-center gap-2 ml-auto">
+                  <Button
+                    onClick={() => setShowChatHistory(true)}
+                    variant="outline"
+                    size="sm"
+                    className="border-white/20 bg-white/5 hover:bg-white/10 text-white/70 hover:text-white"
+                  >
+                    <History className="w-4 h-4 mr-2" />
+                    {t('diagnostics.chatHistory') || 'Chat History'}
+                  </Button>
                   {messages.length > 0 && (
                     <Button
                       onClick={handleNewChat}
@@ -1179,6 +1125,20 @@ Focus on:
         truck={truck}
         errorCodes={errorCodes}
         symptoms={symptoms}
+      />
+
+      <ChatHistory
+        open={showChatHistory}
+        onClose={() => setShowChatHistory(false)}
+        onSelectChat={(conv) => {
+          handleLoadChat(conv);
+          setShowChatHistory(false);
+        }}
+        activeConversationId={conversation?.id}
+        onNewChat={() => {
+          handleNewChat();
+          setShowChatHistory(false);
+        }}
       />
     </div>
   );

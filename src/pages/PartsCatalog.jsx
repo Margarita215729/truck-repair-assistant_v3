@@ -1,12 +1,12 @@
 import React, { useState, useMemo } from 'react';
 import { getMyRecommendedParts, getRecommendedStats, deleteRecommendation } from '@/services/partsService';
-import { searchVendors, aggregateListings, vendorKeys } from '@/services/vendorService';
+import { searchVendors, aggregateListings, vendorKeys, aiSearchParts } from '@/services/vendorService';
 import { useQuery } from '@tanstack/react-query';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Search, Filter, Loader2, Package, Wrench, ArrowRight, ShoppingCart, Globe } from 'lucide-react';
+import { Search, Filter, Loader2, Package, Wrench, ArrowRight, ShoppingCart, Globe, Sparkles, Store, ExternalLink, MapPin } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { toast } from 'sonner';
 import { useNavigate } from 'react-router-dom';
@@ -63,6 +63,16 @@ export default function PartsCatalog() {
       condition: searchFilters.condition,
     }),
     enabled: !!searchSubmitted,
+    staleTime: 5 * 60_000,
+    keepPreviousData: true,
+  });
+
+  // AI-powered fallback search — activates when vendor results are empty
+  const vendorHasResults = vendorResults && (vendorResults.ebay?.length > 0 || vendorResults.finditparts?.length > 0);
+  const { data: aiResults, isLoading: aiSearchLoading } = useQuery({
+    queryKey: vendorKeys.aiSearch(searchSubmitted, { make: searchMake, model: searchModel, year: searchYear }),
+    queryFn: () => aiSearchParts(searchSubmitted, { make: searchMake, model: searchModel, year: searchYear }),
+    enabled: !!searchSubmitted && vendorResults !== undefined && !vendorHasResults,
     staleTime: 5 * 60_000,
     keepPreviousData: true,
   });
@@ -330,22 +340,24 @@ export default function PartsCatalog() {
             </form>
 
             {/* Vendor search results */}
-            {searchLoading ? (
+            {(searchLoading || aiSearchLoading) ? (
               <div className="flex flex-col items-center justify-center py-20 gap-3">
                 <Loader2 className="w-8 h-8 animate-spin text-orange-500" />
-                <p className="text-sm text-white/50">Searching eBay, FinditParts, and more...</p>
+                <p className="text-sm text-white/50">
+                  {aiSearchLoading ? 'AI is searching for parts and purchase options...' : 'Searching eBay, FinditParts, and more...'}
+                </p>
               </div>
-            ) : searchSubmitted && vendorResults ? (
+            ) : searchSubmitted && (vendorResults || aiResults) ? (
               <>
                 {/* Search URLs — always shown */}
-                {vendorResults.searchUrls && (
+                {(vendorResults?.searchUrls || aiResults?.searchUrls) && (
                   <div className="mb-6 p-4 rounded-xl bg-white/5 border border-white/10">
                     <div className="flex items-center gap-2 mb-3">
                       <Globe className="w-4 h-4 text-white/60" />
                       <span className="text-sm font-semibold text-white/80">Also search on:</span>
                     </div>
                     <div className="flex flex-wrap gap-2">
-                      {Object.entries(vendorResults.searchUrls).map(([key, url]) => (
+                      {Object.entries(vendorResults?.searchUrls || aiResults?.searchUrls || {}).map(([key, url]) => (
                         <a
                           key={key}
                           href={url}
@@ -366,8 +378,8 @@ export default function PartsCatalog() {
                     <div className="mb-4 flex items-center justify-between">
                       <span className="text-sm text-white/60">
                         {vendorListings.length} {vendorListings.length !== 1 ? 'listings' : 'listing'} found
-                        {vendorResults.meta?.sources?.ebay && ' from eBay'}
-                        {vendorResults.meta?.sources?.finditparts && ', FinditParts'}
+                        {vendorResults?.meta?.sources?.ebay && ' from eBay'}
+                        {vendorResults?.meta?.sources?.finditparts && ', FinditParts'}
                       </span>
                     </div>
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -383,10 +395,102 @@ export default function PartsCatalog() {
                       ))}
                     </div>
                   </>
+                ) : aiResults?.results?.length > 0 ? (
+                  <>
+                    <div className="mb-4 p-3 rounded-xl bg-gradient-to-r from-purple-500/10 to-orange-500/10 border border-purple-500/20">
+                      <div className="flex items-center gap-2 mb-1">
+                        <Sparkles className="w-4 h-4 text-purple-400" />
+                        <span className="text-sm font-semibold text-white/90">AI-Powered Results</span>
+                      </div>
+                      <p className="text-xs text-white/50">Vendor APIs returned no live listings. AI found these parts with purchase options.</p>
+                    </div>
+
+                    <div className="space-y-4">
+                      {aiResults.results.map((part, idx) => (
+                        <div key={part._id || idx} className="p-4 rounded-xl bg-white/5 border border-white/10 hover:border-white/20 transition-all">
+                          <div className="flex items-start justify-between gap-3 mb-3">
+                            <div className="flex-1">
+                              <div className="flex items-center gap-2 mb-1">
+                                <h3 className="font-semibold text-white">{part.title}</h3>
+                                <Badge className="bg-purple-500/20 text-purple-300 border border-purple-500/30 text-[10px]">AI</Badge>
+                              </div>
+                              {part.partNumber && (
+                                <p className="text-xs text-orange-400 font-mono mb-1">#{part.partNumber}</p>
+                              )}
+                              {part.description && (
+                                <p className="text-sm text-white/60 mb-2">{part.description}</p>
+                              )}
+                              <div className="flex flex-wrap items-center gap-2 text-xs text-white/50">
+                                {part.brand && <Badge variant="outline" className="border-white/20 text-white/60">{part.brand}</Badge>}
+                                {part.condition && <Badge variant="outline" className="border-white/20 text-white/60">{part.condition}</Badge>}
+                                {part.compatibility && <span>{part.compatibility}</span>}
+                              </div>
+                            </div>
+                            <div className="text-right shrink-0">
+                              {part.priceRange ? (
+                                <p className="text-lg font-bold text-green-400">{part.priceRange}</p>
+                              ) : part.price ? (
+                                <p className="text-lg font-bold text-green-400">
+                                  ${part.price.toFixed(2)}{part.priceMax ? ` — $${part.priceMax.toFixed(2)}` : ''}
+                                </p>
+                              ) : null}
+                            </div>
+                          </div>
+
+                          {/* Online stores */}
+                          {part.onlineStores?.length > 0 && (
+                            <div className="mb-3">
+                              <p className="text-xs font-semibold text-white/40 mb-2 flex items-center gap-1">
+                                <Globe className="w-3 h-3" /> ONLINE STORES
+                              </p>
+                              <div className="flex flex-wrap gap-2">
+                                {part.onlineStores.map((store, si) => (
+                                  <a
+                                    key={si}
+                                    href={store.url && store.url.startsWith('http') ? store.url : '#'}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white/5 hover:bg-white/10 border border-white/10 hover:border-white/20 text-xs text-white/70 hover:text-white transition-all"
+                                  >
+                                    <ExternalLink className="w-3 h-3" />
+                                    <span className="font-medium">{store.name}</span>
+                                    {store.estimatedPrice && <span className="text-green-400">{store.estimatedPrice}</span>}
+                                    {store.inStock && <span className="text-white/40">· {store.inStock}</span>}
+                                  </a>
+                                ))}
+                              </div>
+                            </div>
+                          )}
+
+                          {/* Offline stores */}
+                          {part.offlineStores?.length > 0 && (
+                            <div>
+                              <p className="text-xs font-semibold text-white/40 mb-2 flex items-center gap-1">
+                                <Store className="w-3 h-3" /> LOCAL / OFFLINE STORES
+                              </p>
+                              <div className="flex flex-wrap gap-2">
+                                {part.offlineStores.map((store, si) => (
+                                  <div
+                                    key={si}
+                                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white/5 border border-white/10 text-xs text-white/60"
+                                  >
+                                    <MapPin className="w-3 h-3 text-orange-400" />
+                                    <span className="font-medium">{store.name}</span>
+                                    {store.availability && <span className="text-white/40">· {store.availability}</span>}
+                                    {store.notes && <span className="text-white/30">· {store.notes}</span>}
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  </>
                 ) : (
                   <div className="text-center py-16">
                     <Package className="w-16 h-16 mx-auto mb-4 text-white/20" />
-                    <h3 className="text-xl font-semibold text-white mb-2">No live listings found</h3>
+                    <h3 className="text-xl font-semibold text-white mb-2">No listings found</h3>
                     <p className="text-white/60 mb-4">Try the search links above to browse vendors directly.</p>
                   </div>
                 )}
