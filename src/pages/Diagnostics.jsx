@@ -1055,12 +1055,6 @@ Focus on:
             />
             <Button
               onClick={() => {
-                if (!truck && messages.length === 0) {
-                  toast.error(t('diagnostics.selectTruck'));
-                  setShowTruckSelector(true);
-                  return;
-                }
-
                 let messageToSend = input.trim();
 
                 if (pendingAnswers.length > 0) {

@@ -8,7 +8,7 @@ import { Input } from '@/components/ui/input';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import {
-  Check, X, Crown, Zap, Loader2, Gift, Sparkles,
+  Check, Crown, Zap, Loader2, Gift, Sparkles,
   ArrowRight, Shield, CheckCircle2
 } from 'lucide-react';
 import { toast } from 'sonner';
@@ -35,7 +35,6 @@ export default function PricingPage() {
       toast.error(t('pricing.loginRequired') || 'Please log in to subscribe');
       // No separate /login route — auth is handled by AuthContext showing LoginPage
       // Just return; the user is already seeing the pricing page layout
-      return;
       return;
     }
     if (!priceId) {
