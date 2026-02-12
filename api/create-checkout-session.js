@@ -45,6 +45,15 @@ export default async function handler(req, res) {
       return res.status(400).json({ error: 'Missing price ID. Please refresh the page and try again.' });
     }
 
+    // Resolve plan name from priceId
+    const PRICE_TO_PLAN = {
+      [process.env.OWNER_PRICE_MONTHLY]: 'owner',
+      [process.env.OWNER_PRICE_ANNUAL]: 'owner',
+      [process.env.FLEET_PRICE_MONTHLY]: 'fleet',
+      [process.env.FLEET_PRICE_ANNUAL]: 'fleet',
+    };
+    const planName = PRICE_TO_PLAN[priceId] || 'owner';
+
     // Get or create Stripe customer
     let stripeCustomerId;
 
@@ -84,10 +93,12 @@ export default async function handler(req, res) {
       cancel_url: `${req.headers.origin || process.env.NEXT_PUBLIC_BASE_URL}/Pricing?canceled=true`,
       metadata: {
         supabase_user_id: user.id,
+        plan_name: planName,
       },
       subscription_data: {
         metadata: {
           supabase_user_id: user.id,
+          plan_name: planName,
         },
       },
     });

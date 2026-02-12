@@ -2,13 +2,16 @@ import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/api/supabaseClient';
 import { useLanguage } from '@/lib/LanguageContext';
-import { CheckCircle2, XCircle, Loader2 } from 'lucide-react';
+import { CheckCircle2, XCircle, Loader2, KeyRound } from 'lucide-react';
 
 export default function AuthCallbackPage() {
   const { t } = useLanguage();
   const navigate = useNavigate();
-  const [status, setStatus] = useState('processing'); // 'processing' | 'success' | 'error'
+  const [status, setStatus] = useState('processing'); // 'processing' | 'success' | 'error' | 'reset-password'
   const [message, setMessage] = useState('');
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [isResetting, setIsResetting] = useState(false);
 
   useEffect(() => {
     handleAuthCallback();
@@ -38,9 +41,8 @@ export default function AuthCallbackPage() {
         const type = params.get('type');
 
         if (type === 'recovery') {
-          setStatus('success');
+          setStatus('reset-password');
           setMessage(t('auth.passwordResetReady'));
-          setTimeout(() => navigate('/', { replace: true }), 2000);
         } else {
           setStatus('success');
           setMessage(t('auth.emailConfirmed'));
@@ -83,6 +85,65 @@ export default function AuthCallbackPage() {
               <CheckCircle2 className="w-12 h-12 text-green-400 mx-auto mb-4" />
               <h2 className="text-lg font-semibold text-white mb-2">{message}</h2>
               <p className="text-white/50 text-sm">{t('auth.redirecting')}</p>
+            </>
+          )}
+
+          {status === 'reset-password' && (
+            <>
+              <KeyRound className="w-12 h-12 text-brand-orange mx-auto mb-4" />
+              <h2 className="text-lg font-semibold text-white mb-2">{t('auth.setNewPassword')}</h2>
+              <p className="text-white/50 text-sm mb-4">{t('auth.passwordResetReady')}</p>
+              <form onSubmit={async (e) => {
+                e.preventDefault();
+                if (newPassword.length < 6) {
+                  setMessage(t('auth.passwordTooShort'));
+                  return;
+                }
+                if (newPassword !== confirmPassword) {
+                  setMessage(t('auth.passwordsMismatch'));
+                  return;
+                }
+                setIsResetting(true);
+                setMessage('');
+                try {
+                  const { error } = await supabase.auth.updateUser({ password: newPassword });
+                  if (error) throw error;
+                  setStatus('success');
+                  setMessage(t('auth.passwordUpdated'));
+                  setTimeout(() => navigate('/', { replace: true }), 2000);
+                } catch (err) {
+                  setMessage(err.message || t('auth.passwordResetFailed'));
+                } finally {
+                  setIsResetting(false);
+                }
+              }} className="space-y-3 text-left">
+                <input
+                  type="password"
+                  value={newPassword}
+                  onChange={(e) => setNewPassword(e.target.value)}
+                  placeholder={t('auth.newPasswordPlaceholder')}
+                  className="w-full px-4 py-3 rounded-lg bg-white/5 border border-white/10 text-white placeholder:text-white/30 focus:outline-none focus:border-brand-orange/50"
+                  required
+                  minLength={6}
+                />
+                <input
+                  type="password"
+                  value={confirmPassword}
+                  onChange={(e) => setConfirmPassword(e.target.value)}
+                  placeholder={t('auth.confirmPasswordPlaceholder')}
+                  className="w-full px-4 py-3 rounded-lg bg-white/5 border border-white/10 text-white placeholder:text-white/30 focus:outline-none focus:border-brand-orange/50"
+                  required
+                  minLength={6}
+                />
+                {message && <p className="text-red-400 text-sm">{message}</p>}
+                <button
+                  type="submit"
+                  disabled={isResetting}
+                  className="w-full brand-btn px-6 py-3 rounded-lg text-white font-medium disabled:opacity-50"
+                >
+                  {isResetting ? t('auth.processing') : t('auth.updatePassword')}
+                </button>
+              </form>
             </>
           )}
 

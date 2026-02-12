@@ -36,12 +36,15 @@ export default function Community() {
     }
   });
 
-  const filteredSolutions = solutions.filter(s =>
-    !searchQuery || 
-    s.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    s.problem_description.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    s.truck_make.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+  const filteredSolutions = solutions.filter(s => {
+    if (!searchQuery) return true;
+    const q = searchQuery.toLowerCase();
+    return (
+      (s.title || '').toLowerCase().includes(q) ||
+      (s.problem_description || '').toLowerCase().includes(q) ||
+      (s.truck_make || '').toLowerCase().includes(q)
+    );
+  });
 
   return (
     <div className="min-h-screen py-8">

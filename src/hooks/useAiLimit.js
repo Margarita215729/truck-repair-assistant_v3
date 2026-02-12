@@ -1,6 +1,5 @@
 import { useCallback, useState } from 'react';
 import { useAuth } from '@/lib/AuthContext';
-import { subscriptionService } from '@/services/subscriptionService';
 
 /**
  * Hook to check AI limits before making a request.
