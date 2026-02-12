@@ -30,6 +30,7 @@ import { useAuth } from '@/lib/AuthContext';
 import { useLanguage } from '@/lib/LanguageContext';
 import { buildNormalizedPayload } from '@/utils/normalizeIntake';
 import { saveAIPartRecommendations } from '@/services/partsService';
+import { searchForums, formatForumContext } from '@/services/forumSearchService';
 
 export default function Diagnostics() {
   const { t } = useLanguage();
@@ -268,19 +269,34 @@ export default function Diagnostics() {
     try {
       const contextPrompt = buildContextPrompt();
       
-      // Fetch relevant community solutions
-      let communitySolutions = [];
-      try {
-        const solutions = await entities.KnowledgeBase.list('-upvotes', 20);
-        communitySolutions = solutions.filter(s => {
-          if (truck && s.truck_make !== truck.make) return false;
-          if (errorCodes.length > 0 && s.error_codes?.some(code => errorCodes.includes(code))) return true;
-          if (symptoms.length > 0 && s.symptoms?.some(sym => symptoms.includes(sym))) return true;
-          return false;
-        }).slice(0, 5);
-      } catch (err) {
-        console.error('Failed to fetch community solutions:', err);
-      }
+      // Run community solutions fetch and forum search in parallel
+      const [communitySolutions, forumSearchResult] = await Promise.all([
+        // Fetch relevant community solutions from local KnowledgeBase
+        (async () => {
+          try {
+            const solutions = await entities.KnowledgeBase.list('-upvotes', 20);
+            return solutions.filter(s => {
+              if (truck && s.truck_make !== truck.make) return false;
+              if (errorCodes.length > 0 && s.error_codes?.some(code => errorCodes.includes(code))) return true;
+              if (symptoms.length > 0 && s.symptoms?.some(sym => symptoms.includes(sym))) return true;
+              return false;
+            }).slice(0, 5);
+          } catch (err) {
+            console.error('Failed to fetch community solutions:', err);
+            return [];
+          }
+        })(),
+
+        // Search real truck repair forums (non-blocking, 3s timeout)
+        searchForums({
+          truckMake: truck?.make || activeToolkit?.truck_make,
+          truckModel: truck?.model || activeToolkit?.truck_model,
+          truckYear: truck?.year || activeToolkit?.truck_year,
+          errorCodes,
+          symptoms,
+          freeText: messageText.substring(0, 100),
+        }),
+      ]);
       
       let communitySolutionsContext = '';
       if (communitySolutions.length > 0) {
@@ -297,9 +313,13 @@ export default function Diagnostics() {
         });
       }
       
+      // Format real forum search results (may be empty if CSE not configured or timed out)
+      const forumContext = formatForumContext(forumSearchResult?.results || []);
+
       let fullPrompt = `DIAGNOSTIC CONTEXT:
 ${contextPrompt}
 ${communitySolutionsContext}
+${forumContext}
 
 COMMUNICATION RULES:
 - Keep initial responses SHORT (2-3 sentences)
@@ -314,6 +334,18 @@ DIAGNOSTIC APPROACH:
 1. TRIAGE: determine urgency + affected system
 2. NARROW DOWN: specific component / subsystem
 3. SOLUTION: repair instructions, parts, cost-saving tips
+
+AUDIO ANALYSIS:
+- When DSP audio analysis data is provided, use the frequency patterns, anomaly scores, and component classifications to support your diagnostic assessment
+- Correlate dominant frequencies with known mechanical failure signatures (e.g., combustion misfire at 20-200Hz, bearing wear at 1500-4000Hz, turbo whine at 2000-8000Hz)
+- Combine DSP data with the user's subjective description for a more accurate diagnosis
+- If DSP severity is "moderate" or higher, flag it prominently in your response
+
+FORUM REFERENCES:
+- When REAL FORUM DISCUSSIONS are provided, reference them with their actual URLs — these are verified real posts
+- Cite relevant forum posts to support your diagnosis (e.g., "According to a discussion on TruckersReport: [url]")
+- NEVER invent or fabricate forum URLs — only cite URLs from the provided forum context
+- If no forum context is provided, do NOT mention forums or make up forum references
 
 PARTS SUGGESTIONS:
 - For each part: OEM number + aftermarket alternatives
@@ -502,12 +534,29 @@ User: ${messageText}${audioUrl ? '\n[User has attached an audio recording of eng
     }
   };
 
-  const handleAudioCaptured = async (blob, localUrl, description) => {
+  const handleAudioCaptured = async (blob, localUrl, description, analysisResults = null) => {
     try {
       const file = new File([blob], 'engine-sound.webm', { type: 'audio/webm' });
       const { file_url } = await uploadFile({ file });
-      
-      const message = `I've recorded my engine sound. Here's what I'm hearing:\n\n${description}\n\nPlease analyze this sound and help me identify any problems.`;
+
+      // Format DSP analysis results into structured text for the AI
+      let dspSection = '';
+      if (analysisResults) {
+        const results = Array.isArray(analysisResults) ? analysisResults : [analysisResults];
+        dspSection = '\n\n📊 DSP AUDIO ANALYSIS (client-side frequency analysis of the recording):\n';
+        results.forEach((r, i) => {
+          dspSection += `\nComponent ${i + 1}: ${(r.component || 'unknown').toUpperCase()}`;
+          dspSection += `\n  Failure type: ${r.failure_type || 'N/A'}`;
+          dspSection += `\n  Confidence: ${Math.round((r.confidence || 0) * 100)}%`;
+          dspSection += `\n  Anomaly score: ${((r.anomaly_score || 0) * 100).toFixed(0)}%`;
+          dspSection += `\n  Severity: ${r.severity || 'unknown'}`;
+          if (r.frequency_patterns) {
+            dspSection += `\n  Frequency patterns: Low=${r.frequency_patterns.low_freq?.toFixed(0) || '—'}Hz, Mid=${r.frequency_patterns.mid_freq?.toFixed(0) || '—'}Hz, High=${r.frequency_patterns.high_freq?.toFixed(0) || '—'}Hz`;
+          }
+        });
+      }
+
+      const message = `I've recorded my engine sound. Here's what I'm hearing:\n\n${description}${dspSection}\n\nPlease analyze this sound data and help me identify any problems.`;
       sendMessage(message, file_url);
     } catch (error) {
       console.error('Error uploading audio:', error);
