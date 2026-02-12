@@ -19,8 +19,25 @@ export default function AuthCallbackPage() {
 
   const handleAuthCallback = async () => {
     try {
-      // Supabase handles the token exchange automatically via detectSessionInUrl
-      // We just wait for the session to be established
+      // Check for recovery flow BEFORE getSession() consumes the hash token
+      const hash = window.location.hash;
+      const hashParams = new URLSearchParams(hash.replace('#', ''));
+      const flowType = hashParams.get('type');
+
+      if (flowType === 'recovery') {
+        // Let Supabase exchange the recovery token for a session
+        const { error } = await supabase.auth.getSession();
+        if (error) {
+          setStatus('error');
+          setMessage(error.message);
+          return;
+        }
+        setStatus('reset-password');
+        setMessage(t('auth.passwordResetReady'));
+        return;
+      }
+
+      // Normal auth callback (email confirmation, OAuth, etc.)
       const { data: { session }, error } = await supabase.auth.getSession();
 
       if (error) {
@@ -32,22 +49,11 @@ export default function AuthCallbackPage() {
       if (session) {
         setStatus('success');
         setMessage(t('auth.emailConfirmed'));
-        // Redirect to main page after 2 seconds
         setTimeout(() => navigate('/', { replace: true }), 2000);
       } else {
-        // Might be a password reset or other flow
-        const hash = window.location.hash;
-        const params = new URLSearchParams(hash.replace('#', ''));
-        const type = params.get('type');
-
-        if (type === 'recovery') {
-          setStatus('reset-password');
-          setMessage(t('auth.passwordResetReady'));
-        } else {
-          setStatus('success');
-          setMessage(t('auth.emailConfirmed'));
-          setTimeout(() => navigate('/', { replace: true }), 2000);
-        }
+        setStatus('success');
+        setMessage(t('auth.emailConfirmed'));
+        setTimeout(() => navigate('/', { replace: true }), 2000);
       }
     } catch (err) {
       setStatus('error');

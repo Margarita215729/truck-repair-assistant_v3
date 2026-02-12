@@ -8,9 +8,6 @@ import {
   FileText, 
   Search, 
   Plus, 
-  Calendar,
-  Filter,
-  SortDesc,
   Loader2
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
