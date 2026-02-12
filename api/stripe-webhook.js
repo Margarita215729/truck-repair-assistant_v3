@@ -5,7 +5,7 @@ const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
 const endpointSecret = process.env.STRIPE_WEBHOOK_SECRET;
 
 const supabase = createClient(
-  process.env.VITE_SUPABASE_URL || process.env.SUPABASE_URL,
+  process.env.SUPABASE_URL,
   process.env.SUPABASE_SERVICE_ROLE_KEY
 );
 
@@ -65,7 +65,7 @@ export default async function handler(req, res) {
           const priceId = stripeSubscription.items?.data?.[0]?.price?.id;
           const plan = resolvePlan(priceId, session.metadata?.plan_name);
 
-          await supabase
+          const { error: dbError } = await supabase
             .from('subscriptions')
             .update({
               stripe_subscription_id: subscriptionId,
@@ -77,6 +77,7 @@ export default async function handler(req, res) {
               cancel_at_period_end: false,
             })
             .eq('user_id', userId);
+          if (dbError) console.error('DB update failed (checkout.session.completed):', dbError);
         }
         break;
       }
@@ -95,7 +96,7 @@ export default async function handler(req, res) {
           const priceId = subscription.items?.data?.[0]?.price?.id;
           const plan = resolvePlan(priceId, subscription.metadata?.plan_name);
 
-          await supabase
+          const { error: dbError } = await supabase
             .from('subscriptions')
             .update({
               plan,
@@ -105,6 +106,7 @@ export default async function handler(req, res) {
               cancel_at_period_end: subscription.cancel_at_period_end,
             })
             .eq('user_id', userId);
+          if (dbError) console.error('DB update failed (subscription.updated):', dbError);
         }
         break;
       }
@@ -114,7 +116,7 @@ export default async function handler(req, res) {
         const userId = subscription.metadata?.supabase_user_id;
 
         if (userId) {
-          await supabase
+          const { error: dbError } = await supabase
             .from('subscriptions')
             .update({
               plan: 'free',
@@ -124,6 +126,7 @@ export default async function handler(req, res) {
               cancel_at_period_end: false,
             })
             .eq('user_id', userId);
+          if (dbError) console.error('DB update failed (subscription.deleted):', dbError);
         }
         break;
       }
@@ -137,10 +140,11 @@ export default async function handler(req, res) {
           const userId = stripeSubscription.metadata?.supabase_user_id;
 
           if (userId) {
-            await supabase
+            const { error: dbError } = await supabase
               .from('subscriptions')
               .update({ status: 'past_due' })
               .eq('user_id', userId);
+            if (dbError) console.error('DB update failed (invoice.payment_failed):', dbError);
           }
         }
         break;

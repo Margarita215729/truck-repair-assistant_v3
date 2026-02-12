@@ -49,11 +49,12 @@ export default function AuthCallbackPage() {
       if (session) {
         setStatus('success');
         setMessage(t('auth.emailConfirmed'));
+        // Clear the URL hash to prevent token leakage
+        window.history.replaceState(null, '', window.location.pathname);
         setTimeout(() => navigate('/', { replace: true }), 2000);
       } else {
-        setStatus('success');
-        setMessage(t('auth.emailConfirmed'));
-        setTimeout(() => navigate('/', { replace: true }), 2000);
+        setStatus('error');
+        setMessage(t('auth.confirmationFailed') || 'Authentication failed. Please try again.');
       }
     } catch (err) {
       setStatus('error');

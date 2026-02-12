@@ -11,7 +11,7 @@
  */
 export function computeVinStatus(truck, roadsideContext) {
   const vin = roadsideContext?.vin || truck?.vin || truck?.details?.vin;
-  if (vin && vin.trim().length >= 11) return 'provided';
+  if (vin && vin.trim().length === 17) return 'provided';
   return 'unavailable';
 }
 

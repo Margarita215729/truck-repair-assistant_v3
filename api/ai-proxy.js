@@ -2,9 +2,12 @@ import { createClient } from '@supabase/supabase-js';
 
 const GITHUB_MODELS_URL = 'https://models.github.ai/inference/chat/completions';
 const DEFAULT_MODEL = 'openai/gpt-4o-mini';
+const ALLOWED_MODELS = new Set(['openai/gpt-4o-mini', 'openai/gpt-4o']);
+const MAX_MESSAGES = 50;
+const MAX_TOKENS_LIMIT = 4096;
 
 const supabase = createClient(
-  process.env.VITE_SUPABASE_URL || process.env.SUPABASE_URL,
+  process.env.SUPABASE_URL,
   process.env.SUPABASE_SERVICE_ROLE_KEY
 );
 
@@ -40,6 +43,16 @@ export default async function handler(req, res) {
       return res.status(400).json({ error: 'Missing messages array' });
     }
 
+    // Input validation
+    if (messages.length > MAX_MESSAGES) {
+      return res.status(400).json({ error: `Too many messages (max ${MAX_MESSAGES})` });
+    }
+
+    // Validate model against allowlist
+    const safeModel = (model && ALLOWED_MODELS.has(model)) ? model : DEFAULT_MODEL;
+    const safeMaxTokens = Math.min(Number(max_tokens) || 4000, MAX_TOKENS_LIMIT);
+    const safeTemperature = Math.max(0, Math.min(Number(temperature) || 0.3, 2));
+
     const githubToken = process.env.GITHUB_TOKEN;
     if (!githubToken) {
       return res.status(500).json({ error: 'AI service not configured' });
@@ -54,9 +67,9 @@ export default async function handler(req, res) {
       },
       body: JSON.stringify({
         messages,
-        model: model || DEFAULT_MODEL,
-        temperature: temperature || 0.3,
-        max_tokens: max_tokens || 4000,
+        model: safeModel,
+        temperature: safeTemperature,
+        max_tokens: safeMaxTokens,
         ...(response_format ? { response_format } : {}),
       }),
     });
@@ -64,13 +77,17 @@ export default async function handler(req, res) {
     if (!response.ok) {
       const errorText = await response.text();
       console.error('GitHub Models API error:', response.status, errorText);
-      return res.status(502).json({ error: 'AI service error', details: errorText });
+      return res.status(502).json({ error: 'AI service temporarily unavailable' });
     }
 
     const data = await response.json();
 
-    // Increment usage counter
-    await supabase.rpc('increment_ai_usage', { p_user_id: user.id });
+    // Increment usage counter (await to ensure it completes)
+    try {
+      await supabase.rpc('increment_ai_usage', { p_user_id: user.id });
+    } catch (usageErr) {
+      console.warn('Failed to increment AI usage:', usageErr);
+    }
 
     return res.status(200).json(data);
   } catch (error) {
