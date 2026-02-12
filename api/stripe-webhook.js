@@ -9,6 +9,20 @@ const supabase = createClient(
   process.env.SUPABASE_SERVICE_ROLE_KEY
 );
 
+// Map Stripe price IDs to plan names
+const PRICE_TO_PLAN = {
+  [process.env.OWNER_PRICE_MONTHLY]: 'owner',
+  [process.env.OWNER_PRICE_ANNUAL]: 'owner',
+  [process.env.FLEET_PRICE_MONTHLY]: 'fleet',
+  [process.env.FLEET_PRICE_ANNUAL]: 'fleet',
+};
+
+function resolvePlan(priceId, metadataPlan) {
+  if (metadataPlan && ['owner', 'fleet'].includes(metadataPlan)) return metadataPlan;
+  if (priceId && PRICE_TO_PLAN[priceId]) return PRICE_TO_PLAN[priceId];
+  return 'owner'; // safe fallback for paid plans
+}
+
 // Disable body parsing — Stripe needs raw body for signature verification
 export const config = {
   api: { bodyParser: false },
@@ -48,13 +62,15 @@ export default async function handler(req, res) {
         if (userId && subscriptionId) {
           // Fetch subscription details from Stripe
           const stripeSubscription = await stripe.subscriptions.retrieve(subscriptionId);
+          const priceId = stripeSubscription.items?.data?.[0]?.price?.id;
+          const plan = resolvePlan(priceId, session.metadata?.plan_name);
 
           await supabase
             .from('subscriptions')
             .update({
               stripe_subscription_id: subscriptionId,
               stripe_customer_id: session.customer,
-              plan: 'pro',
+              plan,
               status: 'active',
               current_period_start: new Date(stripeSubscription.current_period_start * 1000).toISOString(),
               current_period_end: new Date(stripeSubscription.current_period_end * 1000).toISOString(),
@@ -76,9 +92,13 @@ export default async function handler(req, res) {
             : subscription.status === 'trialing' ? 'trialing'
             : 'incomplete';
 
+          const priceId = subscription.items?.data?.[0]?.price?.id;
+          const plan = resolvePlan(priceId, subscription.metadata?.plan_name);
+
           await supabase
             .from('subscriptions')
             .update({
+              plan,
               status,
               current_period_start: new Date(subscription.current_period_start * 1000).toISOString(),
               current_period_end: new Date(subscription.current_period_end * 1000).toISOString(),

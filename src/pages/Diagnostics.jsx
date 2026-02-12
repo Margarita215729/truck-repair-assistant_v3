@@ -49,7 +49,6 @@ export default function Diagnostics() {
   const [truck, setTruck] = useState(null);
   const [errorCodes, setErrorCodes] = useState([]);
   const [symptoms, setSymptoms] = useState([]);
-  const [pendingAudio, setPendingAudio] = useState(null);
   const [activeToolkit, setActiveToolkit] = useState(null);
   
   // Roadside context

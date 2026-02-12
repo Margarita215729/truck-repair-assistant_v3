@@ -123,17 +123,20 @@ export const authService = {
       });
     }
 
-    // Update profiles table
+    // Update profiles table — only send fields that were explicitly provided
+    const profileFields = {};
+    if (updates.full_name !== undefined) profileFields.full_name = updates.full_name;
+    if (updates.phone !== undefined) profileFields.phone = updates.phone;
+    if (updates.company_name !== undefined) profileFields.company_name = updates.company_name;
+    if (updates.avatar_url !== undefined) profileFields.avatar_url = updates.avatar_url;
+    if (updates.preferred_language !== undefined) profileFields.preferred_language = updates.preferred_language;
+    if (updates.notification_preferences !== undefined) profileFields.notification_preferences = updates.notification_preferences;
+
+    if (Object.keys(profileFields).length === 0) return null;
+
     const { data: profile, error } = await supabase
       .from('profiles')
-      .update({
-        full_name: updates.full_name,
-        phone: updates.phone,
-        company_name: updates.company_name,
-        avatar_url: updates.avatar_url,
-        preferred_language: updates.preferred_language,
-        notification_preferences: updates.notification_preferences,
-      })
+      .update(profileFields)
       .eq('id', user.id)
       .select()
       .single();
