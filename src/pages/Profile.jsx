@@ -21,7 +21,6 @@ import {
   Save,
   LogOut,
   Bell,
-  Shield,
   Loader2,
   Crown,
   CreditCard,
@@ -64,14 +63,26 @@ export default function Profile() {
 
   const { data: conversations = [] } = useQuery({
     queryKey: ['user-conversations'],
-    queryFn: () => entities.Conversation.filter({ created_by: user?.email }),
-    enabled: !!user?.email
+    queryFn: () => entities.Conversation.list('-created_at', 200),
+    enabled: !!user
   });
 
   const { data: reports = [] } = useQuery({
     queryKey: ['user-reports'],
-    queryFn: () => entities.DiagnosticReport.filter({ created_by: user?.email }),
-    enabled: !!user?.email
+    queryFn: () => entities.DiagnosticReport.list('-created_at', 200),
+    enabled: !!user
+  });
+
+  const { data: trucks = [] } = useQuery({
+    queryKey: ['trucks'],
+    queryFn: () => entities.Truck.list(),
+    enabled: !!user
+  });
+
+  const { data: savedShops = [] } = useQuery({
+    queryKey: ['preferred-shops'],
+    queryFn: () => entities.PreferredShop.list(),
+    enabled: !!user
   });
 
   useEffect(() => {
@@ -110,8 +121,10 @@ export default function Profile() {
 
   const handleTrucksUpdate = async (trucks) => {
     try {
-      await authService.updateMe({ trucks });
+      // Trucks are managed via entityService (user_id scoped via RLS)
+      // The TruckGarage component already handles CRUD via entities.Truck
       queryClient.invalidateQueries({ queryKey: ['current-user'] });
+      queryClient.invalidateQueries({ queryKey: ['trucks'] });
       toast.success(t('profile.trucksUpdated'));
     } catch (error) {
       toast.error(t('profile.saveError'));
@@ -120,8 +133,9 @@ export default function Profile() {
 
   const handleShopsUpdate = async (shops) => {
     try {
-      await authService.updateMe({ preferred_shops: shops });
+      // Shops are managed via entityService (user_id scoped via RLS)
       queryClient.invalidateQueries({ queryKey: ['current-user'] });
+      queryClient.invalidateQueries({ queryKey: ['service-reviews'] });
       toast.success(t('profile.servicesUpdated'));
     } catch (error) {
       toast.error(t('profile.saveError'));
@@ -149,8 +163,8 @@ export default function Profile() {
   const stats = {
     conversationsCount: conversations.length,
     reportsCount: reports.length,
-    trucksCount: user?.trucks?.length || 0,
-    savedShopsCount: user?.preferred_shops?.length || 0
+    trucksCount: trucks.length,
+    savedShopsCount: savedShops.length
   };
 
   if (userLoading) {
@@ -316,8 +330,8 @@ export default function Profile() {
                   {isProUser && <Crown className="w-3 h-3 mr-1" />}
                   {subscription?.plan === 'lifetime' 
                     ? t('profile.lifetimePlan')
-                    : subscription?.plan === 'pro' 
-                      ? t('profile.proPlan') 
+                    : (subscription?.plan === 'owner' || subscription?.plan === 'fleet')
+                      ? (subscription.plan === 'fleet' ? t('profile.fleetPlan') : t('profile.proPlan'))
                       : t('profile.freePlan')}
                 </Badge>
               </div>
@@ -331,7 +345,8 @@ export default function Profile() {
                   onClick={async () => {
                     setIsManagingSubscription(true);
                     try {
-                      await subscriptionService.openBillingPortal();
+                      const url = await subscriptionService.openBillingPortal();
+                      if (url) window.location.href = url;
                     } catch (err) {
                       toast.error(t('pricing.portalFailed'));
                     } finally {
@@ -358,8 +373,8 @@ export default function Profile() {
               )}
             </div>
 
-            {/* Next payment date for Pro */}
-            {subscription?.plan === 'pro' && subscription?.current_period_end && (
+            {/* Next payment date for paid plans */}
+            {isProUser && subscription?.plan !== 'lifetime' && subscription?.current_period_end && (
               <>
                 <Separator className="bg-white/10" />
                 <div className="flex items-center justify-between">
@@ -380,12 +395,12 @@ export default function Profile() {
                 <span className="text-white">
                   {isProUser 
                     ? t('profile.unlimited')
-                    : `${aiUsage?.used || 0} ${t('profile.of')} ${planLimits?.aiRequestsPerDay || 10}`}
+                    : `${aiUsage?.used || 0} ${t('profile.of')} ${planLimits?.ai_requests_per_day || 10}`}
                 </span>
               </div>
               {!isProUser && (
                 <Progress 
-                  value={((aiUsage?.used || 0) / (planLimits?.aiRequestsPerDay || 10)) * 100} 
+                  value={((aiUsage?.used || 0) / (planLimits?.ai_requests_per_day || 10)) * 100} 
                   className="h-2 bg-white/10"
                 />
               )}
@@ -397,7 +412,7 @@ export default function Profile() {
               <span className="text-white">
                 {isProUser 
                   ? `${stats.trucksCount} — ${t('profile.unlimited')}`
-                  : `${stats.trucksCount} ${t('profile.of')} ${planLimits?.maxTrucks || 3}`}
+                  : `${stats.trucksCount} ${t('profile.of')} ${planLimits?.max_trucks || 3}`}
               </span>
             </div>
           </div>

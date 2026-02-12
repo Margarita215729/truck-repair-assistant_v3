@@ -31,14 +31,20 @@ export function LanguageProvider({ children }) {
     }
   }, []);
 
-  const t = useCallback((key) => {
-    const value = getNestedValue(LANGUAGES[language], key);
-    if (value !== undefined) return value;
-    // Fallback to English
-    const fallback = getNestedValue(LANGUAGES.en, key);
-    if (fallback !== undefined) return fallback;
-    // Return key as last resort
-    return key;
+  const t = useCallback((key, params) => {
+    let value = getNestedValue(LANGUAGES[language], key);
+    if (value === undefined) {
+      // Fallback to English
+      value = getNestedValue(LANGUAGES.en, key);
+    }
+    if (value === undefined) return key; // Return key as last resort
+    // Support interpolation: t('key', { name }) replaces {name} in string
+    if (params && typeof value === 'string') {
+      for (const [param, replacement] of Object.entries(params)) {
+        value = value.replace(new RegExp(`\\{${param}\\}`, 'g'), String(replacement ?? ''));
+      }
+    }
+    return value;
   }, [language]);
 
   return (

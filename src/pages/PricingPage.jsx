@@ -33,7 +33,9 @@ export default function PricingPage() {
     // Auth guard — redirect to login if not authenticated
     if (!user) {
       toast.error(t('pricing.loginRequired') || 'Please log in to subscribe');
-      window.location.href = '/login?redirect=/Pricing';
+      // No separate /login route — auth is handled by AuthContext showing LoginPage
+      // Just return; the user is already seeing the pricing page layout
+      return;
       return;
     }
     if (!priceId) {
