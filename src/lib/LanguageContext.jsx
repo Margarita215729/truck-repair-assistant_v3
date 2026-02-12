@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useCallback } from 'react';
+import React, { createContext, useContext, useState, useCallback, useMemo } from 'react';
 import { en, ru } from '@/i18n';
 
 const STORAGE_KEY = 'truck_repair_language';
@@ -47,8 +47,13 @@ export function LanguageProvider({ children }) {
     return value;
   }, [language]);
 
+  const contextValue = useMemo(
+    () => ({ language, setLanguage, t, languages: LANGUAGE_LABELS }),
+    [language, setLanguage, t]
+  );
+
   return (
-    <LanguageContext.Provider value={{ language, setLanguage, t, languages: LANGUAGE_LABELS }}>
+    <LanguageContext.Provider value={contextValue}>
       {children}
     </LanguageContext.Provider>
   );

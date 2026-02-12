@@ -52,7 +52,11 @@ export default async function handler(req, res) {
       [process.env.FLEET_PRICE_MONTHLY]: 'fleet',
       [process.env.FLEET_PRICE_ANNUAL]: 'fleet',
     };
-    const planName = PRICE_TO_PLAN[priceId] || 'owner';
+    // Validate priceId against known prices to prevent arbitrary Stripe price injection
+    const planName = PRICE_TO_PLAN[priceId];
+    if (!planName) {
+      return res.status(400).json({ error: 'Invalid price ID. Please refresh the page.' });
+    }
 
     // Get or create Stripe customer
     let stripeCustomerId;
@@ -89,8 +93,8 @@ export default async function handler(req, res) {
       payment_method_types: ['card'],
       line_items: [{ price: priceId, quantity: 1 }],
       mode: 'subscription',
-      success_url: `${req.headers.origin || process.env.NEXT_PUBLIC_BASE_URL}/Pricing?success=true`,
-      cancel_url: `${req.headers.origin || process.env.NEXT_PUBLIC_BASE_URL}/Pricing?canceled=true`,
+      success_url: `${process.env.NEXT_PUBLIC_BASE_URL || 'https://truck-repair-assistant-v3.vercel.app'}/Pricing?success=true`,
+      cancel_url: `${process.env.NEXT_PUBLIC_BASE_URL || 'https://truck-repair-assistant-v3.vercel.app'}/Pricing?canceled=true`,
       metadata: {
         supabase_user_id: user.id,
         plan_name: planName,
@@ -108,8 +112,8 @@ export default async function handler(req, res) {
     console.error('[checkout] Error:', error.type || error.code, error.message);
     // Stripe-specific errors
     if (error.type === 'StripeInvalidRequestError') {
-      return res.status(400).json({ error: `Stripe error: ${error.message}` });
+      return res.status(400).json({ error: 'Payment configuration error. Please try again later.' });
     }
-    return res.status(500).json({ error: error.message || 'Internal server error' });
+    return res.status(500).json({ error: 'Internal server error' });
   }
 }

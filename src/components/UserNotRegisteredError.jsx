@@ -1,6 +1,12 @@
 import React from 'react';
+import { supabase } from '@/api/supabaseClient';
 
 const UserNotRegisteredError = () => {
+  const handleLogout = async () => {
+    await supabase.auth.signOut();
+    window.location.reload();
+  };
+
   return (
     <div className="flex flex-col items-center justify-center min-h-screen bg-[#0a0a0a]">
       <div className="max-w-md w-full p-8 bg-white/5 rounded-lg border border-white/10">
@@ -14,7 +20,7 @@ const UserNotRegisteredError = () => {
           <p className="text-white/60 mb-8">
             You are not registered to use this application. Please contact the app administrator to request access.
           </p>
-          <div className="p-4 bg-white/5 rounded-md text-sm text-white/60 border border-white/10">
+          <div className="p-4 bg-white/5 rounded-md text-sm text-white/60 border border-white/10 mb-6">
             <p>If you believe this is an error, you can:</p>
             <ul className="list-disc list-inside mt-2 space-y-1">
               <li>Verify you are logged in with the correct account</li>
@@ -22,6 +28,12 @@ const UserNotRegisteredError = () => {
               <li>Try logging out and back in again</li>
             </ul>
           </div>
+          <button
+            onClick={handleLogout}
+            className="inline-flex items-center px-6 py-2.5 text-sm font-medium text-white bg-red-600/80 hover:bg-red-600 rounded-lg transition-colors duration-200"
+          >
+            Sign Out
+          </button>
         </div>
       </div>
     </div>
