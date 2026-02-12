@@ -260,7 +260,7 @@ export default {
     noServicesFound: 'No services found in this area',
     searchFailed: 'Failed to search services. Please try again.',
     aiDisclaimer: 'Results are AI-suggested — verify addresses & phone numbers before calling.',
-    locationFailed: 'Could not get your location. Please enter a location manually.',,
+    locationFailed: 'Could not get your location. Please enter a location manually.',
     showLabel: 'Show:',
     repair: 'Repair',
     parking: 'Parking',
