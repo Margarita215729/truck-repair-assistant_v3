@@ -247,7 +247,7 @@ export default function Diagnostics() {
       // Suggest truck selection but never block
     }
 
-    // Check AI usage limit before sending
+    // Check AI usage limit before sending (before UI update to avoid ghost messages)
     const allowed = await checkAndIncrement();
     if (!allowed) {
       toast.error(t('diagnostics.aiLimitReached'));
@@ -488,8 +488,7 @@ User: ${messageText}${audioUrl ? '\n[User has attached an audio recording of eng
         community_matches: response.community_matches || null
       };
 
-      setMessages(prev => [...prev, assistantMessage]);
-
+      // Save conversation using functional state to avoid stale closure
       // Save AI part recommendations to user's catalog (non-blocking, no prices)
       if (response.suggested_parts?.length > 0) {
         saveAIPartRecommendations(
@@ -499,31 +498,42 @@ User: ${messageText}${audioUrl ? '\n[User has attached an audio recording of eng
         ).catch(err => console.warn('Parts catalog save failed:', err));
       }
 
-      // Save conversation
       const allMessages = [...messages, userMessage, assistantMessage];
-      if (conversation) {
-        await entities.Conversation.update(conversation.id, {
-          messages: allMessages,
-          truck_make: truck?.make,
-          truck_model: truck?.model,
-          truck_year: truck?.year,
-          error_codes: errorCodes,
-          symptoms: symptoms
-        });
-      } else {
-        const newConversation = await entities.Conversation.create({
-          title: messageText.substring(0, 50) + (messageText.length > 50 ? '...' : ''),
-          messages: allMessages,
-          truck_make: truck?.make,
-          truck_model: truck?.model,
-          truck_year: truck?.year,
-          error_codes: errorCodes,
-          symptoms: symptoms,
-          status: 'active'
-        });
-        setConversation(newConversation);
-      }
-      queryClient.invalidateQueries({ queryKey: ['conversations'] });
+      setMessages(prev => {
+        // Use prev (latest state) for the save, not the stale outer `messages`
+        const latestAll = [...prev, assistantMessage];
+        // Fire save asynchronously using latest messages
+        (async () => {
+          try {
+            if (conversation) {
+              await entities.Conversation.update(conversation.id, {
+                messages: latestAll,
+                truck_make: truck?.make,
+                truck_model: truck?.model,
+                truck_year: truck?.year,
+                error_codes: errorCodes,
+                symptoms: symptoms
+              });
+            } else {
+              const newConversation = await entities.Conversation.create({
+                title: messageText.substring(0, 50) + (messageText.length > 50 ? '...' : ''),
+                messages: latestAll,
+                truck_make: truck?.make,
+                truck_model: truck?.model,
+                truck_year: truck?.year,
+                error_codes: errorCodes,
+                symptoms: symptoms,
+                status: 'active'
+              });
+              setConversation(newConversation);
+            }
+            queryClient.invalidateQueries({ queryKey: ['conversations'] });
+          } catch (err) {
+            console.error('Failed to save conversation:', err);
+          }
+        })();
+        return latestAll;
+      });
 
     } catch (error) {
       console.error('Error:', error);

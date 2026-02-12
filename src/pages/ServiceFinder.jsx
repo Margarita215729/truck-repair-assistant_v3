@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { entities } from '@/services/entityService';
 import { fetchAllInfrastructure } from '@/services/truckInfraService';
 import { useQuery } from '@tanstack/react-query';
@@ -76,7 +76,7 @@ export default function ServiceFinder() {
   }, []);
 
   // Fetch infrastructure data whenever userCoords change and layers are enabled
-  const loadInfrastructure = async (coords) => {
+  const loadInfrastructure = useCallback(async (coords) => {
     if (!coords) return;
     const anyLayerOn = filters.showTruckParking || filters.showWeighStations || filters.showRestrictions;
     if (!anyLayerOn) return;
@@ -91,14 +91,14 @@ export default function ServiceFinder() {
     } finally {
       setInfraLoading(false);
     }
-  };
+  }, [filters.showTruckParking, filters.showWeighStations, filters.showRestrictions, t]);
 
-  // Reload infra when coords change
+  // Reload infra when coords or layer toggles change
   useEffect(() => {
     if (userCoords) {
       loadInfrastructure(userCoords);
     }
-  }, [userCoords]);
+  }, [userCoords, loadInfrastructure]);
 
   /** Geocode a text address to { lat, lng } via server-side proxy */
   const geocodeAddress = async (address) => {

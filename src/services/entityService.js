@@ -292,8 +292,9 @@ function createEntityAPI(entityName) {
     async count(filterObj = {}) {
       if (!hasSupabaseConfig || !supabase) return 0;
 
+      const dbFilter = toDbFields(tableName, filterObj);
       let query = supabase.from(tableName).select('id', { count: 'exact', head: true });
-      Object.entries(filterObj).forEach(([key, value]) => {
+      Object.entries(dbFilter).forEach(([key, value]) => {
         query = query.eq(key, value);
       });
 

@@ -182,8 +182,12 @@ export class AudioAnalysisService {
     // Apply high-pass filter to remove low-frequency noise
     const filtered = this.highPassFilter(data, 50); // Remove below 50Hz
 
-    // Normalize amplitude
-    const maxAmplitude = Math.max(...Array.from(filtered).map(Math.abs));
+    // Normalize amplitude (loop-based to avoid stack overflow on large arrays)
+    let maxAmplitude = 0;
+    for (let i = 0; i < filtered.length; i++) {
+      const abs = filtered[i] < 0 ? -filtered[i] : filtered[i];
+      if (abs > maxAmplitude) maxAmplitude = abs;
+    }
     if (maxAmplitude > 0) {
       for (let i = 0; i < filtered.length; i++) {
         filtered[i] = filtered[i] / maxAmplitude;
@@ -358,7 +362,7 @@ export class AudioAnalysisService {
       confidence: anomalyAnalysis.confidence,
       anomaly_score: anomalyAnalysis.score,
       frequency_patterns: frequencyPatterns,
-      severity: this.assessSeverity(anomalyAnalysis.score)
+      severity: this.assessSeverity(anomalyAnalysis.score, component)
     };
   }
 
@@ -721,30 +725,62 @@ export class AudioAnalysisService {
   }
 
   /**
-   * Perform Fast Fourier Transform
+   * Perform Fast Fourier Transform (Cooley-Tukey radix-2)
    * @param {Float32Array} data
    * @returns {Float32Array}
    */
   performFFT(data) {
-    const N = data.length;
-    const output = new Float32Array(N * 2); // Complex output (real, imag pairs)
+    // Pad to next power of 2
+    let N = 1;
+    while (N < data.length) N <<= 1;
 
-    // Simple DFT implementation (for production, use a proper FFT library)
-    for (let k = 0; k < N; k++) {
-      let realSum = 0;
-      let imagSum = 0;
-
-      for (let n = 0; n < N; n++) {
-        const angle = -2 * Math.PI * k * n / N;
-        realSum += data[n] * Math.cos(angle);
-        imagSum += data[n] * Math.sin(angle);
-      }
-
-      output[k * 2] = realSum;
-      output[k * 2 + 1] = imagSum;
+    // Interleave real/imag (imag = 0)
+    const buf = new Float32Array(N * 2);
+    for (let i = 0; i < data.length; i++) {
+      buf[i * 2] = data[i];
     }
 
-    return output;
+    // Bit-reversal permutation
+    const halfN = N;
+    for (let i = 1, j = 0; i < halfN; i++) {
+      let bit = halfN >> 1;
+      while (j & bit) {
+        j ^= bit;
+        bit >>= 1;
+      }
+      j ^= bit;
+      if (i < j) {
+        // Swap real
+        let tmp = buf[i * 2]; buf[i * 2] = buf[j * 2]; buf[j * 2] = tmp;
+        // Swap imag
+        tmp = buf[i * 2 + 1]; buf[i * 2 + 1] = buf[j * 2 + 1]; buf[j * 2 + 1] = tmp;
+      }
+    }
+
+    // Cooley-Tukey butterfly
+    for (let len = 2; len <= N; len <<= 1) {
+      const ang = -2 * Math.PI / len;
+      const wRe = Math.cos(ang);
+      const wIm = Math.sin(ang);
+      for (let i = 0; i < N; i += len) {
+        let curRe = 1, curIm = 0;
+        for (let j = 0; j < len / 2; j++) {
+          const evenIdx = (i + j) * 2;
+          const oddIdx = (i + j + len / 2) * 2;
+          const tRe = curRe * buf[oddIdx] - curIm * buf[oddIdx + 1];
+          const tIm = curRe * buf[oddIdx + 1] + curIm * buf[oddIdx];
+          buf[oddIdx] = buf[evenIdx] - tRe;
+          buf[oddIdx + 1] = buf[evenIdx + 1] - tIm;
+          buf[evenIdx] += tRe;
+          buf[evenIdx + 1] += tIm;
+          const newCurRe = curRe * wRe - curIm * wIm;
+          curIm = curRe * wIm + curIm * wRe;
+          curRe = newCurRe;
+        }
+      }
+    }
+
+    return buf;
   }
 
   /**

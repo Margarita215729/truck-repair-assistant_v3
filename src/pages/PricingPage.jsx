@@ -23,11 +23,21 @@ export default function PricingPage() {
   const [isRedeeming, setIsRedeeming] = useState(false);
   const [isCheckingOut, setIsCheckingOut] = useState(false);
   const [promoResult, setPromoResult] = useState(null);
-  const [searchParams] = useSearchParams();
+  const [searchParams, setSearchParams] = useSearchParams();
 
   const isRu = language === 'ru';
   const isSuccess = searchParams.get('success') === 'true';
   const isCanceled = searchParams.get('canceled') === 'true';
+
+  // Clear search params after displaying banners (avoids stale state on refresh)
+  React.useEffect(() => {
+    if (isSuccess || isCanceled) {
+      const timeout = setTimeout(() => {
+        setSearchParams({}, { replace: true });
+      }, 5000);
+      return () => clearTimeout(timeout);
+    }
+  }, [isSuccess, isCanceled, setSearchParams]);
 
   const handleCheckout = async (priceId) => {
     // Auth guard — redirect to login if not authenticated
@@ -86,7 +96,7 @@ export default function PricingPage() {
     }
   };
 
-  const PlanCard = ({ plan, isCurrent, tier }) => {
+  const PlanCard = React.memo(function PlanCard({ plan, isCurrent, tier }) {
     const features = plan.features;
     const price = billingPeriod === 'annual' ? plan.priceAnnual : plan.price;
     const priceId = billingPeriod === 'annual' ? plan.stripePriceAnnual : plan.stripePriceMonthly;
@@ -169,7 +179,7 @@ export default function PricingPage() {
         </Card>
       </motion.div>
     );
-  };
+  });
 
   return (
     <div className="min-h-screen p-4 sm:p-6 pb-20">

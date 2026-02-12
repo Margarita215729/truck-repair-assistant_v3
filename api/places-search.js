@@ -10,7 +10,7 @@
 import { createClient } from '@supabase/supabase-js';
 
 const supabase = createClient(
-  process.env.VITE_SUPABASE_URL || process.env.SUPABASE_URL,
+  process.env.SUPABASE_URL,
   process.env.SUPABASE_SERVICE_ROLE_KEY
 );
 
@@ -42,7 +42,7 @@ export default async function handler(req, res) {
     return res.status(401).json({ error: 'Invalid or expired token' });
   }
 
-  const API_KEY = process.env.VITE_GOOGLE_MAPS_API_KEY || process.env.GOOGLE_MAPS_API_KEY;
+  const API_KEY = process.env.GOOGLE_MAPS_API_KEY;
   if (!API_KEY) {
     return res.status(500).json({ error: 'Google API key not configured' });
   }
