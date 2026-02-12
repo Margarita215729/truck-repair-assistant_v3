@@ -249,7 +249,7 @@ export default function PartsCatalog() {
                   Start a diagnostic session or search vendors directly for live pricing.
                 </p>
                 <div className="flex gap-3 justify-center">
-                  <Button onClick={() => navigate('/diagnostics')} className="bg-gradient-to-r from-orange-500 to-orange-600 hover:from-orange-600 hover:to-orange-700 h-12 px-6">
+                  <Button onClick={() => navigate('/Diagnostics')} className="bg-gradient-to-r from-orange-500 to-orange-600 hover:from-orange-600 hover:to-orange-700 h-12 px-6">
                     <Wrench className="w-5 h-5 mr-2" />
                     Start Diagnostics
                   </Button>

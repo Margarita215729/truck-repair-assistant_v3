@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { entities } from '@/services/entityService';
 import { fetchAllInfrastructure } from '@/services/truckInfraService';
-import { env } from '@/config/env';
 import { useQuery } from '@tanstack/react-query';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -30,6 +29,7 @@ import TruckParkingCard from '@/components/services/TruckParkingCard';
 import WeighStationCard from '@/components/services/WeighStationCard';
 import TruckRestrictionCard from '@/components/services/TruckRestrictionCard';
 import { useLanguage } from '@/lib/LanguageContext';
+import { supabase } from '@/api/supabaseClient';
 
 export default function ServiceFinder() {
   const { t } = useLanguage();
@@ -100,17 +100,18 @@ export default function ServiceFinder() {
     }
   }, [userCoords]);
 
-  /** Geocode a text address to { lat, lng } via Google Geocoding API */
+  /** Geocode a text address to { lat, lng } via server-side proxy */
   const geocodeAddress = async (address) => {
-    const apiKey = env.GOOGLE_MAPS_API_KEY;
-    if (!apiKey) return null;
     try {
-      const url = `https://maps.googleapis.com/maps/api/geocode/json?address=${encodeURIComponent(address)}&key=${apiKey}`;
-      const res = await fetch(url);
+      const res = await fetch('/api/geocode', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ address }),
+      });
+      if (!res.ok) return null;
       const data = await res.json();
-      if (data.results?.[0]?.geometry?.location) {
-        const { lat, lng } = data.results[0].geometry.location;
-        return { lat, lng };
+      if (data.lat && data.lng) {
+        return { lat: data.lat, lng: data.lng };
       }
     } catch (err) {
       console.warn('Geocoding failed:', err);
@@ -137,15 +138,6 @@ export default function ServiceFinder() {
       return;
     }
 
-    // If user typed a location name, also geocode to update center
-    if (searchLocation && !overrideCoords) {
-      const geo = await geocodeAddress(searchLocation);
-      if (geo) {
-        coords = [geo.lat, geo.lng];
-        setUserCoords(coords);
-      }
-    }
-
     setIsLoading(true);
     setServices([]);
 
@@ -157,9 +149,15 @@ export default function ServiceFinder() {
       if (filters.towing) types.push('towing');
       if (types.length === 0) types.push('repair', 'parking', 'towing');
 
+      const { data: { session } } = await supabase.auth.getSession();
+      const authToken = session?.access_token;
+
       const response = await fetch('/api/places-search', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          ...(authToken && { Authorization: `Bearer ${authToken}` }),
+        },
         body: JSON.stringify({
           lat: coords[0],
           lng: coords[1],
