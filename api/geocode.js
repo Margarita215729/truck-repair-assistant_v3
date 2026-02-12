@@ -7,11 +7,19 @@
  * Returns: { lat, lng } | { error: string }
  */
 
+import { createClient } from '@supabase/supabase-js';
+
+const supabase = createClient(
+  process.env.SUPABASE_URL,
+  process.env.SUPABASE_SERVICE_ROLE_KEY
+);
+
 const ALLOWED_ORIGINS = [
   'https://truck-repair-assistant-v3.vercel.app',
   'http://localhost:5173',
   'http://localhost:3000',
-];
+  process.env.NEXT_PUBLIC_BASE_URL,
+].filter(Boolean);
 
 export default async function handler(req, res) {
   const origin = req.headers.origin;
@@ -26,14 +34,27 @@ export default async function handler(req, res) {
     return res.status(405).json({ error: 'Method not allowed' });
   }
 
-  const API_KEY = process.env.VITE_GOOGLE_MAPS_API_KEY || process.env.GOOGLE_MAPS_API_KEY;
+  // Verify JWT
+  const token = req.headers.authorization?.replace('Bearer ', '');
+  if (!token) {
+    return res.status(401).json({ error: 'Unauthorized' });
+  }
+  const { data: { user }, error: authError } = await supabase.auth.getUser(token);
+  if (authError || !user) {
+    return res.status(401).json({ error: 'Invalid or expired token' });
+  }
+
+  const API_KEY = process.env.GOOGLE_MAPS_API_KEY;
   if (!API_KEY) {
     return res.status(500).json({ error: 'Google API key not configured' });
   }
 
   const { address } = req.body || {};
-  if (!address) {
-    return res.status(400).json({ error: 'address is required' });
+  if (!address || typeof address !== 'string') {
+    return res.status(400).json({ error: 'address is required and must be a string' });
+  }
+  if (address.length > 500) {
+    return res.status(400).json({ error: 'address too long (max 500 characters)' });
   }
 
   try {

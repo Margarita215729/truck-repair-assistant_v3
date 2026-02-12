@@ -40,12 +40,12 @@ export default async function handler(req, res) {
     // Create billing portal session
     const session = await stripe.billingPortal.sessions.create({
       customer: sub.stripe_customer_id,
-      return_url: `${req.headers.origin || process.env.NEXT_PUBLIC_BASE_URL}/Profile`,
+      return_url: `${process.env.NEXT_PUBLIC_BASE_URL || 'https://truck-repair-assistant-v3.vercel.app'}/Profile`,
     });
 
     return res.status(200).json({ url: session.url });
   } catch (error) {
     console.error('Portal session error:', error);
-    return res.status(500).json({ error: error.message || 'Internal server error' });
+    return res.status(500).json({ error: 'Internal server error' });
   }
 }

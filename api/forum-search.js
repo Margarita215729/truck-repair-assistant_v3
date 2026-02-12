@@ -10,9 +10,25 @@
  * CSE must be configured to target truck repair forums.
  */
 
+import { createClient } from '@supabase/supabase-js';
+
+const supabase = createClient(
+  process.env.SUPABASE_URL,
+  process.env.SUPABASE_SERVICE_ROLE_KEY
+);
+
+const ALLOWED_ORIGINS = [
+  'https://truck-repair-assistant-v3.vercel.app',
+  'http://localhost:5173',
+  'http://localhost:3000',
+  process.env.NEXT_PUBLIC_BASE_URL,
+].filter(Boolean);
+
 export default async function handler(req, res) {
-  // CORS
-  res.setHeader('Access-Control-Allow-Origin', '*');
+  // CORS — restricted origins
+  const origin = req.headers.origin || '';
+  const corsOrigin = ALLOWED_ORIGINS.includes(origin) ? origin : '';
+  if (corsOrigin) res.setHeader('Access-Control-Allow-Origin', corsOrigin);
   res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
   if (req.method === 'OPTIONS') return res.status(200).end();
@@ -21,8 +37,18 @@ export default async function handler(req, res) {
     return res.status(405).json({ error: 'Method not allowed' });
   }
 
-  const API_KEY = process.env.GOOGLE_CSE_API_KEY || process.env.VITE_GOOGLE_CSE_API_KEY;
-  const CSE_ID = process.env.GOOGLE_CSE_ID || process.env.VITE_GOOGLE_CSE_ID;
+  // Verify JWT
+  const token = req.headers.authorization?.replace('Bearer ', '');
+  if (!token) {
+    return res.status(401).json({ error: 'Unauthorized' });
+  }
+  const { data: { user }, error: authError } = await supabase.auth.getUser(token);
+  if (authError || !user) {
+    return res.status(401).json({ error: 'Invalid or expired token' });
+  }
+
+  const API_KEY = process.env.GOOGLE_CSE_API_KEY;
+  const CSE_ID = process.env.GOOGLE_CSE_ID;
 
   if (!API_KEY || !CSE_ID) {
     return res.status(200).json({
