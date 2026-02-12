@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import ReactMarkdown from 'react-markdown';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -15,6 +15,17 @@ export default function ChatMessage({ message, onPartClick, onAnswerQuestion, on
   const [sourcesExpanded, setSourcesExpanded] = useState(false);
   const [playingAudio, setPlayingAudio] = useState(false);
   const [contentExpanded, setContentExpanded] = useState(false);
+  const audioRef = useRef(null);
+
+  // Cleanup audio on unmount
+  useEffect(() => {
+    return () => {
+      if (audioRef.current) {
+        audioRef.current.pause();
+        audioRef.current = null;
+      }
+    };
+  }, []);
   
   const isUser = message.role === 'user';
   
@@ -53,14 +64,17 @@ export default function ChatMessage({ message, onPartClick, onAnswerQuestion, on
                 variant="ghost"
                 size="sm"
                 onClick={() => {
-                  const audio = new Audio(message.audio_url);
                   if (playingAudio) {
-                    audio.pause();
+                    audioRef.current?.pause();
+                    setPlayingAudio(false);
                   } else {
-                    audio.play();
-                    audio.onended = () => setPlayingAudio(false);
+                    if (!audioRef.current || audioRef.current.src !== message.audio_url) {
+                      audioRef.current = new Audio(message.audio_url);
+                      audioRef.current.onended = () => setPlayingAudio(false);
+                    }
+                    audioRef.current.play();
+                    setPlayingAudio(true);
                   }
-                  setPlayingAudio(!playingAudio);
                 }}
                 className="h-8 px-2 hover:bg-white/10"
               >
@@ -91,8 +105,9 @@ export default function ChatMessage({ message, onPartClick, onAnswerQuestion, on
                     {children}
                   </a>
                 ),
-                code: ({ inline, children }) => 
-                  inline ? (
+                code: ({ children, className, node, ...rest }) => {
+                  const isInline = !className && node?.position?.start?.line === node?.position?.end?.line;
+                  return isInline ? (
                     <code className="px-1.5 py-0.5 bg-black/40 rounded text-orange-400 text-xs font-mono">
                       {children}
                     </code>
@@ -100,7 +115,8 @@ export default function ChatMessage({ message, onPartClick, onAnswerQuestion, on
                     <pre className="my-2 p-3 bg-black/40 rounded-lg overflow-x-auto">
                       <code className="text-xs font-mono text-white/80">{children}</code>
                     </pre>
-                  ),
+                  );
+                },
                 blockquote: ({ children }) => (
                   <blockquote className="border-l-2 border-orange-500 pl-3 my-2 text-white/70 italic">
                     {children}
