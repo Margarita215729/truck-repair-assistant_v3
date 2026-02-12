@@ -1,12 +1,15 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { uploadFile } from '@/services/aiService';
+import { AudioAnalysisService } from '@/services/AudioAnalysisService';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { Mic, Square, Play, Pause, Upload, Trash2, Loader2, Volume2, Sparkles, Edit2 } from 'lucide-react';
+import { Mic, Square, Play, Pause, Upload, Trash2, Loader2, Volume2, Sparkles, Activity, Edit2 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { toast } from 'sonner';
 import { useLanguage } from '@/lib/LanguageContext';
+
+const audioAnalysisService = new AudioAnalysisService();
 
 export default function AudioRecorder({ open, onClose, onAudioCaptured }) {
   const { t } = useLanguage();
@@ -17,6 +20,7 @@ export default function AudioRecorder({ open, onClose, onAudioCaptured }) {
   const [recordingTime, setRecordingTime] = useState(0);
   const [visualizerData, setVisualizerData] = useState(new Array(32).fill(0));
   const [isAnalyzing, setIsAnalyzing] = useState(false);
+  const [analysisResults, setAnalysisResults] = useState(null);
   const [audioDescription, setAudioDescription] = useState('');
   const [showDescription, setShowDescription] = useState(false);
   
@@ -89,17 +93,44 @@ export default function AudioRecorder({ open, onClose, onAudioCaptured }) {
       if (timerRef.current) clearInterval(timerRef.current);
       if (animationRef.current) cancelAnimationFrame(animationRef.current);
       setVisualizerData(new Array(32).fill(0));
-      
-      // Show description input immediately — no AI model can analyze audio files,
-      // so we let the user describe the sound in their own words.
+    }
+  };
+
+  // When audioBlob becomes available after recording stops, run DSP analysis
+  useEffect(() => {
+    if (!audioBlob) return;
+    analyzeAudio(audioBlob);
+  }, [audioBlob]);
+
+  /**
+   * Run client-side DSP analysis using AudioAnalysisService.
+   * Extracts frequency features, classifies truck components, detects anomalies.
+   */
+  const analyzeAudio = async (blob) => {
+    setIsAnalyzing(true);
+    setAnalysisResults(null);
+    try {
+      const results = await audioAnalysisService.analyzeAudioBlob(blob);
+      setAnalysisResults(results);
+    } catch (err) {
+      console.error('DSP analysis failed:', err);
+      // Non-blocking — user can still describe the sound manually
+      toast.error('Audio analysis failed — please describe the sound below');
+    } finally {
+      setIsAnalyzing(false);
       setShowDescription(true);
     }
   };
 
-  // No-op placeholder — real audio analysis is not possible via LLM.
-  // The user types their own description which is then sent to the diagnostic chat.
-  const analyzeAudio = async () => {
-    // kept for backward-compat; does nothing
+  const getSeverityColor = (severity) => {
+    const colors = {
+      normal: 'text-green-400',
+      minor: 'text-yellow-400',
+      moderate: 'text-orange-400',
+      severe: 'text-red-400',
+      critical: 'text-red-600',
+    };
+    return colors[severity] || 'text-white/60';
   };
 
   const togglePlayback = () => {
@@ -114,7 +145,7 @@ export default function AudioRecorder({ open, onClose, onAudioCaptured }) {
 
   const handleSubmit = () => {
     if (audioBlob && audioDescription) {
-      onAudioCaptured(audioBlob, audioUrl, audioDescription);
+      onAudioCaptured(audioBlob, audioUrl, audioDescription, analysisResults);
       handleReset();
       onClose();
     }
@@ -128,6 +159,7 @@ export default function AudioRecorder({ open, onClose, onAudioCaptured }) {
     setIsPlaying(false);
     setAudioDescription('');
     setShowDescription(false);
+    setAnalysisResults(null);
   };
 
   const formatTime = (seconds) => {
@@ -171,15 +203,54 @@ export default function AudioRecorder({ open, onClose, onAudioCaptured }) {
             </p>
           </div>
 
-          {/* AI Analysis */}
+          {/* DSP Analysis Progress */}
           {isAnalyzing && (
             <div className="p-4 rounded-xl bg-blue-500/10 border border-blue-500/30 flex items-center gap-3">
               <Loader2 className="w-5 h-5 text-blue-400 animate-spin" />
               <div>
-                <p className="text-sm font-medium text-white">{t('audio.analyzingSound')}</p>
-                <p className="text-xs text-white/60">{t('audio.aiRecognizing')}</p>
+                <p className="text-sm font-medium text-white">{t('audio.analyzingSound') || 'Analyzing frequencies...'}</p>
+                <p className="text-xs text-white/60">{t('audio.aiRecognizing') || 'Extracting MFCC, spectral features, detecting anomalies'}</p>
               </div>
             </div>
+          )}
+
+          {/* DSP Analysis Results Card */}
+          {analysisResults && !isAnalyzing && (
+            <motion.div
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="p-4 rounded-xl bg-gradient-to-r from-blue-500/10 to-cyan-500/10 border border-blue-500/30 space-y-3"
+            >
+              <div className="flex items-center gap-2 mb-1">
+                <Activity className="w-4 h-4 text-blue-400" />
+                <span className="text-sm font-semibold text-white">DSP Analysis Results</span>
+              </div>
+
+              {/* Show results for each detected component */}
+              {(Array.isArray(analysisResults) ? analysisResults : [analysisResults]).map((result, idx) => (
+                <div key={idx} className="bg-white/5 rounded-lg p-3 space-y-1.5">
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm font-medium text-white capitalize">
+                      {result.component || 'Unknown'} — {result.failure_type || 'N/A'}
+                    </span>
+                    <span className={`text-xs font-bold uppercase ${getSeverityColor(result.severity)}`}>
+                      {result.severity || 'unknown'}
+                    </span>
+                  </div>
+                  <div className="flex gap-4 text-xs text-white/60">
+                    <span>Confidence: <span className="text-white/90">{Math.round((result.confidence || 0) * 100)}%</span></span>
+                    <span>Anomaly: <span className="text-white/90">{((result.anomaly_score || 0) * 100).toFixed(0)}%</span></span>
+                  </div>
+                  {result.frequency_patterns && (
+                    <div className="flex gap-3 text-xs text-white/50">
+                      <span>Low: {result.frequency_patterns.low_freq?.toFixed(0) || '—'}Hz</span>
+                      <span>Mid: {result.frequency_patterns.mid_freq?.toFixed(0) || '—'}Hz</span>
+                      <span>High: {result.frequency_patterns.high_freq?.toFixed(0) || '—'}Hz</span>
+                    </div>
+                  )}
+                </div>
+              ))}
+            </motion.div>
           )}
 
           {/* Audio Description */}
