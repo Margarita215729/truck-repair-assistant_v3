@@ -11,17 +11,22 @@ export const subscriptionService = {
   async getCurrentSubscription() {
     if (!hasSupabaseConfig || !supabase) return { plan: 'free', status: 'active' };
 
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) return { plan: 'free', status: 'active' };
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return { plan: 'free', status: 'active' };
 
-    const { data, error } = await supabase
-      .from('subscriptions')
-      .select('*')
-      .eq('user_id', user.id)
-      .single();
+      const { data, error } = await supabase
+        .from('subscriptions')
+        .select('*')
+        .eq('user_id', user.id)
+        .single();
 
-    if (error || !data) return { plan: 'free', status: 'active', user_id: user.id };
-    return data;
+      if (error || !data) return { plan: 'free', status: 'active', user_id: user.id };
+      return data;
+    } catch (err) {
+      console.warn('getCurrentSubscription failed:', err);
+      return { plan: 'free', status: 'active' };
+    }
   },
 
   /**
@@ -32,16 +37,21 @@ export const subscriptionService = {
       return { allowed: true, plan: 'free', used: 0, limit: 10, remaining: 10 };
     }
 
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) return { allowed: false, plan: 'free', used: 0, limit: 0, remaining: 0 };
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return { allowed: false, plan: 'free', used: 0, limit: 0, remaining: 0 };
 
-    const { data, error } = await supabase.rpc('check_ai_limit', { p_user_id: user.id });
-    if (error) {
-      console.error('Failed to check AI limit:', error);
+      const { data, error } = await supabase.rpc('check_ai_limit', { p_user_id: user.id });
+      if (error) {
+        console.error('Failed to check AI limit:', error);
+        return { allowed: true, plan: 'free', used: 0, limit: 10, remaining: 10 };
+      }
+
+      return data;
+    } catch (err) {
+      console.warn('checkAiLimit failed:', err);
       return { allowed: true, plan: 'free', used: 0, limit: 10, remaining: 10 };
     }
-
-    return data;
   },
 
   /**

@@ -12,7 +12,7 @@ import { Button } from '@/components/ui/button';
  */
 export default function UpgradePrompt({ type = 'ai', onDismiss }) {
   const { t } = useLanguage();
-  const { aiUsage } = useAuth();
+  const { aiUsage, planLimits } = useAuth();
 
   const isAi = type === 'ai';
 
@@ -29,7 +29,7 @@ export default function UpgradePrompt({ type = 'ai', onDismiss }) {
           <p className="text-white/50 text-xs mb-3">
             {isAi
               ? t('upgrade.aiLimitDesc', { used: aiUsage.used, limit: aiUsage.limit })
-              : t('upgrade.truckLimitDesc')
+              : t('upgrade.truckLimitDesc', { limit: planLimits?.max_trucks || 2 })
             }
           </p>
           <div className="flex items-center gap-2">
