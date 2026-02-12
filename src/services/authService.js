@@ -11,31 +11,42 @@ export const authService = {
   async me() {
     if (!hasSupabaseConfig || !supabase) return null;
 
-    const { data: { user }, error } = await supabase.auth.getUser();
-    if (error || !user) return null;
+    try {
+      const { data: { user }, error } = await supabase.auth.getUser();
+      if (error || !user) return null;
 
-    // Fetch profile from profiles table
-    const { data: profile } = await supabase
-      .from('profiles')
-      .select('*')
-      .eq('id', user.id)
-      .single();
+      // Fetch profile from profiles table (non-critical — use short timeout)
+      let profile = null;
+      try {
+        const { data } = await supabase
+          .from('profiles')
+          .select('*')
+          .eq('id', user.id)
+          .single();
+        profile = data;
+      } catch (profileErr) {
+        console.warn('Profile fetch failed, using auth metadata:', profileErr);
+      }
 
-    return {
-      id: user.id,
-      email: user.email,
-      email_confirmed_at: user.email_confirmed_at,
-      full_name: profile?.full_name || user.user_metadata?.display_name || '',
-      avatar_url: profile?.avatar_url || user.user_metadata?.avatar_url || null,
-      phone: profile?.phone || '',
-      company_name: profile?.company_name || '',
-      role: profile?.role || user.user_metadata?.role || 'technician',
-      preferred_language: profile?.preferred_language || 'en',
-      notification_preferences: profile?.notification_preferences || {
-        email_reports: true,
-        maintenance_reminders: true,
-      },
-    };
+      return {
+        id: user.id,
+        email: user.email,
+        email_confirmed_at: user.email_confirmed_at,
+        full_name: profile?.full_name || user.user_metadata?.display_name || '',
+        avatar_url: profile?.avatar_url || user.user_metadata?.avatar_url || null,
+        phone: profile?.phone || '',
+        company_name: profile?.company_name || '',
+        role: profile?.role || user.user_metadata?.role || 'technician',
+        preferred_language: profile?.preferred_language || 'en',
+        notification_preferences: profile?.notification_preferences || {
+          email_reports: true,
+          maintenance_reminders: true,
+        },
+      };
+    } catch (err) {
+      console.warn('authService.me() failed:', err);
+      return null;
+    }
   },
 
   /**
