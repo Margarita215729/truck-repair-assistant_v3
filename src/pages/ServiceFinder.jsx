@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { entities } from '@/services/entityService';
-import { invokeLLM } from '@/services/aiService';
 import { fetchAllInfrastructure } from '@/services/truckInfraService';
-import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { env } from '@/config/env';
+import { useQuery } from '@tanstack/react-query';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Toggle } from '@/components/ui/toggle';
@@ -56,8 +56,6 @@ export default function ServiceFinder() {
   const [infraData, setInfraData] = useState({ parking: [], weighStations: [], restrictions: [] });
   const [infraLoading, setInfraLoading] = useState(false);
 
-  const queryClient = useQueryClient();
-
   const { data: allReviews = [] } = useQuery({
     queryKey: ['service-reviews'],
     queryFn: () => entities.ServiceReview.list(),
@@ -102,108 +100,100 @@ export default function ServiceFinder() {
     }
   }, [userCoords]);
 
+  /** Geocode a text address to { lat, lng } via Google Geocoding API */
+  const geocodeAddress = async (address) => {
+    const apiKey = env.GOOGLE_MAPS_API_KEY;
+    if (!apiKey) return null;
+    try {
+      const url = `https://maps.googleapis.com/maps/api/geocode/json?address=${encodeURIComponent(address)}&key=${apiKey}`;
+      const res = await fetch(url);
+      const data = await res.json();
+      if (data.results?.[0]?.geometry?.location) {
+        const { lat, lng } = data.results[0].geometry.location;
+        return { lat, lng };
+      }
+    } catch (err) {
+      console.warn('Geocoding failed:', err);
+    }
+    return null;
+  };
+
   const searchServices = async (searchLocation, overrideCoords = null) => {
-    const coords = overrideCoords || userCoords;
-    if (!searchLocation && !coords) {
+    let coords = overrideCoords || userCoords;
+
+    // If user typed an address but we have no coords, geocode it
+    if (searchLocation && !coords) {
+      const geo = await geocodeAddress(searchLocation);
+      if (geo) {
+        coords = [geo.lat, geo.lng];
+        setUserCoords(coords);
+      } else {
+        toast.error(t('services.locationFailed'));
+        return;
+      }
+    }
+    if (!coords) {
       toast.error(t('services.locationRequired'));
       return;
+    }
+
+    // If user typed a location name, also geocode to update center
+    if (searchLocation && !overrideCoords) {
+      const geo = await geocodeAddress(searchLocation);
+      if (geo) {
+        coords = [geo.lat, geo.lng];
+        setUserCoords(coords);
+      }
     }
 
     setIsLoading(true);
     setServices([]);
 
     try {
-      const locationQuery = searchLocation || `coordinates ${coords[0]}, ${coords[1]}`;
-      
-      const serviceTypesFilter = filters.serviceTypes.length > 0
-        ? `Focus on services offering: ${filters.serviceTypes.map(t => {
-            const typeMap = {
-              engine: 'engine repair',
-              electrical: 'electrical work',
-              tires: 'tire service',
-              brakes: 'brake repair',
-              transmission: 'transmission service',
-              diagnostic: 'diagnostics'
-            };
-            return typeMap[t];
-          }).join(', ')}.`
-        : '';
-      
-      const is24HoursFilter = filters.is24Hours ? 'Only include 24/7 services.' : '';
-      const minRatingFilter = filters.minRating > 0 ? `Only include services with rating ${filters.minRating}+.` : '';
+      // Determine which types to search based on active filters
+      const types = [];
+      if (filters.repair) types.push('repair');
+      if (filters.parking) types.push('parking');
+      if (filters.towing) types.push('towing');
+      if (types.length === 0) types.push('repair', 'parking', 'towing');
 
-      const response = await invokeLLM({
-        prompt: `List well-known truck service locations near ${locationQuery} in the USA.
-
-Include ONLY businesses you are confident actually exist based on your training data (major chains, well-known independents).
-
-TYPES TO INCLUDE:
-1. Truck Repair Shops — dealer service centers (Freightliner, Peterbilt, Volvo, etc.) and well-known independents that service Class 8 trucks
-2. Truck Stops & Parking — major chains: Love's, Pilot Flying J, TA/Petro, plus known public rest areas
-3. Heavy-Duty Towing — companies known for semi truck recovery
-
-${serviceTypesFilter}
-${is24HoursFilter}
-${minRatingFilter}
-
-CRITICAL RULES:
-- ONLY include businesses you are reasonably sure exist. Do NOT fabricate names.
-- Use realistic GPS coordinates for the ${locationQuery} area.
-- For phone numbers: use the format (XXX) XXX-XXXX. If unsure, set phone to "Call for info".
-- For ratings: use realistic values (3.5-4.8). If unsure, default to 4.0.
-- Mark "ai_generated": true on every entry so the UI can show a disclaimer.
-
-Return 6-10 results sorted by estimated proximity to ${locationQuery}.`,
-        add_context_from_internet: true,
-        response_json_schema: {
-          type: "object",
-          properties: {
-            services: {
-              type: "array",
-              items: {
-                type: "object",
-                properties: {
-                  id: { type: "string" },
-                  name: { type: "string" },
-                  type: { type: "string", enum: ["repair", "parking", "towing"] },
-                  address: { type: "string" },
-                  lat: { type: "number" },
-                  lng: { type: "number" },
-                  rating: { type: "number" },
-                  reviews: { type: "number" },
-                  phone: { type: "string" },
-                  hours: { type: "string" },
-                  is24Hours: { type: "boolean" },
-                  specialties: { type: "array", items: { type: "string" } },
-                  distance: { type: "number" },
-                  ai_generated: { type: "boolean", description: "Always true" }
-                }
-              }
-            },
-            search_center: {
-              type: "object",
-              properties: {
-                lat: { type: "number" },
-                lng: { type: "number" }
-              }
-            }
-          }
-        }
+      const response = await fetch('/api/places-search', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          lat: coords[0],
+          lng: coords[1],
+          query: searchLocation || undefined,
+          types,
+          radius: 40000,
+        }),
       });
 
-      if (response.services && response.services.length > 0) {
-        setServices(response.services);
-        if (response.search_center) {
-          const newCoords = [response.search_center.lat, response.search_center.lng];
+      if (!response.ok) throw new Error(`HTTP ${response.status}`);
+      const data = await response.json();
+
+      let results = data.services || [];
+
+      // Client-side filters
+      if (filters.is24Hours) {
+        results = results.filter(s => s.is24Hours);
+      }
+      if (filters.minRating > 0) {
+        results = results.filter(s => s.rating >= filters.minRating);
+      }
+
+      if (results.length > 0) {
+        setServices(results);
+        if (data.search_center) {
+          const newCoords = [data.search_center.lat, data.search_center.lng];
           setUserCoords(newCoords);
           loadInfrastructure(newCoords);
+        } else {
+          loadInfrastructure(coords);
         }
       } else {
         toast.info(t('services.noServicesFound'));
-        // Still try to load infrastructure even if no services found
-        if (userCoords) {
-          loadInfrastructure(userCoords);
-        }
+        if (coords) loadInfrastructure(coords);
       }
     } catch (error) {
       console.error('Error searching services:', error);

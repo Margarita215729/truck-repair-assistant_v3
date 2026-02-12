@@ -3,7 +3,7 @@
  * Stores only AI recommendation metadata in Supabase.
  * All pricing and vendor data is fetched live via vendorService.
  */
-import { supabase, hasSupabaseConfig } from '@/api/supabaseClient';
+import { hasSupabaseConfig } from '@/api/supabaseClient';
 import { entities } from './entityService';
 
 // ─── Category inference ──────────────────────────────────────────────
@@ -101,30 +101,25 @@ export async function saveAIPartRecommendations(suggestedParts, truckContext = {
  * These are the minimal metadata records — no prices.
  */
 export async function getMyRecommendedParts(filters = {}) {
-  if (!hasSupabaseConfig || !supabase) return [];
+  try {
+    // Use entityService which auto-scopes by user_id via RLS
+    let results = await entities.Part.list('-created_at', 100);
 
-  let q = supabase.from('parts').select('*');
+    if (filters.category && filters.category !== 'all') {
+      results = results.filter(p => p.category === filters.category);
+    }
+    if (filters.importance && filters.importance !== 'all') {
+      results = results.filter(p => p.importance === filters.importance);
+    }
+    if (filters.difficulty && filters.difficulty !== 'all') {
+      results = results.filter(p => p.installation_difficulty === filters.difficulty);
+    }
 
-  if (filters.category && filters.category !== 'all') {
-    q = q.eq('category', filters.category);
-  }
-
-  if (filters.importance && filters.importance !== 'all') {
-    q = q.eq('importance', filters.importance);
-  }
-
-  if (filters.difficulty && filters.difficulty !== 'all') {
-    q = q.eq('installation_difficulty', filters.difficulty);
-  }
-
-  q = q.order('created_at', { ascending: false }).limit(100);
-
-  const { data, error } = await q;
-  if (error) {
+    return results;
+  } catch (error) {
     console.warn('Failed to fetch recommended parts:', error);
     return [];
   }
-  return data || [];
 }
 
 // ─── Delete a recommendation ─────────────────────────────────────────
@@ -136,19 +131,19 @@ export async function deleteRecommendation(id) {
 // ─── Get stats for recommended parts ─────────────────────────────────
 
 export async function getRecommendedStats() {
-  if (!hasSupabaseConfig || !supabase) return { total: 0, categories: {} };
+  try {
+    // Use entityService which auto-scopes by user_id via RLS
+    const data = await entities.Part.list('-created_at', 500);
+    if (!data?.length) return { total: 0, categories: {} };
 
-  const { data, error } = await supabase
-    .from('parts')
-    .select('category');
-
-  if (error || !data) return { total: 0, categories: {} };
-
-  const categories = {};
-  for (const part of data) {
-    categories[part.category] = (categories[part.category] || 0) + 1;
+    const categories = {};
+    for (const part of data) {
+      categories[part.category] = (categories[part.category] || 0) + 1;
+    }
+    return { total: data.length, categories };
+  } catch {
+    return { total: 0, categories: {} };
   }
-  return { total: data.length, categories };
 }
 
 export default {
