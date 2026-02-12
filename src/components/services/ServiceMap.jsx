@@ -1,9 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { MapContainer, TileLayer, Marker, Popup, Polyline, useMap } from 'react-leaflet';
-import { Star, Phone, Navigation, Clock, ExternalLink, ParkingCircle, Scale, AlertTriangle } from 'lucide-react';
-import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
-import { occupancyColor, weighStationColor, timeAgo } from '@/services/truckInfraService';
+import { Star, Phone, AlertTriangle } from 'lucide-react';
+import { timeAgo } from '@/services/truckInfraService';
 import { useLanguage } from '@/lib/LanguageContext';
 import 'leaflet/dist/leaflet.css';
 import L from 'leaflet';

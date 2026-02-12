@@ -1,9 +1,23 @@
-import React, { createContext, useState, useContext, useEffect, useCallback } from 'react';
+import React, { createContext, useState, useContext, useEffect, useCallback, useRef } from 'react';
 import { authService } from '@/services/authService';
 import { subscriptionService } from '@/services/subscriptionService';
 import { LIMITS } from '@/config/stripe';
 
 const AuthContext = createContext();
+
+/** Helper: wraps a promise with a timeout (rejects on timeout) */
+function withTimeout(promise, ms, label = 'operation') {
+  let timer;
+  return Promise.race([
+    promise,
+    new Promise((_, reject) => {
+      timer = setTimeout(() => reject(new Error(`${label} timed out after ${ms}ms`)), ms);
+    }),
+  ]).finally(() => clearTimeout(timer));
+}
+
+const AUTH_TIMEOUT = 10000;     // 10 s for initial auth check
+const SUB_TIMEOUT = 8000;       // 8 s for subscription load
 
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
@@ -12,6 +26,7 @@ export const AuthProvider = ({ children }) => {
   const [authError, setAuthError] = useState(null);
   const [subscription, setSubscription] = useState({ plan: 'free', status: 'active' });
   const [aiUsage, setAiUsage] = useState({ used: 0, limit: 10, remaining: 10 });
+  const authCheckDone = useRef(false);
 
   const isProUser = subscription?.plan === 'pro' || subscription?.plan === 'owner' || subscription?.plan === 'fleet' || subscription?.plan === 'lifetime';
   const planLimits = LIMITS[subscription?.plan] || LIMITS.free;
@@ -29,7 +44,7 @@ export const AuthProvider = ({ children }) => {
           avatar_url: session.user.user_metadata?.avatar_url,
         });
         setIsAuthenticated(true);
-        // Load subscription after sign-in
+        // Load subscription after sign-in (non-blocking)
         loadSubscription();
       } else if (event === 'SIGNED_OUT') {
         setUser(null);
@@ -37,22 +52,34 @@ export const AuthProvider = ({ children }) => {
         setSubscription({ plan: 'free', status: 'active' });
         setAiUsage({ used: 0, limit: 10, remaining: 10 });
       } else if (event === 'TOKEN_REFRESHED') {
-        // Session refreshed - reload subscription data
         loadSubscription();
       }
     });
 
+    // Safety net: if auth check hasn't completed in AUTH_TIMEOUT, force-finish
+    const safetyTimer = setTimeout(() => {
+      if (!authCheckDone.current) {
+        console.warn('Auth check safety timeout — forcing loading to false');
+        setIsLoadingAuth(false);
+      }
+    }, AUTH_TIMEOUT + 2000);
+
     return () => {
+      clearTimeout(safetyTimer);
       if (typeof unsubscribe === 'function') unsubscribe();
     };
   }, []);
 
   const loadSubscription = useCallback(async () => {
     try {
-      const [sub, usage] = await Promise.all([
-        subscriptionService.getCurrentSubscription(),
-        subscriptionService.checkAiLimit(),
-      ]);
+      const [sub, usage] = await withTimeout(
+        Promise.all([
+          subscriptionService.getCurrentSubscription(),
+          subscriptionService.checkAiLimit(),
+        ]),
+        SUB_TIMEOUT,
+        'loadSubscription',
+      );
       setSubscription(sub);
       setAiUsage(usage);
     } catch (err) {
@@ -74,17 +101,22 @@ export const AuthProvider = ({ children }) => {
     try {
       setIsLoadingAuth(true);
       setAuthError(null);
-      const currentUser = await authService.me();
+
+      const currentUser = await withTimeout(authService.me(), AUTH_TIMEOUT, 'authService.me');
+
       if (currentUser) {
         setUser(currentUser);
         setIsAuthenticated(true);
-        await loadSubscription();
+        // Load subscription — don't block auth for it
+        loadSubscription();
       } else {
         setIsAuthenticated(false);
       }
     } catch (error) {
+      console.warn('Auth check failed:', error?.message || error);
       setIsAuthenticated(false);
     } finally {
+      authCheckDone.current = true;
       setIsLoadingAuth(false);
     }
   };
