@@ -79,12 +79,6 @@ export default function Profile() {
     enabled: !!user
   });
 
-  const { data: savedShops = [] } = useQuery({
-    queryKey: ['preferred-shops'],
-    queryFn: () => entities.PreferredShop.list(),
-    enabled: !!user
-  });
-
   useEffect(() => {
     if (user) {
       setFormData({
@@ -164,7 +158,7 @@ export default function Profile() {
     conversationsCount: conversations.length,
     reportsCount: reports.length,
     trucksCount: trucks.length,
-    savedShopsCount: savedShops.length
+    savedShopsCount: 0
   };
 
   if (userLoading) {
