@@ -174,7 +174,13 @@ export default function ServiceFinder() {
           toast.error(t('services.authRequired') || 'Session expired. Please sign in again.');
           return;
         }
-        throw new Error(`HTTP ${response.status}`);
+        // Try to read server error message
+        let serverMsg = '';
+        try {
+          const errBody = await response.json();
+          serverMsg = errBody.error || '';
+        } catch { /* ignore parse error */ }
+        throw new Error(serverMsg || `HTTP ${response.status}`);
       }
       const data = await response.json();
 
@@ -203,7 +209,7 @@ export default function ServiceFinder() {
       }
     } catch (error) {
       console.error('Error searching services:', error);
-      toast.error(t('services.searchFailed'));
+      toast.error(`${t('services.searchFailed')} ${error.message || ''}`);
     } finally {
       setIsLoading(false);
     }
