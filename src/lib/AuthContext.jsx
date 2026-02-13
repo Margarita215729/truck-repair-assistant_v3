@@ -1,6 +1,7 @@
 import React, { createContext, useState, useContext, useEffect, useCallback, useRef } from 'react';
 import { authService } from '@/services/authService';
 import { subscriptionService } from '@/services/subscriptionService';
+import { checkSupabaseHealth } from '@/api/supabaseClient';
 import { LIMITS } from '@/config/stripe';
 
 const AuthContext = createContext();
@@ -26,6 +27,7 @@ export const AuthProvider = ({ children }) => {
   const [authError, setAuthError] = useState(null);
   const [subscription, setSubscription] = useState({ plan: 'free', status: 'active' });
   const [aiUsage, setAiUsage] = useState({ used: 0, limit: 10, remaining: 10 });
+  const [supabaseReachable, setSupabaseReachable] = useState(true);
   const authCheckDone = useRef(false);
 
   const isProUser = subscription?.plan === 'pro' || subscription?.plan === 'owner' || subscription?.plan === 'fleet' || subscription?.plan === 'lifetime';
@@ -102,6 +104,15 @@ export const AuthProvider = ({ children }) => {
       setIsLoadingAuth(true);
       setAuthError(null);
 
+      // Quick connectivity check
+      const alive = await checkSupabaseHealth();
+      setSupabaseReachable(alive);
+      if (!alive) {
+        console.warn('Supabase is unreachable — project may be paused or URL is misconfigured');
+        setIsAuthenticated(false);
+        return;
+      }
+
       const currentUser = await withTimeout(authService.me(), AUTH_TIMEOUT, 'authService.me');
 
       if (currentUser) {
@@ -164,6 +175,7 @@ export const AuthProvider = ({ children }) => {
       refreshAiUsage,
       loadSubscription,
       checkAppState: checkUserAuth,
+      supabaseReachable,
     }}>
       {children}
     </AuthContext.Provider>
