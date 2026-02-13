@@ -1,76 +1,264 @@
 /**
  * Truck Infrastructure Service
- * Queries Supabase for nearby truck parking, weigh stations, and route restrictions
- * using the RPC functions defined in migration 007.
+ * 
+ * Primary: Overpass API (OpenStreetMap) — free, no key, real worldwide data
+ * Fallback: Supabase RPC (if tables have been populated via ETL)
  */
 import { supabase, hasSupabaseConfig } from '@/api/supabaseClient';
 
 const DEFAULT_RADIUS = 50; // miles
+const OVERPASS_API = 'https://overpass-api.de/api/interpreter';
 
-/**
- * Fetch nearby truck parking lots with occupancy data.
- * @param {number} lat - Latitude
- * @param {number} lng - Longitude
- * @param {number} [radius=50] - Search radius in miles
- * @returns {Promise<Array>} Parking lots with occupancy info
- */
+// ─── Overpass query builder ───────────────────────────────────────────
+
+function milesToDeg(miles) {
+  return miles / 69.0;
+}
+
+function buildBBox(lat, lng, radiusMiles) {
+  const d = milesToDeg(radiusMiles);
+  const dLng = radiusMiles / (69.0 * Math.cos((lat * Math.PI) / 180));
+  return `${lat - d},${lng - dLng},${lat + d},${lng + dLng}`;
+}
+
+async function queryOverpass(query) {
+  const res = await fetch(OVERPASS_API, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    body: `data=${encodeURIComponent(query)}`,
+  });
+  if (!res.ok) throw new Error(`Overpass API ${res.status}`);
+  const data = await res.json();
+  return data.elements || [];
+}
+
+// ─── Haversine ────────────────────────────────────────────────────────
+
+function haversineMiles(lat1, lon1, lat2, lon2) {
+  const R = 6371;
+  const dLat = ((lat2 - lat1) * Math.PI) / 180;
+  const dLon = ((lon2 - lon1) * Math.PI) / 180;
+  const a =
+    Math.sin(dLat / 2) ** 2 +
+    Math.cos((lat1 * Math.PI) / 180) * Math.cos((lat2 * Math.PI) / 180) * Math.sin(dLon / 2) ** 2;
+  const km = R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  return Math.round(km * 0.621371 * 10) / 10;
+}
+
+// ─── Truck Parking (OSM) ─────────────────────────────────────────────
+
+async function fetchParkingFromOSM(lat, lng, radius) {
+  const bbox = buildBBox(lat, lng, radius);
+  const query = `[out:json][timeout:15];
+(
+  node["amenity"="fuel"]["hgv"~"yes|designated"](${bbox});
+  node["amenity"="parking"]["hgv"~"yes|designated"](${bbox});
+  node["amenity"="parking"]["access"="hgv"](${bbox});
+  node["highway"="rest_area"](${bbox});
+  node["highway"="services"](${bbox});
+  way["amenity"="fuel"]["hgv"~"yes|designated"](${bbox});
+  way["amenity"="parking"]["hgv"~"yes|designated"](${bbox});
+  way["highway"="rest_area"](${bbox});
+  way["highway"="services"](${bbox});
+);
+out center 100;`;
+  const elements = await queryOverpass(query);
+  return elements.map((el) => {
+    const elLat = el.lat || el.center?.lat;
+    const elLng = el.lon || el.center?.lon;
+    if (!elLat || !elLng) return null;
+    const tags = el.tags || {};
+    const amenities = [];
+    if (tags.fuel === 'yes' || tags.amenity === 'fuel') amenities.push('fuel');
+    if (tags.shower === 'yes') amenities.push('showers');
+    if (tags.restaurant === 'yes' || tags.food === 'yes') amenities.push('food');
+    if (tags.internet_access === 'wlan' || tags.internet_access === 'yes') amenities.push('wifi');
+
+    const isRestArea = tags.highway === 'rest_area' || tags.highway === 'services';
+    const isTruckStop = tags.amenity === 'fuel' && (tags.hgv === 'yes' || tags.hgv === 'designated');
+
+    return {
+      id: `osm-${el.id}`,
+      name: tags.name || (isRestArea ? 'Rest Area' : isTruckStop ? 'Truck Stop' : 'Truck Parking'),
+      address: [tags['addr:street'], tags['addr:city'], tags['addr:state']].filter(Boolean).join(', ') || '',
+      latitude: elLat, longitude: elLng, lat: elLat, lng: elLng,
+      _type: 'truck_parking',
+      state_code: tags['addr:state'] || '',
+      total_spaces: parseInt(tags.capacity) || 0,
+      available_spaces: 0, occupancy_pct: 0, occupancy_status: 'unknown', occupancy_updated_at: null,
+      parking_type: isRestArea ? 'public_rest_area' : isTruckStop ? 'truck_stop' : 'public',
+      amenities,
+      operator: tags.operator || tags.brand || '',
+      is24_hours: tags.opening_hours === '24/7',
+      phone: tags.phone || tags['contact:phone'] || '',
+      website: tags.website || '',
+      source: 'osm', source_id: String(el.id),
+      distance: haversineMiles(lat, lng, elLat, elLng),
+    };
+  }).filter(Boolean).sort((a, b) => a.distance - b.distance);
+}
+
+// ─── Weigh Stations (OSM) ────────────────────────────────────────────
+
+async function fetchWeighStationsFromOSM(lat, lng, radius) {
+  const bbox = buildBBox(lat, lng, radius);
+  const query = `[out:json][timeout:15];
+(
+  node["amenity"="weighbridge"](${bbox});
+  node["highway"="weigh_station"](${bbox});
+  node["man_made"="weighbridge"](${bbox});
+  way["amenity"="weighbridge"](${bbox});
+  way["highway"="weigh_station"](${bbox});
+);
+out center 100;`;
+  const elements = await queryOverpass(query);
+  return elements.map((el) => {
+    const elLat = el.lat || el.center?.lat;
+    const elLng = el.lon || el.center?.lon;
+    if (!elLat || !elLng) return null;
+    const tags = el.tags || {};
+    return {
+      id: `osm-${el.id}`,
+      name: tags.name || 'Weigh Station',
+      address: [tags['addr:street'], tags['addr:city'], tags['addr:state']].filter(Boolean).join(', ') || '',
+      latitude: elLat, longitude: elLng, lat: elLat, lng: elLng,
+      _type: 'weigh_station',
+      state_code: tags['addr:state'] || '',
+      highway: tags.highway_ref || tags.ref || '',
+      direction: tags.direction || '',
+      status: 'unknown', status_updated_at: null,
+      scale_type: tags.weighbridge === 'weigh_in_motion' ? 'weigh_in_motion' : 'static',
+      has_prepass: false, has_bypass: false,
+      hours: tags.opening_hours || '',
+      phone: tags.phone || '',
+      source: 'osm', source_id: String(el.id),
+      distance: haversineMiles(lat, lng, elLat, elLng),
+    };
+  }).filter(Boolean).sort((a, b) => a.distance - b.distance);
+}
+
+// ─── Truck Restrictions (OSM) ────────────────────────────────────────
+
+function parseMetricToFt(v) {
+  if (!v) return null;
+  const n = parseFloat(v);
+  if (isNaN(n)) return null;
+  if (v.includes("'") || v.includes('ft')) return n;
+  return Math.round(n * 3.28084 * 10) / 10;
+}
+
+function parseMetricToTons(v) {
+  if (!v) return null;
+  const n = parseFloat(v);
+  if (isNaN(n)) return null;
+  if (v.includes('st') || v.includes('ton')) return n;
+  return Math.round(n * 1.10231 * 10) / 10;
+}
+
+async function fetchRestrictionsFromOSM(lat, lng, radius) {
+  const bbox = buildBBox(lat, lng, radius);
+  const query = `[out:json][timeout:15];
+(
+  node["maxheight"](${bbox});
+  way["maxheight"](${bbox});
+  node["maxweight"](${bbox});
+  way["maxweight"](${bbox});
+  node["maxwidth"](${bbox});
+  way["maxwidth"](${bbox});
+  way["hgv"="no"](${bbox});
+);
+out center 100;`;
+  const elements = await queryOverpass(query);
+  return elements.map((el) => {
+    const elLat = el.lat || el.center?.lat;
+    const elLng = el.lon || el.center?.lon;
+    if (!elLat || !elLng) return null;
+    const tags = el.tags || {};
+
+    const heightFt = parseMetricToFt(tags.maxheight);
+    const weightTons = parseMetricToTons(tags.maxweight);
+    const widthFt = parseMetricToFt(tags.maxwidth);
+    const isHgvBan = tags.hgv === 'no';
+
+    if (!heightFt && !weightTons && !widthFt && !isHgvBan) return null;
+
+    let restrictionType = 'combined';
+    if (heightFt && !weightTons && !widthFt) restrictionType = 'height';
+    else if (weightTons && !heightFt && !widthFt) restrictionType = 'weight';
+    else if (widthFt && !heightFt && !weightTons) restrictionType = 'width';
+    else if (isHgvBan && !heightFt && !weightTons && !widthFt) restrictionType = 'road';
+
+    const roadName = tags.name || tags.ref || '';
+
+    return {
+      id: `osm-${el.id}`,
+      name: roadName
+        ? `${roadName}${heightFt ? ` — ${heightFt}ft` : ''}`
+        : `Restriction${heightFt ? ` ${heightFt}ft` : ''}${weightTons ? ` ${weightTons}t` : ''}`,
+      description: isHgvBan ? 'No trucks allowed' : '',
+      latitude: elLat, longitude: elLng, lat: elLat, lng: elLng,
+      lat_end: null, lng_end: null,
+      _type: 'truck_restriction',
+      state_code: tags['addr:state'] || '',
+      road_name: roadName,
+      height_ft: heightFt, weight_tons: weightTons, width_ft: widthFt, length_ft: null,
+      restriction_type: restrictionType,
+      is_active: true, detour_info: '',
+      source: 'osm', source_id: String(el.id),
+      distance: haversineMiles(lat, lng, elLat, elLng),
+    };
+  }).filter(Boolean).sort((a, b) => a.distance - b.distance);
+}
+
+// ─── Supabase fallback ───────────────────────────────────────────────
+
+async function fetchParkingFromSupabase(lat, lng, radius) {
+  if (!hasSupabaseConfig || !supabase) return [];
+  const { data, error } = await supabase.rpc('nearby_truck_parking', { p_lat: lat, p_lng: lng, p_radius_miles: radius });
+  if (error) { console.warn('Supabase truck parking error:', error); return []; }
+  return (data || []).map(r => ({ ...r, _type: 'truck_parking', lat: r.latitude, lng: r.longitude }));
+}
+
+async function fetchWeighStationsFromSupabase(lat, lng, radius) {
+  if (!hasSupabaseConfig || !supabase) return [];
+  const { data, error } = await supabase.rpc('nearby_weigh_stations', { p_lat: lat, p_lng: lng, p_radius_miles: radius });
+  if (error) { console.warn('Supabase weigh stations error:', error); return []; }
+  return (data || []).map(r => ({ ...r, _type: 'weigh_station', lat: r.latitude, lng: r.longitude }));
+}
+
+async function fetchRestrictionsFromSupabase(lat, lng, radius) {
+  if (!hasSupabaseConfig || !supabase) return [];
+  const { data, error } = await supabase.rpc('nearby_truck_restrictions', { p_lat: lat, p_lng: lng, p_radius_miles: radius });
+  if (error) { console.warn('Supabase restrictions error:', error); return []; }
+  return (data || []).map(r => ({ ...r, _type: 'truck_restriction', lat: r.latitude, lng: r.longitude, lat_end: r.latitude_end, lng_end: r.longitude_end }));
+}
+
+// ─── Public API ───────────────────────────────────────────────────────
+
 export async function fetchNearbyParking(lat, lng, radius = DEFAULT_RADIUS) {
-  if (!hasSupabaseConfig || !supabase) return [];
-
-  const { data, error } = await supabase.rpc('nearby_truck_parking', {
-    p_lat: lat,
-    p_lng: lng,
-    p_radius_miles: radius,
-  });
-
-  if (error) {
-    console.warn('Failed to fetch truck parking:', error);
-    return [];
-  }
-  return (data || []).map(normalizeParking);
+  try {
+    const osm = await fetchParkingFromOSM(lat, lng, radius);
+    if (osm.length > 0) return osm;
+  } catch (e) { console.warn('Overpass parking failed, trying Supabase:', e.message); }
+  return fetchParkingFromSupabase(lat, lng, radius);
 }
 
-/**
- * Fetch nearby weigh stations.
- */
 export async function fetchNearbyWeighStations(lat, lng, radius = DEFAULT_RADIUS) {
-  if (!hasSupabaseConfig || !supabase) return [];
-
-  const { data, error } = await supabase.rpc('nearby_weigh_stations', {
-    p_lat: lat,
-    p_lng: lng,
-    p_radius_miles: radius,
-  });
-
-  if (error) {
-    console.warn('Failed to fetch weigh stations:', error);
-    return [];
-  }
-  return (data || []).map(normalizeWeighStation);
+  try {
+    const osm = await fetchWeighStationsFromOSM(lat, lng, radius);
+    if (osm.length > 0) return osm;
+  } catch (e) { console.warn('Overpass weigh stations failed, trying Supabase:', e.message); }
+  return fetchWeighStationsFromSupabase(lat, lng, radius);
 }
 
-/**
- * Fetch nearby truck route restrictions.
- */
 export async function fetchNearbyRestrictions(lat, lng, radius = DEFAULT_RADIUS) {
-  if (!hasSupabaseConfig || !supabase) return [];
-
-  const { data, error } = await supabase.rpc('nearby_truck_restrictions', {
-    p_lat: lat,
-    p_lng: lng,
-    p_radius_miles: radius,
-  });
-
-  if (error) {
-    console.warn('Failed to fetch truck restrictions:', error);
-    return [];
-  }
-  return (data || []).map(normalizeRestriction);
+  try {
+    const osm = await fetchRestrictionsFromOSM(lat, lng, radius);
+    if (osm.length > 0) return osm;
+  } catch (e) { console.warn('Overpass restrictions failed, trying Supabase:', e.message); }
+  return fetchRestrictionsFromSupabase(lat, lng, radius);
 }
 
-/**
- * Fetch all three infrastructure layers in parallel.
- */
 export async function fetchAllInfrastructure(lat, lng, radius = DEFAULT_RADIUS) {
   const [parking, weighStations, restrictions] = await Promise.all([
     fetchNearbyParking(lat, lng, radius),
@@ -80,42 +268,8 @@ export async function fetchAllInfrastructure(lat, lng, radius = DEFAULT_RADIUS) 
   return { parking, weighStations, restrictions };
 }
 
-// ─── Normalization helpers ────────────────────────────────────────────
+// ─── UI helpers ───────────────────────────────────────────────────────
 
-function normalizeParking(row) {
-  return {
-    ...row,
-    _type: 'truck_parking',
-    lat: row.latitude,
-    lng: row.longitude,
-  };
-}
-
-function normalizeWeighStation(row) {
-  return {
-    ...row,
-    _type: 'weigh_station',
-    lat: row.latitude,
-    lng: row.longitude,
-  };
-}
-
-function normalizeRestriction(row) {
-  return {
-    ...row,
-    _type: 'truck_restriction',
-    lat: row.latitude,
-    lng: row.longitude,
-    lat_end: row.latitude_end,
-    lng_end: row.longitude_end,
-  };
-}
-
-// ─── Occupancy helpers ────────────────────────────────────────────────
-
-/**
- * Returns a human-readable occupancy color class for UI badges.
- */
 export function occupancyColor(status) {
   switch (status) {
     case 'open':    return 'bg-green-500/20 text-green-400 border-green-500/30';
@@ -125,9 +279,6 @@ export function occupancyColor(status) {
   }
 }
 
-/**
- * Returns a human-readable weigh station status color.
- */
 export function weighStationColor(status) {
   switch (status) {
     case 'open':   return 'bg-green-500/20 text-green-400 border-green-500/30';
@@ -136,9 +287,6 @@ export function weighStationColor(status) {
   }
 }
 
-/**
- * Format "time ago" for occupancy_updated_at.
- */
 export function timeAgo(dateStr) {
   if (!dateStr) return '';
   const diff = Date.now() - new Date(dateStr).getTime();
