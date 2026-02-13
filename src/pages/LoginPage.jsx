@@ -5,9 +5,11 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useLanguage } from '@/lib/LanguageContext';
 import { authService } from '@/services/authService';
+import { useAuth } from '@/lib/AuthContext';
 
 export default function LoginPage({ onLogin }) {
   const { t, language, setLanguage, languages } = useLanguage();
+  const { supabaseReachable } = useAuth();
   const [mode, setMode] = useState('signin'); // 'signin' | 'signup' | 'forgot' | 'check-email'
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -55,10 +57,15 @@ export default function LoginPage({ onLogin }) {
         await onLogin('signin', { email, password });
       }
     } catch (err) {
-      if (err.message?.includes('Email not confirmed')) {
+      const msg = err.message || '';
+      if (msg.includes('Email not confirmed')) {
         setMode('check-email');
+      } else if (msg === 'Failed to fetch' || msg.includes('NetworkError') || msg.includes('fetch')) {
+        setError(t('login.networkError') || 'Unable to connect to authentication server. The service may be temporarily unavailable — please try again in a few minutes.');
+      } else if (msg.includes('not configured')) {
+        setError(t('login.serviceUnavailable') || 'Authentication service is not configured. Please contact support.');
       } else {
-        setError(err.message || t('login.authFailed'));
+        setError(msg || t('login.authFailed'));
       }
     } finally {
       setLoading(false);
@@ -102,6 +109,18 @@ export default function LoginPage({ onLogin }) {
 
         {/* Card */}
         <div className="brand-card rounded-2xl p-6 shadow-2xl">
+          {/* Supabase connectivity warning */}
+          {supabaseReachable === false && (
+            <div className="mb-4 p-3 bg-yellow-500/10 border border-yellow-500/20 rounded-lg flex items-start gap-2 text-yellow-400 text-sm">
+              <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
+              <div>
+                <p className="font-medium">{t('login.serviceDown') || 'Service temporarily unavailable'}</p>
+                <p className="text-yellow-400/70 text-xs mt-1">
+                  {t('login.serviceDownDesc') || 'The authentication server is not responding. This may be due to scheduled maintenance. Please try again later.'}
+                </p>
+              </div>
+            </div>
+          )}
           {/* Check Email Screen */}
           {mode === 'check-email' ? (
             <div className="text-center py-4">

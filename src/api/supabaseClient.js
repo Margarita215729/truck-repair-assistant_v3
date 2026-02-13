@@ -27,3 +27,24 @@ try {
 
 export { supabase };
 export default supabase;
+
+/**
+ * Quick health check — resolves true if Supabase responds, false otherwise.
+ * Useful for detecting paused projects / network issues.
+ */
+export async function checkSupabaseHealth() {
+  if (!hasSupabaseConfig || !supabase) return false;
+  try {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), 5000);
+    const res = await fetch(`${supabaseUrl}/rest/v1/`, {
+      method: 'HEAD',
+      headers: { apikey: supabaseAnonKey },
+      signal: controller.signal,
+    });
+    clearTimeout(timer);
+    return res.ok || res.status === 400; // 400 = alive but no table, still reachable
+  } catch {
+    return false;
+  }
+}
