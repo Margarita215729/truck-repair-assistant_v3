@@ -63,18 +63,8 @@ export default function ServiceFinder() {
     enabled: services.length > 0,
   });
 
-  useEffect(() => {
-    if (navigator.geolocation) {
-      navigator.geolocation.getCurrentPosition(
-        (position) => {
-          setUserCoords([position.coords.latitude, position.coords.longitude]);
-        },
-        (error) => {
-          console.log('Location access denied');
-        }
-      );
-    }
-  }, []);
+  // No auto-geolocation on mount — request only on explicit user action
+  // to avoid consuming the browser permission prompt before the user is ready.
 
   // Fetch infrastructure data whenever userCoords change and layers are enabled
   const loadInfrastructure = useCallback(async (coords) => {
@@ -224,33 +214,57 @@ export default function ServiceFinder() {
     searchServices(location);
   };
 
-  const handleUseCurrentLocation = () => {
+  const handleUseCurrentLocation = async () => {
+    // If we already have coords, just search
     if (userCoords) {
       searchServices('', userCoords);
-    } else if (navigator.geolocation) {
-      setIsLocating(true);
-      navigator.geolocation.getCurrentPosition(
-        (position) => {
-          const coords = [position.coords.latitude, position.coords.longitude];
-          setUserCoords(coords);
-          setIsLocating(false);
-          searchServices('', coords);
-        },
-        (err) => {
-          setIsLocating(false);
-          if (err.code === 1) {
-            toast.error(t('services.locationDenied') || 'Location access denied. Please enable location in your browser settings.');
-          } else if (err.code === 3) {
-            toast.error(t('services.locationTimeout') || 'Location request timed out. Please try again or enter an address.');
-          } else {
-            toast.error(t('services.locationFailed'));
-          }
-        },
-        { enableHighAccuracy: false, timeout: 10000, maximumAge: 300000 }
-      );
-    } else {
-      toast.error(t('services.locationFailed'));
+      return;
     }
+
+    if (!navigator.geolocation) {
+      toast.error(t('services.locationFailed'));
+      return;
+    }
+
+    // Check permission state via Permissions API (if available)
+    if (navigator.permissions) {
+      try {
+        const status = await navigator.permissions.query({ name: 'geolocation' });
+        if (status.state === 'denied') {
+          toast.error(
+            t('services.locationDeniedReset') ||
+            'Location is blocked for this site. To fix: click the lock/settings icon in the address bar → reset location permission → reload the page.'
+          );
+          return;
+        }
+      } catch {
+        // Permissions API not supported for geolocation in this browser — continue anyway
+      }
+    }
+
+    setIsLocating(true);
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        const coords = [position.coords.latitude, position.coords.longitude];
+        setUserCoords(coords);
+        setIsLocating(false);
+        searchServices('', coords);
+      },
+      (err) => {
+        setIsLocating(false);
+        if (err.code === 1) {
+          toast.error(
+            t('services.locationDeniedReset') ||
+            'Location is blocked. Click the lock icon in the address bar → reset location permission → reload the page.'
+          );
+        } else if (err.code === 3) {
+          toast.error(t('services.locationTimeout') || 'Location request timed out. Please try again or enter an address.');
+        } else {
+          toast.error(t('services.locationFailed'));
+        }
+      },
+      { enableHighAccuracy: false, timeout: 10000, maximumAge: 300000 }
+    );
   };
 
   const toggleFilter = (type) => {
