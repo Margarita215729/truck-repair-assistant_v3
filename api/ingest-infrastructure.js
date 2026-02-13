@@ -21,10 +21,16 @@
 
 import { createClient } from '@supabase/supabase-js';
 
-const supabase = createClient(
-  process.env.SUPABASE_URL,
-  process.env.SUPABASE_SERVICE_ROLE_KEY
-);
+let _supabase;
+function getSupabase() {
+  if (!_supabase) {
+    if (!process.env.SUPABASE_URL || !process.env.SUPABASE_SERVICE_ROLE_KEY) {
+      throw new Error('SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY must be set in environment variables');
+    }
+    _supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY);
+  }
+  return _supabase;
+}
 
 const VALID_TABLES = ['truck_parking', 'weigh_stations', 'truck_restrictions'];
 
@@ -47,7 +53,7 @@ export default async function handler(req, res) {
     if (type === 'parking_occupancy_update' && Array.isArray(updates)) {
       const results = await Promise.allSettled(
         updates.map(async (u) => {
-          const { data, error } = await supabase
+          const { data, error } = await getSupabase()
             .from('truck_parking')
             .update({
               available_spaces: u.available_spaces,
@@ -79,7 +85,7 @@ export default async function handler(req, res) {
     }
 
     // Upsert by source_id to avoid duplicates
-    const { data, error } = await supabase
+    const { data, error } = await getSupabase()
       .from(type)
       .upsert(
         records.map(r => ({
