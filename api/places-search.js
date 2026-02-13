@@ -12,10 +12,12 @@ import { createClient } from '@supabase/supabase-js';
 let _supabase;
 function getSupabase() {
   if (!_supabase) {
-    if (!process.env.SUPABASE_URL || !process.env.SUPABASE_SERVICE_ROLE_KEY) {
+    const url = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL;
+    const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
+    if (!url || !key) {
       throw new Error('SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY must be set in environment variables');
     }
-    _supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY);
+    _supabase = createClient(url, key);
   }
   return _supabase;
 }
@@ -134,12 +136,21 @@ export default async function handler(req, res) {
         );
 
         if (!response.ok) {
-          console.error(`Places API error for ${search.type}:`, response.status, await response.text());
+          const errText = await response.text();
+          console.error(`Places API error for ${search.type}:`, response.status, errText);
+          // Surface first error to client so user sees the real reason
+          if (allResults.length === 0 && searches.indexOf(search) === searches.length - 1) {
+            return res.status(502).json({ 
+              error: `Google Places API error (${response.status}). Check that "Places API (New)" is enabled in Google Cloud Console and the API key is valid.`,
+              details: errText.slice(0, 300),
+            });
+          }
           continue;
         }
 
         const data = await response.json();
         const places = data.places || [];
+        console.log(`Places API [${search.type}]: returned ${places.length} results`);
 
         for (const place of places) {
           if (place.businessStatus && place.businessStatus !== 'OPERATIONAL') continue;
@@ -184,6 +195,8 @@ export default async function handler(req, res) {
 
     // Sort by distance
     allResults.sort((a, b) => a.distance - b.distance);
+
+    console.log(`Places search total: ${allResults.length} results for coords [${lat}, ${lng}], types: ${types.join(',')}`);
 
     return res.status(200).json({
       services: allResults,
