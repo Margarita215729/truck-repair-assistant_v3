@@ -39,6 +39,7 @@ export default function ServiceFinder() {
   const [isLoading, setIsLoading] = useState(false);
   const [selectedService, setSelectedService] = useState(null);
   const [viewMode, setViewMode] = useState('split');
+  const [isLocating, setIsLocating] = useState(false);
   const [filters, setFilters] = useState({
     repair: true,
     parking: true,
@@ -149,8 +150,19 @@ export default function ServiceFinder() {
       if (filters.towing) types.push('towing');
       if (types.length === 0) types.push('repair', 'parking', 'towing');
 
-      const { data: { session } } = await supabase.auth.getSession();
-      const authToken = session?.access_token;
+      // Get auth token (non-blocking — proceed even without it for graceful error)
+      let authToken = null;
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        authToken = session?.access_token;
+      } catch (authErr) {
+        console.warn('Failed to get session for places search:', authErr);
+      }
+
+      if (!authToken) {
+        toast.error(t('services.authRequired') || 'Please sign in to search for services.');
+        return;
+      }
 
       const response = await fetch('/api/places-search', {
         method: 'POST',
@@ -167,7 +179,13 @@ export default function ServiceFinder() {
         }),
       });
 
-      if (!response.ok) throw new Error(`HTTP ${response.status}`);
+      if (!response.ok) {
+        if (response.status === 401) {
+          toast.error(t('services.authRequired') || 'Session expired. Please sign in again.');
+          return;
+        }
+        throw new Error(`HTTP ${response.status}`);
+      }
       const data = await response.json();
 
       let results = data.services || [];
@@ -210,14 +228,23 @@ export default function ServiceFinder() {
     if (userCoords) {
       searchServices('', userCoords);
     } else if (navigator.geolocation) {
+      setIsLocating(true);
       navigator.geolocation.getCurrentPosition(
         (position) => {
           const coords = [position.coords.latitude, position.coords.longitude];
           setUserCoords(coords);
+          setIsLocating(false);
           searchServices('', coords);
         },
-        () => {
-          toast.error(t('services.locationFailed'));
+        (err) => {
+          setIsLocating(false);
+          if (err.code === 1) {
+            toast.error(t('services.locationDenied') || 'Location access denied. Please enable location in your browser settings.');
+          } else if (err.code === 3) {
+            toast.error(t('services.locationTimeout') || 'Location request timed out. Please try again or enter an address.');
+          } else {
+            toast.error(t('services.locationFailed'));
+          }
         },
         { enableHighAccuracy: false, timeout: 10000, maximumAge: 300000 }
       );
@@ -268,10 +295,15 @@ export default function ServiceFinder() {
                 type="button"
                 variant="outline"
                 onClick={handleUseCurrentLocation}
+                disabled={isLocating}
                 className="h-12 border-white/20 hover:bg-white/10 whitespace-nowrap"
               >
-                <MapPin className="w-4 h-4 mr-2" />
-                {t('services.useMyLocation')}
+                {isLocating ? (
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                ) : (
+                  <MapPin className="w-4 h-4 mr-2" />
+                )}
+                {isLocating ? (t('services.locating') || 'Locating...') : t('services.useMyLocation')}
               </Button>
               <Button
                 type="submit"
