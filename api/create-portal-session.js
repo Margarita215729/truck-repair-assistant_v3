@@ -3,11 +3,18 @@ import { createClient } from '@supabase/supabase-js';
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || 'sk_missing');
 
-const supabaseUrl = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL;
-const supabase = createClient(
-  supabaseUrl || 'https://placeholder.supabase.co',
-  process.env.SUPABASE_SERVICE_ROLE_KEY || 'placeholder'
-);
+let _supabase;
+function getSupabase() {
+  if (!_supabase) {
+    const url = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL;
+    const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
+    if (!url || !key) {
+      throw new Error('SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY must be set in environment variables');
+    }
+    _supabase = createClient(url, key);
+  }
+  return _supabase;
+}
 
 export default async function handler(req, res) {
   if (req.method !== 'POST') {
@@ -21,13 +28,13 @@ export default async function handler(req, res) {
       return res.status(401).json({ error: 'Unauthorized' });
     }
 
-    const { data: { user }, error: authError } = await supabase.auth.getUser(token);
+    const { data: { user }, error: authError } = await getSupabase().auth.getUser(token);
     if (authError || !user) {
       return res.status(401).json({ error: 'Invalid token' });
     }
 
     // Get Stripe customer ID
-    const { data: sub } = await supabase
+    const { data: sub } = await getSupabase()
       .from('subscriptions')
       .select('stripe_customer_id')
       .eq('user_id', user.id)
