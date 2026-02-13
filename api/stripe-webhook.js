@@ -4,10 +4,16 @@ import { createClient } from '@supabase/supabase-js';
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
 const endpointSecret = process.env.STRIPE_WEBHOOK_SECRET;
 
-const supabase = createClient(
-  process.env.SUPABASE_URL,
-  process.env.SUPABASE_SERVICE_ROLE_KEY
-);
+let _supabase;
+function getSupabase() {
+  if (!_supabase) {
+    if (!process.env.SUPABASE_URL || !process.env.SUPABASE_SERVICE_ROLE_KEY) {
+      throw new Error('SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY must be set in environment variables');
+    }
+    _supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY);
+  }
+  return _supabase;
+}
 
 // Map Stripe price IDs to plan names
 const PRICE_TO_PLAN = {
@@ -65,7 +71,7 @@ export default async function handler(req, res) {
           const priceId = stripeSubscription.items?.data?.[0]?.price?.id;
           const plan = resolvePlan(priceId, session.metadata?.plan_name);
 
-          const { error: dbError } = await supabase
+          const { error: dbError } = await getSupabase()
             .from('subscriptions')
             .update({
               stripe_subscription_id: subscriptionId,
@@ -96,7 +102,7 @@ export default async function handler(req, res) {
           const priceId = subscription.items?.data?.[0]?.price?.id;
           const plan = resolvePlan(priceId, subscription.metadata?.plan_name);
 
-          const { error: dbError } = await supabase
+          const { error: dbError } = await getSupabase()
             .from('subscriptions')
             .update({
               plan,
@@ -116,7 +122,7 @@ export default async function handler(req, res) {
         const userId = subscription.metadata?.supabase_user_id;
 
         if (userId) {
-          const { error: dbError } = await supabase
+          const { error: dbError } = await getSupabase()
             .from('subscriptions')
             .update({
               plan: 'free',
@@ -140,7 +146,7 @@ export default async function handler(req, res) {
           const userId = stripeSubscription.metadata?.supabase_user_id;
 
           if (userId) {
-            const { error: dbError } = await supabase
+            const { error: dbError } = await getSupabase()
               .from('subscriptions')
               .update({ status: 'past_due' })
               .eq('user_id', userId);

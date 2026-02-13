@@ -6,10 +6,16 @@ const ALLOWED_MODELS = new Set(['openai/gpt-4o-mini', 'openai/gpt-4o']);
 const MAX_MESSAGES = 50;
 const MAX_TOKENS_LIMIT = 4096;
 
-const supabase = createClient(
-  process.env.SUPABASE_URL,
-  process.env.SUPABASE_SERVICE_ROLE_KEY
-);
+let _supabase;
+function getSupabase() {
+  if (!_supabase) {
+    if (!process.env.SUPABASE_URL || !process.env.SUPABASE_SERVICE_ROLE_KEY) {
+      throw new Error('SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY must be set in environment variables');
+    }
+    _supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY);
+  }
+  return _supabase;
+}
 
 export default async function handler(req, res) {
   if (req.method !== 'POST') {
@@ -23,13 +29,13 @@ export default async function handler(req, res) {
       return res.status(401).json({ error: 'Unauthorized' });
     }
 
-    const { data: { user }, error: authError } = await supabase.auth.getUser(token);
+    const { data: { user }, error: authError } = await getSupabase().auth.getUser(token);
     if (authError || !user) {
       return res.status(401).json({ error: 'Invalid token' });
     }
 
     // Check AI limit
-    const { data: limitCheck } = await supabase.rpc('check_ai_limit', { p_user_id: user.id });
+    const { data: limitCheck } = await getSupabase().rpc('check_ai_limit', { p_user_id: user.id });
     if (limitCheck && !limitCheck.allowed) {
       return res.status(429).json({
         error: 'Daily AI request limit reached',
@@ -84,7 +90,7 @@ export default async function handler(req, res) {
 
     // Increment usage counter (await to ensure it completes)
     try {
-      await supabase.rpc('increment_ai_usage', { p_user_id: user.id });
+      await getSupabase().rpc('increment_ai_usage', { p_user_id: user.id });
     } catch (usageErr) {
       console.warn('Failed to increment AI usage:', usageErr);
     }

@@ -12,10 +12,16 @@
 
 import { createClient } from '@supabase/supabase-js';
 
-const supabase = createClient(
-  process.env.SUPABASE_URL,
-  process.env.SUPABASE_SERVICE_ROLE_KEY
-);
+let _supabase;
+function getSupabase() {
+  if (!_supabase) {
+    if (!process.env.SUPABASE_URL || !process.env.SUPABASE_SERVICE_ROLE_KEY) {
+      throw new Error('SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY must be set in environment variables');
+    }
+    _supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY);
+  }
+  return _supabase;
+}
 
 const ALLOWED_ORIGINS = [
   'https://truck-repair-assistant-v3.vercel.app',
@@ -42,7 +48,7 @@ export default async function handler(req, res) {
   if (!token) {
     return res.status(401).json({ error: 'Unauthorized' });
   }
-  const { data: { user }, error: authError } = await supabase.auth.getUser(token);
+  const { data: { user }, error: authError } = await getSupabase().auth.getUser(token);
   if (authError || !user) {
     return res.status(401).json({ error: 'Invalid or expired token' });
   }
