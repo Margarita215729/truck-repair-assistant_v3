@@ -8,7 +8,6 @@ export default function DiagnosticTools({
   truck, 
   errorCodes = [], 
   symptoms = [],
-  truckPulse = false,
   onTruckClick,
   onAudioClick,
   onErrorCodesClick,
@@ -37,7 +36,7 @@ export default function DiagnosticTools({
             variant="outline"
             size="sm"
             onClick={onTruckClick}
-            className={`border-white/20 bg-white/5 hover:bg-white/10 text-white/70 hover:text-white h-8 px-2 md:px-3 ${truckPulse ? 'ring-2 ring-orange-400/60 animate-pulse' : ''}`}
+            className="border-white/20 bg-white/5 hover:bg-white/10 text-white/70 hover:text-white h-8 px-2 md:px-3"
             title="Select Truck"
           >
             <Truck className="w-4 h-4 md:mr-1.5" />

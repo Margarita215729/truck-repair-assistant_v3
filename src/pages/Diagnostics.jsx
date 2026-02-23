@@ -3,7 +3,7 @@ import { entities } from '@/services/entityService';
 import { invokeLLM, uploadFile } from '@/services/aiService';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
-import { Loader2, FileText, Wrench, Plus, AlertTriangle, History, CheckCircle2, Circle, Info } from 'lucide-react';
+import { Loader2, FileText, Wrench, Plus, AlertTriangle, History, Info } from 'lucide-react';
 import { toast } from 'sonner';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useQueryClient } from '@tanstack/react-query';
@@ -75,9 +75,12 @@ export default function Diagnostics() {
 
   const messagesEndRef = useRef(null);
   const textareaRef = useRef(null);
+  const inputAreaRef = useRef(null);
+  const messagesContainerRef = useRef(null);
+  const lastScrollTopRef = useRef(0);
   const [isGeneratingReport, setIsGeneratingReport] = useState(false);
   const [showNudge, setShowNudge] = useState(false);
-  const [truckPulse, setTruckPulse] = useState(false);
+  const [inputHidden, setInputHidden] = useState(false);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -85,7 +88,53 @@ export default function Diagnostics() {
 
   useEffect(() => {
     scrollToBottom();
-    }, [messages]);
+  }, [messages]);
+
+  // Detect if AI is asking clarifying questions — keep input pinned
+  const lastAssistantMsg = messages.length > 0 ? [...messages].reverse().find(m => m.role === 'assistant') : null;
+  const hasClarifyingQuestions = lastAssistantMsg?.clarifying_questions?.length > 0;
+
+  // Hide input when scrolling up through messages, show on scroll down
+  useEffect(() => {
+    const container = messagesContainerRef.current;
+    if (!container) return;
+    const handleScroll = () => {
+      const st = container.scrollTop;
+      const maxScroll = container.scrollHeight - container.clientHeight;
+      // Near bottom (within 100px) — always show
+      if (maxScroll - st < 100) {
+        setInputHidden(false);
+      } else if (st < lastScrollTopRef.current - 5) {
+        // Scrolling up
+        setInputHidden(true);
+      } else if (st > lastScrollTopRef.current + 5) {
+        // Scrolling down
+        setInputHidden(false);
+      }
+      lastScrollTopRef.current = st;
+    };
+    container.addEventListener('scroll', handleScroll, { passive: true });
+    return () => container.removeEventListener('scroll', handleScroll);
+  }, []);
+
+  // Keep input above mobile keyboard using visualViewport API
+  useEffect(() => {
+    const vv = window.visualViewport;
+    if (!vv) return;
+    const handleResize = () => {
+      const el = inputAreaRef.current;
+      if (!el) return;
+      // When keyboard opens, visualViewport.height < window.innerHeight
+      const offset = window.innerHeight - vv.height;
+      el.style.transform = offset > 50 ? `translateY(-${offset}px)` : '';
+    };
+    vv.addEventListener('resize', handleResize);
+    vv.addEventListener('scroll', handleResize);
+    return () => {
+      vv.removeEventListener('resize', handleResize);
+      vv.removeEventListener('scroll', handleResize);
+    };
+  }, []);
 
     const handleNewChat = () => {
     setMessages([]);
@@ -246,8 +295,7 @@ export default function Diagnostics() {
     // Roadside mode: show gentle nudge if no truck selected (never block)
     if (!truck && messages.length === 0) {
       setShowNudge(true);
-      setTruckPulse(true);
-      setTimeout(() => { setShowNudge(false); setTruckPulse(false); }, 5000);
+      setTimeout(() => setShowNudge(false), 5000);
     } else if (truck && errorCodes.length === 0 && symptoms.length === 0 && messages.length === 0) {
       // Truck selected but no codes/symptoms — lighter nudge
       setShowNudge(true);
@@ -806,7 +854,7 @@ Focus on:
   return (
     <div className="min-h-screen flex flex-col">
       {/* Messages Area */}
-      <div className="flex-1 overflow-y-auto">
+      <div ref={messagesContainerRef} className="flex-1 overflow-y-auto">
         <div className="max-w-4xl mx-auto px-4 py-6">
           {isFirstMessage ? (
             <motion.div
@@ -822,83 +870,10 @@ Focus on:
                 <span className="brand-text-gradient">Truck Repair</span>
                 <span className="text-white ml-2">Assistant</span>
               </h1>
-              {/* Step-by-step hints checklist */}
-              <div className="w-full max-w-sm mb-6">
-                <p className="text-sm font-medium text-white/70 mb-3 text-left">{t('diagnostics.hintStepsTitle')}</p>
-                <div className="space-y-2">
-                  {/* Step 1: Select truck */}
-                  <button
-                    onClick={() => setShowTruckSelector(true)}
-                    className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-xl border transition-all text-left ${
-                      truck
-                        ? 'bg-green-500/10 border-green-500/30 text-green-400'
-                        : 'bg-white/5 border-orange-500/40 text-white/80 hover:bg-white/10 hover:border-orange-500/60 animate-pulse-subtle'
-                    }`}
-                  >
-                    {truck ? (
-                      <CheckCircle2 className="w-5 h-5 text-green-400 shrink-0" />
-                    ) : (
-                      <Circle className="w-5 h-5 text-orange-400 shrink-0" />
-                    )}
-                    <span className="text-sm flex-1">{t('diagnostics.hintSelectTruck')}</span>
-                    {truck ? (
-                      <span className="text-xs text-green-400/70">{truck.year} {truck.make} {truck.model}</span>
-                    ) : (
-                      <span className="text-xs text-orange-400/60">← {t('diagnostics.hintStepDone') === 'Done' ? 'tap here' : 'нажмите'}</span>
-                    )}
-                  </button>
-
-                  {/* Step 2: Add error codes */}
-                  <button
-                    onClick={() => setShowErrorCodeInput(true)}
-                    className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-xl border transition-all text-left ${
-                      errorCodes.length > 0
-                        ? 'bg-green-500/10 border-green-500/30 text-green-400'
-                        : 'bg-white/5 border-white/10 text-white/60 hover:bg-white/10 hover:border-white/20'
-                    }`}
-                  >
-                    {errorCodes.length > 0 ? (
-                      <CheckCircle2 className="w-5 h-5 text-green-400 shrink-0" />
-                    ) : (
-                      <Circle className="w-5 h-5 text-white/30 shrink-0" />
-                    )}
-                    <span className="text-sm flex-1">{t('diagnostics.hintAddCodes')}</span>
-                    {errorCodes.length > 0 ? (
-                      <span className="text-xs text-green-400/70">{errorCodes.join(', ')}</span>
-                    ) : (
-                      <span className="text-xs text-white/30">{t('diagnostics.hintStepOptional')}</span>
-                    )}
-                  </button>
-
-                  {/* Step 3: Describe symptoms */}
-                  <button
-                    onClick={() => setShowSymptomPicker(true)}
-                    className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-xl border transition-all text-left ${
-                      symptoms.length > 0
-                        ? 'bg-green-500/10 border-green-500/30 text-green-400'
-                        : 'bg-white/5 border-white/10 text-white/60 hover:bg-white/10 hover:border-white/20'
-                    }`}
-                  >
-                    {symptoms.length > 0 ? (
-                      <CheckCircle2 className="w-5 h-5 text-green-400 shrink-0" />
-                    ) : (
-                      <Circle className="w-5 h-5 text-white/30 shrink-0" />
-                    )}
-                    <span className="text-sm flex-1">{t('diagnostics.hintDescribeSymptoms')}</span>
-                    {symptoms.length > 0 ? (
-                      <span className="text-xs text-green-400/70">{symptoms.length}</span>
-                    ) : (
-                      <span className="text-xs text-white/30">{t('diagnostics.hintStepOptional')}</span>
-                    )}
-                  </button>
-
-                  {/* Step 4: Describe problem */}
-                  <div className="flex items-center gap-3 px-4 py-2.5 rounded-xl bg-white/5 border border-white/10 text-white/60">
-                    <Circle className="w-5 h-5 text-white/30 shrink-0" />
-                    <span className="text-sm flex-1">{t('diagnostics.hintDescribeProblem')}</span>
-                    <span className="text-xs text-white/30">↓</span>
-                  </div>
-                </div>
+              <div className="text-base text-white/60 max-w-md mb-6 text-left space-y-2">
+                {t('diagnostics.welcomeDesc').split('\n').map((line, i) => (
+                  <p key={i}>{line}</p>
+                ))}
               </div>
 
               <Button
@@ -1008,7 +983,7 @@ Focus on:
       </div>
 
       {/* Input Area */}
-      <div className="fixed bottom-0 left-0 right-0 z-40 bg-gradient-to-t from-[#0b1012] via-[#0b1012] to-transparent pt-8 safe-bottom">
+      <div ref={inputAreaRef} className={`fixed bottom-0 left-0 right-0 z-40 bg-gradient-to-t from-[#0b1012] via-[#0b1012] to-transparent pt-8 safe-bottom transition-transform duration-300 ${inputHidden && !hasClarifyingQuestions && !isLoading ? 'translate-y-full' : 'translate-y-0'}`} style={{ transition: 'transform 0.3s ease-out' }}>
         <div className="max-w-4xl mx-auto px-4 pb-4">
           {!isFirstMessage && (
             <div className="mb-3 space-y-2">
@@ -1047,7 +1022,6 @@ Focus on:
                     truck={truck}
                     errorCodes={errorCodes}
                     symptoms={symptoms}
-                    truckPulse={truckPulse}
                     onTruckClick={() => setShowTruckSelector(true)}
                     onAudioClick={() => setShowAudioRecorder(true)}
                     onErrorCodesClick={() => setShowErrorCodeInput(true)}
@@ -1227,7 +1201,7 @@ Focus on:
       <TruckSelector
         open={showTruckSelector}
         onClose={() => setShowTruckSelector(false)}
-        onSelect={(t) => { setTruck(t); setShowNudge(false); setTruckPulse(false); }}
+        onSelect={(t) => { setTruck(t); setShowNudge(false); }}
         currentTruck={truck}
       />
       
