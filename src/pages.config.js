@@ -1,6 +1,7 @@
 import Community from './pages/Community';
 import Diagnostics from './pages/Diagnostics';
 import PartsCatalog from './pages/PartsCatalog';
+import PoliciesPage from './pages/PoliciesPage';
 import Profile from './pages/Profile';
 import Reports from './pages/Reports';
 import ServiceFinder from './pages/ServiceFinder';
@@ -10,6 +11,7 @@ export const PAGES = {
   "Community": Community,
   "Diagnostics": Diagnostics,
   "PartsCatalog": PartsCatalog,
+  "Policies": PoliciesPage,
   "Profile": Profile,
   "Reports": Reports,
   "ServiceFinder": ServiceFinder,

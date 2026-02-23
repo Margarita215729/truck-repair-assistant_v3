@@ -3,7 +3,7 @@ import { entities } from '@/services/entityService';
 import { invokeLLM, uploadFile } from '@/services/aiService';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
-import { Send, Loader2, FileText, Wrench, Plus, AlertTriangle, History } from 'lucide-react';
+import { Loader2, FileText, Wrench, Plus, AlertTriangle, History } from 'lucide-react';
 import { toast } from 'sonner';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useQueryClient } from '@tanstack/react-query';
@@ -13,7 +13,6 @@ import AudioRecorder from '@/components/diagnostics/AudioRecorder';
 import SymptomPicker from '@/components/diagnostics/SymptomPicker';
 import ErrorCodeInput from '@/components/diagnostics/ErrorCodeInput';
 import ChatMessage from '@/components/diagnostics/ChatMessage';
-import QuickPrompts from '@/components/diagnostics/QuickPrompts';
 import DiagnosticTools from '@/components/diagnostics/DiagnosticTools';
 import ToolkitSelector from '@/components/diagnostics/ToolkitSelector';
 import ToolkitManager from '@/components/diagnostics/ToolkitManager';
@@ -580,10 +579,6 @@ User: ${messageText}${audioUrl ? '\n[User has attached an audio recording of eng
     }
   };
 
-  const handleQuickPrompt = (prompt) => {
-    sendMessage(prompt);
-  };
-
   const generateReport = async () => {
     if (messages.length < 2) {
       toast.error('Need more conversation to generate a report');
@@ -819,9 +814,11 @@ Focus on:
                 <span className="brand-text-gradient">Truck Repair</span>
                 <span className="text-white ml-2">Assistant</span>
               </h1>
-              <p className="text-lg text-white/60 max-w-md mb-6">
-                {t('diagnostics.welcomeDesc')}
-              </p>
+              <div className="text-base text-white/60 max-w-md mb-6 text-left space-y-2">
+                {t('diagnostics.welcomeDesc').split('\n').map((line, i) => (
+                  <p key={i}>{line}</p>
+                ))}
+              </div>
 
               <Button
                 variant="outline"
@@ -881,21 +878,14 @@ Focus on:
                   onAudioClick={() => setShowAudioRecorder(true)}
                   onErrorCodesClick={() => setShowErrorCodeInput(true)}
                   onSymptomsClick={() => setShowSymptomPicker(true)}
-                  onToolkitClick={() => setShowToolkitSelector(true)}
-                  onPhotoClick={() => setShowPartPhoto(true)}
                   onClearTruck={() => setTruck(null)}
                   onClearCodes={() => setErrorCodes([])}
                   onClearSymptoms={() => setSymptoms([])}
                 />
               </div>
-
-              <div className="w-full max-w-2xl">
-                <p className="text-sm text-white/40 mb-4">{t('diagnostics.quickStart')}</p>
-                <QuickPrompts onSelect={handleQuickPrompt} />
-              </div>
             </motion.div>
           ) : (
-            <div className="space-y-6 pb-32">
+            <div className="space-y-6 pb-48">
               <AnimatePresence>
                 {messages.map((message, index) => (
                   <ChatMessage 
@@ -937,7 +927,7 @@ Focus on:
       </div>
 
       {/* Input Area */}
-      <div className="sticky bottom-0 bg-gradient-to-t from-[#0b1012] via-[#0b1012] to-transparent pt-8">
+      <div className="fixed bottom-0 left-0 right-0 z-40 bg-gradient-to-t from-[#0b1012] via-[#0b1012] to-transparent pt-8">
         <div className="max-w-4xl mx-auto px-4 pb-6">
           {!isFirstMessage && (
             <div className="mb-3 space-y-2">
@@ -979,8 +969,6 @@ Focus on:
                   onAudioClick={() => setShowAudioRecorder(true)}
                   onErrorCodesClick={() => setShowErrorCodeInput(true)}
                   onSymptomsClick={() => setShowSymptomPicker(true)}
-                  onToolkitClick={() => setShowToolkitSelector(true)}
-                  onPhotoClick={() => setShowPartPhoto(true)}
                   onClearTruck={() => setTruck(null)}
                   onClearCodes={() => setErrorCodes([])}
                   onClearSymptoms={() => setSymptoms([])}
@@ -1053,14 +1041,14 @@ Focus on:
             </div>
           )}
 
-          <div className="relative">
+          <div>
             <Textarea
               ref={textareaRef}
               value={input}
               onChange={(e) => setInput(e.target.value)}
               onKeyDown={handleKeyDown}
               placeholder={t('diagnostics.inputPlaceholder')}
-              className="w-full min-h-[60px] max-h-[200px] resize-none bg-white/5 border-brand-dark/30 text-white placeholder:text-white/40 rounded-2xl pr-14 py-4 focus:ring-2 focus:ring-brand-orange/50 focus:border-brand-orange/50"
+              className="w-full min-h-[60px] max-h-[200px] resize-none bg-white/5 border-brand-dark/30 text-white placeholder:text-white/40 rounded-2xl py-4 px-4 focus:ring-2 focus:ring-brand-orange/50 focus:border-brand-orange/50"
               disabled={isLoading}
             />
             <Button
@@ -1082,12 +1070,12 @@ Focus on:
                 }
               }}
               disabled={(!input.trim() && !(truck && symptoms.length > 0) && pendingAnswers.length === 0) || isLoading}
-              className="absolute right-2 bottom-2 w-10 h-10 rounded-xl bg-gradient-to-r from-brand-orange to-brand-orange-light hover:from-[#e8851f] hover:to-[#d67a18] disabled:opacity-50 disabled:cursor-not-allowed p-0 shadow-lg shadow-brand-orange/20"
+              className="w-full mt-2 py-3 rounded-xl bg-gradient-to-r from-brand-orange to-brand-orange-light hover:from-[#e8851f] hover:to-[#d67a18] disabled:opacity-50 disabled:cursor-not-allowed shadow-lg shadow-brand-orange/20 text-white font-semibold text-sm tracking-wide"
             >
               {isLoading ? (
-                <Loader2 className="w-5 h-5 animate-spin" />
+                <Loader2 className="w-5 h-5 animate-spin mx-auto" />
               ) : (
-                <Send className="w-5 h-5" />
+                isFirstMessage ? t('diagnostics.startDiagnostic') : t('diagnostics.send')
               )}
             </Button>
           </div>
@@ -1110,7 +1098,9 @@ Focus on:
           )}
           
           <p className="text-center text-xs text-white/30 mt-3">
-            {t('diagnostics.disclaimer')}
+            <a href="/Policies" className="underline hover:text-white/50 transition-colors">
+              {t('policies.viewPolicies')}
+            </a>
           </p>
         </div>
       </div>

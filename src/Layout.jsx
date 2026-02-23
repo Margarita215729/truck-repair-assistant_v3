@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom';
 import { createPageUrl } from './utils';
 import { useAuth } from '@/lib/AuthContext';
 import { useLanguage } from '@/lib/LanguageContext';
-import { MessageSquare, MapPin, FileText, Menu, X, User, LogIn, Package, Users, Globe, Crown, Zap } from 'lucide-react';
+import { MessageSquare, MapPin, FileText, Menu, X, User, LogIn, Package, Globe, Crown, Zap, Shield } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -19,10 +19,11 @@ export default function Layout({ children, currentPageName }) {
 
   const navItems = [
     { name: t('nav.diagnostics'), page: 'Diagnostics', icon: MessageSquare },
-    { name: t('nav.community'), page: 'Community', icon: Users },
+    // Community hidden from nav (still accessible via /Community)
     { name: t('nav.partsCatalog'), page: 'PartsCatalog', icon: Package },
     { name: t('nav.findServices'), page: 'ServiceFinder', icon: MapPin },
     { name: t('nav.reports'), page: 'Reports', icon: FileText },
+    { name: t('nav.policies'), page: 'Policies', icon: Shield },
     { name: t('nav.profile'), page: 'Profile', icon: User },
   ];
 

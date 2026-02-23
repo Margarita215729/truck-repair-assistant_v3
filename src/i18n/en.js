@@ -34,6 +34,7 @@ export default {
     partsCatalog: 'Parts Catalog',
     findServices: 'Find Services',
     reports: 'Reports',
+    policies: 'Policies',
     profile: 'Profile',
     pricing: 'Pricing',
     login: 'Login',
@@ -176,8 +177,7 @@ export default {
   // ─── Diagnostics ───
   diagnostics: {
     welcome: 'What seems to be the problem?',
-    welcomeDesc: 'Your AI-powered truck mechanic. Describe your problem, share error codes, or record engine sounds for instant diagnosis.',
-    quickStart: 'Quick start with common issues:',
+    welcomeDesc: '1. Select your truck\n2. Describe the problem\n3. Get a diagnosis',
     newChat: 'New Chat',
     newChatStarted: 'New chat started',
     chatHistory: 'Chat History',
@@ -217,6 +217,8 @@ export default {
     aiLimitReached: 'Daily AI limit reached',
     aiLimitDesc: 'You\'ve used all your free AI requests for today. Upgrade to Pro for unlimited access.',
     requestsRemaining: 'requests remaining today',
+    startDiagnostic: 'START DIAGNOSTIC',
+    send: 'SEND',
   },
 
   // ─── Community ───
@@ -514,5 +516,18 @@ export default {
     truckLimitDesc: 'Free accounts can have up to {limit} trucks. Upgrade to Pro for unlimited trucks.',
     upgradeToPro: 'Upgrade to Pro',
     maybeLater: 'Maybe Later',
+  },
+
+  // ─── Policies ───
+  policies: {
+    title: 'Policies',
+    subtitle: 'Important information about Truck Repair Assistant',
+    viewPolicies: 'Policies & Disclaimer',
+    disclaimerTitle: 'Disclaimer',
+    aiTitle: 'AI Technology',
+    aiDescription: 'This application uses artificial intelligence to assist with truck diagnostics. AI analyzes the information you provide — error codes, symptoms, sounds — and generates recommendations based on training data and community knowledge.',
+    aiLimitations: 'AI-generated recommendations are suggestions, not professional mechanical advice. The system may not account for all variables specific to your vehicle. Always consult a certified mechanic for safety-critical repairs.',
+    privacyTitle: 'Data & Privacy',
+    privacyDescription: 'Your diagnostic conversations and truck data are stored securely. We use this information to improve diagnostic accuracy and provide you with conversation history. We do not share your personal data with third parties.',
   },
 };
