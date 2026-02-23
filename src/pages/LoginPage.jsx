@@ -73,7 +73,7 @@ export default function LoginPage({ onLogin }) {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center p-4">
+    <div className="min-h-screen flex items-center justify-center p-4 safe-bottom">
       {/* Background effects */}
       <div className="fixed inset-0 overflow-hidden pointer-events-none">
         <div className="absolute top-1/4 -left-32 w-96 h-96 bg-brand-orange/5 rounded-full blur-3xl" />
@@ -86,7 +86,7 @@ export default function LoginPage({ onLogin }) {
         <div className="flex justify-end mb-4">
           <button
             onClick={() => setLanguage(language === 'en' ? 'ru' : 'en')}
-            className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-white/5 border border-white/10 text-white/70 hover:text-white hover:bg-white/10 transition-all text-sm"
+            className="flex items-center gap-2 px-3 py-2 rounded-lg bg-white/5 border border-white/10 text-white/70 hover:text-white hover:bg-white/10 transition-all text-sm"
           >
             <Globe className="w-4 h-4" />
             {languages[language]}
@@ -94,11 +94,11 @@ export default function LoginPage({ onLogin }) {
         </div>
 
         {/* Logo */}
-        <div className="text-center mb-8">
-          <div className="inline-flex items-center justify-center mb-4">
-            <img src="/logo.svg" alt="Truck Repair Assistant" className="w-20 h-20 brand-logo" />
+        <div className="text-center mb-6 md:mb-8">
+          <div className="inline-flex items-center justify-center mb-3">
+            <img src="/logo.svg" alt="Truck Repair Assistant" className="w-16 h-16 md:w-20 md:h-20 brand-logo" />
           </div>
-          <h1 className="text-2xl font-bold tracking-tight">
+          <h1 className="text-xl md:text-2xl font-bold tracking-tight">
             <span className="brand-text-gradient">Truck Repair</span>
             <span className="text-white ml-1">Assistant</span>
           </h1>
@@ -200,7 +200,7 @@ export default function LoginPage({ onLogin }) {
           )}
 
           {/* Form */}
-          <form onSubmit={handleSubmit} className="space-y-4">
+          <form onSubmit={handleSubmit} className="space-y-5">
             {mode === 'signup' && (
               <div className="space-y-2">
                 <Label htmlFor="name" className="text-white/70 text-sm">
@@ -281,7 +281,7 @@ export default function LoginPage({ onLogin }) {
             <Button
               type="submit"
               disabled={loading}
-              className="w-full h-11 brand-btn text-white font-medium border-0 transition-all"
+              className="w-full h-12 brand-btn text-white font-medium text-base border-0 transition-all"
             >
               {loading ? (
                 <>

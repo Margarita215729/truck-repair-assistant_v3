@@ -3,6 +3,17 @@
  * Uses Supabase Auth + profiles table (no localStorage for profile data)
  */
 import { supabase, hasSupabaseConfig } from '@/api/supabaseClient';
+import { env } from '@/config/env';
+
+/**
+ * Get app origin for auth redirects.
+ * Uses VITE_APP_URL env var if set, otherwise falls back to window.location.origin.
+ * This prevents localhost URLs from ending up in email verification links.
+ */
+function getAuthRedirectOrigin() {
+  if (env.APP_URL) return env.APP_URL.replace(/\/$/, '');
+  return window.location.origin;
+}
 
 export const authService = {
   /**
@@ -73,7 +84,7 @@ export const authService = {
       password,
       options: {
         data: { display_name: name, role: 'technician' },
-        emailRedirectTo: `${window.location.origin}/auth/confirm`,
+        emailRedirectTo: `${getAuthRedirectOrigin()}/auth/confirm`,
       },
     });
     if (error) throw error;
@@ -88,7 +99,7 @@ export const authService = {
       throw new Error('Authentication service is not configured.');
     }
     const { error } = await supabase.auth.resetPasswordForEmail(email, {
-      redirectTo: `${window.location.origin}/auth/confirm`,
+      redirectTo: `${getAuthRedirectOrigin()}/auth/confirm`,
     });
     if (error) throw error;
   },
