@@ -3,7 +3,7 @@ import { entities } from '@/services/entityService';
 import { invokeLLM, uploadFile } from '@/services/aiService';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
-import { Loader2, FileText, Wrench, Plus, AlertTriangle, History } from 'lucide-react';
+import { Loader2, FileText, Wrench, Plus, AlertTriangle, History, CheckCircle2, Circle, Info } from 'lucide-react';
 import { toast } from 'sonner';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useQueryClient } from '@tanstack/react-query';
@@ -76,6 +76,8 @@ export default function Diagnostics() {
   const messagesEndRef = useRef(null);
   const textareaRef = useRef(null);
   const [isGeneratingReport, setIsGeneratingReport] = useState(false);
+  const [showNudge, setShowNudge] = useState(false);
+  const [truckPulse, setTruckPulse] = useState(false);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -241,9 +243,15 @@ export default function Diagnostics() {
   const sendMessage = async (messageText, audioUrl = null) => {
     if (!messageText.trim() && !audioUrl) return;
 
-    // Roadside mode: No truck requirement for first message.
+    // Roadside mode: show gentle nudge if no truck selected (never block)
     if (!truck && messages.length === 0) {
-      // Suggest truck selection but never block
+      setShowNudge(true);
+      setTruckPulse(true);
+      setTimeout(() => { setShowNudge(false); setTruckPulse(false); }, 5000);
+    } else if (truck && errorCodes.length === 0 && symptoms.length === 0 && messages.length === 0) {
+      // Truck selected but no codes/symptoms — lighter nudge
+      setShowNudge(true);
+      setTimeout(() => setShowNudge(false), 4000);
     }
 
     // Check AI usage limit before sending (before UI update to avoid ghost messages)
@@ -814,10 +822,83 @@ Focus on:
                 <span className="brand-text-gradient">Truck Repair</span>
                 <span className="text-white ml-2">Assistant</span>
               </h1>
-              <div className="text-base text-white/60 max-w-md mb-6 text-left space-y-2">
-                {t('diagnostics.welcomeDesc').split('\n').map((line, i) => (
-                  <p key={i}>{line}</p>
-                ))}
+              {/* Step-by-step hints checklist */}
+              <div className="w-full max-w-sm mb-6">
+                <p className="text-sm font-medium text-white/70 mb-3 text-left">{t('diagnostics.hintStepsTitle')}</p>
+                <div className="space-y-2">
+                  {/* Step 1: Select truck */}
+                  <button
+                    onClick={() => setShowTruckSelector(true)}
+                    className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-xl border transition-all text-left ${
+                      truck
+                        ? 'bg-green-500/10 border-green-500/30 text-green-400'
+                        : 'bg-white/5 border-orange-500/40 text-white/80 hover:bg-white/10 hover:border-orange-500/60 animate-pulse-subtle'
+                    }`}
+                  >
+                    {truck ? (
+                      <CheckCircle2 className="w-5 h-5 text-green-400 shrink-0" />
+                    ) : (
+                      <Circle className="w-5 h-5 text-orange-400 shrink-0" />
+                    )}
+                    <span className="text-sm flex-1">{t('diagnostics.hintSelectTruck')}</span>
+                    {truck ? (
+                      <span className="text-xs text-green-400/70">{truck.year} {truck.make} {truck.model}</span>
+                    ) : (
+                      <span className="text-xs text-orange-400/60">← {t('diagnostics.hintStepDone') === 'Done' ? 'tap here' : 'нажмите'}</span>
+                    )}
+                  </button>
+
+                  {/* Step 2: Add error codes */}
+                  <button
+                    onClick={() => setShowErrorCodeInput(true)}
+                    className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-xl border transition-all text-left ${
+                      errorCodes.length > 0
+                        ? 'bg-green-500/10 border-green-500/30 text-green-400'
+                        : 'bg-white/5 border-white/10 text-white/60 hover:bg-white/10 hover:border-white/20'
+                    }`}
+                  >
+                    {errorCodes.length > 0 ? (
+                      <CheckCircle2 className="w-5 h-5 text-green-400 shrink-0" />
+                    ) : (
+                      <Circle className="w-5 h-5 text-white/30 shrink-0" />
+                    )}
+                    <span className="text-sm flex-1">{t('diagnostics.hintAddCodes')}</span>
+                    {errorCodes.length > 0 ? (
+                      <span className="text-xs text-green-400/70">{errorCodes.join(', ')}</span>
+                    ) : (
+                      <span className="text-xs text-white/30">{t('diagnostics.hintStepOptional')}</span>
+                    )}
+                  </button>
+
+                  {/* Step 3: Describe symptoms */}
+                  <button
+                    onClick={() => setShowSymptomPicker(true)}
+                    className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-xl border transition-all text-left ${
+                      symptoms.length > 0
+                        ? 'bg-green-500/10 border-green-500/30 text-green-400'
+                        : 'bg-white/5 border-white/10 text-white/60 hover:bg-white/10 hover:border-white/20'
+                    }`}
+                  >
+                    {symptoms.length > 0 ? (
+                      <CheckCircle2 className="w-5 h-5 text-green-400 shrink-0" />
+                    ) : (
+                      <Circle className="w-5 h-5 text-white/30 shrink-0" />
+                    )}
+                    <span className="text-sm flex-1">{t('diagnostics.hintDescribeSymptoms')}</span>
+                    {symptoms.length > 0 ? (
+                      <span className="text-xs text-green-400/70">{symptoms.length}</span>
+                    ) : (
+                      <span className="text-xs text-white/30">{t('diagnostics.hintStepOptional')}</span>
+                    )}
+                  </button>
+
+                  {/* Step 4: Describe problem */}
+                  <div className="flex items-center gap-3 px-4 py-2.5 rounded-xl bg-white/5 border border-white/10 text-white/60">
+                    <Circle className="w-5 h-5 text-white/30 shrink-0" />
+                    <span className="text-sm flex-1">{t('diagnostics.hintDescribeProblem')}</span>
+                    <span className="text-xs text-white/30">↓</span>
+                  </div>
+                </div>
               </div>
 
               <Button
@@ -885,7 +966,7 @@ Focus on:
               </div>
             </motion.div>
           ) : (
-            <div className="space-y-6 pb-48">
+            <div className="space-y-6 pb-72">
               <AnimatePresence>
                 {messages.map((message, index) => (
                   <ChatMessage 
@@ -927,8 +1008,8 @@ Focus on:
       </div>
 
       {/* Input Area */}
-      <div className="fixed bottom-0 left-0 right-0 z-40 bg-gradient-to-t from-[#0b1012] via-[#0b1012] to-transparent pt-8">
-        <div className="max-w-4xl mx-auto px-4 pb-6">
+      <div className="fixed bottom-0 left-0 right-0 z-40 bg-gradient-to-t from-[#0b1012] via-[#0b1012] to-transparent pt-8 safe-bottom">
+        <div className="max-w-4xl mx-auto px-4 pb-4">
           {!isFirstMessage && (
             <div className="mb-3 space-y-2">
               {activeToolkit && (
@@ -960,55 +1041,62 @@ Focus on:
                 </div>
               )}
 
-              <div className="flex flex-wrap items-center gap-2">
-                <DiagnosticTools
-                  truck={truck}
-                  errorCodes={errorCodes}
-                  symptoms={symptoms}
-                  onTruckClick={() => setShowTruckSelector(true)}
-                  onAudioClick={() => setShowAudioRecorder(true)}
-                  onErrorCodesClick={() => setShowErrorCodeInput(true)}
-                  onSymptomsClick={() => setShowSymptomPicker(true)}
-                  onClearTruck={() => setTruck(null)}
-                  onClearCodes={() => setErrorCodes([])}
-                  onClearSymptoms={() => setSymptoms([])}
-                />
+              <div className="flex items-center gap-2 overflow-x-auto scrollbar-hide pb-1">
+                <div className="shrink-0">
+                  <DiagnosticTools
+                    truck={truck}
+                    errorCodes={errorCodes}
+                    symptoms={symptoms}
+                    truckPulse={truckPulse}
+                    onTruckClick={() => setShowTruckSelector(true)}
+                    onAudioClick={() => setShowAudioRecorder(true)}
+                    onErrorCodesClick={() => setShowErrorCodeInput(true)}
+                    onSymptomsClick={() => setShowSymptomPicker(true)}
+                    onClearTruck={() => setTruck(null)}
+                    onClearCodes={() => setErrorCodes([])}
+                    onClearSymptoms={() => setSymptoms([])}
+                  />
+                </div>
 
-                <div className="flex items-center gap-2 ml-auto">
+                <div className="flex items-center gap-1.5 ml-auto shrink-0">
                   <Button
                     onClick={() => setShowChatHistory(true)}
                     variant="outline"
                     size="sm"
-                    className="border-white/20 bg-white/5 hover:bg-white/10 text-white/70 hover:text-white"
+                    className="border-white/20 bg-white/5 hover:bg-white/10 text-white/70 hover:text-white h-8 px-2 md:px-3"
+                    title={t('diagnostics.chatHistory') || 'Chat History'}
                   >
-                    <History className="w-4 h-4 mr-2" />
-                    {t('diagnostics.chatHistory') || 'Chat History'}
+                    <History className="w-4 h-4 md:mr-1.5" />
+                    <span className="hidden md:inline text-xs">{t('diagnostics.chatHistory') || 'History'}</span>
                   </Button>
                   {messages.length > 0 && (
                     <Button
                       onClick={handleNewChat}
                       variant="outline"
                       size="sm"
-                      className="border-white/20 bg-white/5 hover:bg-white/10 text-white/70 hover:text-white"
+                      className="border-white/20 bg-white/5 hover:bg-white/10 text-white/70 hover:text-white h-8 px-2 md:px-3"
+                      title={t('diagnostics.newChat')}
                     >
-                      <Plus className="w-4 h-4 mr-2" />
-                      {t('diagnostics.newChat')}
+                      <Plus className="w-4 h-4 md:mr-1.5" />
+                      <span className="hidden md:inline text-xs">{t('diagnostics.newChat')}</span>
                     </Button>
                   )}
 
                   {messages.length >= 2 && (
                     <Button
                       variant="outline"
+                      size="sm"
                       onClick={generateReport}
                       disabled={isGeneratingReport}
-                      className="border-white/20 bg-white/5 hover:bg-white/10 text-white/70 hover:text-white"
+                      className="border-white/20 bg-white/5 hover:bg-white/10 text-white/70 hover:text-white h-8 px-2 md:px-3"
+                      title={t('diagnostics.generateReport')}
                     >
                       {isGeneratingReport ? (
-                        <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                        <Loader2 className="w-4 h-4 md:mr-1.5 animate-spin" />
                       ) : (
-                        <FileText className="w-4 h-4 mr-2" />
+                        <FileText className="w-4 h-4 md:mr-1.5" />
                       )}
-                      {t('diagnostics.generateReport')}
+                      <span className="hidden md:inline text-xs">{t('diagnostics.generateReport')}</span>
                     </Button>
                   )}
                 </div>
@@ -1042,6 +1130,36 @@ Focus on:
           )}
 
           <div>
+            {/* Nudge hint when sending without context */}
+            <AnimatePresence>
+              {showNudge && (
+                <motion.div
+                  initial={{ opacity: 0, y: 8 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -4 }}
+                  className="mb-2 flex items-center gap-2 px-3 py-2 rounded-xl bg-orange-500/10 border border-orange-500/25 text-orange-300 text-xs"
+                >
+                  <Info className="w-3.5 h-3.5 shrink-0" />
+                  <span>
+                    {!truck
+                      ? t('diagnostics.hintNudgeNoTruck')
+                      : t('diagnostics.hintNudgeNoContext')}
+                  </span>
+                  <button
+                    onClick={() => {
+                      setShowNudge(false);
+                      if (!truck) {
+                        setShowTruckSelector(true);
+                      }
+                    }}
+                    className="ml-auto text-orange-400 hover:text-orange-200 font-medium underline whitespace-nowrap"
+                  >
+                    {!truck ? (t('diagnostics.hintSelectTruck')) : (t('diagnostics.hintAddCodes'))}
+                  </button>
+                </motion.div>
+              )}
+            </AnimatePresence>
+
             <Textarea
               ref={textareaRef}
               value={input}
@@ -1109,7 +1227,7 @@ Focus on:
       <TruckSelector
         open={showTruckSelector}
         onClose={() => setShowTruckSelector(false)}
-        onSelect={setTruck}
+        onSelect={(t) => { setTruck(t); setShowNudge(false); setTruckPulse(false); }}
         currentTruck={truck}
       />
       

@@ -219,6 +219,16 @@ export default {
     requestsRemaining: 'запросов осталось сегодня',
     startDiagnostic: 'НАЧАТЬ ДИАГНОСТИКУ',
     send: 'ОТПРАВИТЬ',
+    // Подсказки
+    hintStepsTitle: 'Для лучшего результата:',
+    hintSelectTruck: 'Выберите грузовик',
+    hintAddCodes: 'Добавьте коды ошибок (если есть)',
+    hintDescribeSymptoms: 'Укажите симптомы',
+    hintDescribeProblem: 'Опишите проблему ниже',
+    hintStepDone: 'Готово',
+    hintStepOptional: 'опционально',
+    hintNudgeNoTruck: 'Совет: Выберите грузовик для более точной диагностики',
+    hintNudgeNoContext: 'Совет: Коды ошибок и симптомы повышают точность',
   },
 
   // ─── Сообщество ───

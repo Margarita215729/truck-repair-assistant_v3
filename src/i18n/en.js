@@ -219,6 +219,16 @@ export default {
     requestsRemaining: 'requests remaining today',
     startDiagnostic: 'START DIAGNOSTIC',
     send: 'SEND',
+    // Hints
+    hintStepsTitle: 'For best results:',
+    hintSelectTruck: 'Select your truck',
+    hintAddCodes: 'Add error codes (if any)',
+    hintDescribeSymptoms: 'Describe symptoms',
+    hintDescribeProblem: 'Describe the problem below',
+    hintStepDone: 'Done',
+    hintStepOptional: 'optional',
+    hintNudgeNoTruck: 'Tip: Select your truck for a more accurate diagnosis',
+    hintNudgeNoContext: 'Tip: Adding error codes or symptoms improves accuracy',
   },
 
   // ─── Community ───
