@@ -87,24 +87,7 @@ export default function Diagnostics() {
     scrollToBottom();
   }, [messages]);
 
-  // Keep input above mobile keyboard using visualViewport API
-  useEffect(() => {
-    const vv = window.visualViewport;
-    if (!vv) return;
-    const handleResize = () => {
-      const el = inputAreaRef.current;
-      if (!el) return;
-      // When keyboard opens, visualViewport.height < window.innerHeight
-      const offset = window.innerHeight - vv.height;
-      el.style.transform = offset > 50 ? `translateY(-${offset}px)` : '';
-    };
-    vv.addEventListener('resize', handleResize);
-    vv.addEventListener('scroll', handleResize);
-    return () => {
-      vv.removeEventListener('resize', handleResize);
-      vv.removeEventListener('scroll', handleResize);
-    };
-  }, []);
+
 
     const handleNewChat = () => {
     setMessages([]);
@@ -911,7 +894,7 @@ Focus on:
               </div>
             </motion.div>
           ) : (
-            <div className="space-y-6 pb-72">
+            <div className="space-y-6 pb-4">
               <AnimatePresence>
                 {messages.map((message, index) => (
                   <ChatMessage 
@@ -953,7 +936,7 @@ Focus on:
       </div>
 
       {/* Input Area */}
-      <div ref={inputAreaRef} className="fixed bottom-0 left-0 right-0 z-40 bg-gradient-to-t from-[#0b1012] via-[#0b1012] to-transparent pt-8 safe-bottom" style={{ transition: 'transform 0.15s ease-out' }}>
+      <div ref={inputAreaRef} className="shrink-0 z-40 bg-[#0b1012] border-t border-white/5 pt-3 safe-bottom">
         <div className="max-w-4xl mx-auto px-4 pb-4">
           {!isFirstMessage && (
             <div className="mb-3 space-y-2">
