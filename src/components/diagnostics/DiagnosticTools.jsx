@@ -1,7 +1,7 @@
 import React from 'react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Truck, Mic, AlertCircle, AlertTriangle, X, Wrench, Camera } from 'lucide-react';
+import { Truck, Mic, AlertCircle, AlertTriangle, X } from 'lucide-react';
 import { motion } from 'framer-motion';
 
 export default function DiagnosticTools({ 
@@ -12,8 +12,6 @@ export default function DiagnosticTools({
   onAudioClick,
   onErrorCodesClick,
   onSymptomsClick,
-  onToolkitClick,
-  onPhotoClick,
   onClearTruck,
   onClearCodes,
   onClearSymptoms
@@ -55,34 +53,6 @@ export default function DiagnosticTools({
           Record Sound
         </Button>
       </motion.div>
-
-      {/* Part Photo */}
-      {onPhotoClick && (
-        <motion.div whileTap={{ scale: 0.98 }}>
-          <Button
-            variant="outline"
-            onClick={onPhotoClick}
-            className="border-white/20 bg-white/5 hover:bg-white/10 text-white/70 hover:text-white"
-          >
-            <Camera className="w-4 h-4 mr-2" />
-            Photo ID
-          </Button>
-        </motion.div>
-      )}
-
-      {/* Toolkit Selector */}
-      {onToolkitClick && (
-        <motion.div whileTap={{ scale: 0.98 }}>
-          <Button
-            variant="outline"
-            onClick={onToolkitClick}
-            className="border-orange-500/30 bg-orange-500/5 hover:bg-orange-500/10 text-orange-400 hover:text-orange-300"
-          >
-            <Wrench className="w-4 h-4 mr-2" />
-            Load Toolkit
-          </Button>
-        </motion.div>
-      )}
 
       {/* Error Codes */}
       <motion.div whileTap={{ scale: 0.98 }}>
