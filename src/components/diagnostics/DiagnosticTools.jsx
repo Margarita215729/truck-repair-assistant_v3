@@ -1,5 +1,4 @@
 import React from 'react';
-import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Truck, Mic, AlertCircle, AlertTriangle, X } from 'lucide-react';
 import { motion } from 'framer-motion';
@@ -16,102 +15,75 @@ export default function DiagnosticTools({
   onClearCodes,
   onClearSymptoms
 }) {
-  return (
-    <div className="flex flex-nowrap gap-1.5 md:gap-2 overflow-x-auto scrollbar-hide">
-      {/* Truck Selector */}
-      <motion.div whileTap={{ scale: 0.98 }} className="shrink-0">
-        {truck ? (
-          <Badge 
-            className="bg-orange-500/20 text-orange-400 border border-orange-500/30 px-2 md:px-3 py-1.5 md:py-2 text-xs md:text-sm cursor-pointer hover:bg-orange-500/30 transition-colors flex items-center gap-1.5"
+  const ToolButton = ({ icon: Icon, label, count, active, color = 'white', onClick, onClear }) => {
+    if (active) {
+      const colorMap = {
+        orange: 'bg-orange-500/15 text-orange-400 border-orange-500/30 hover:bg-orange-500/25',
+        red: 'bg-red-500/15 text-red-400 border-red-500/30 hover:bg-red-500/25',
+        yellow: 'bg-yellow-500/15 text-yellow-400 border-yellow-500/30 hover:bg-yellow-500/25',
+      };
+      return (
+        <motion.div whileTap={{ scale: 0.95 }} className="shrink-0">
+          <div
+            className={`flex items-center gap-1.5 px-2.5 py-2 rounded-xl border text-xs font-medium cursor-pointer transition-colors ${colorMap[color]}`}
+            onClick={onClick}
           >
-            <Truck className="w-3.5 h-3.5 md:w-4 md:h-4" />
-            <span className="hidden md:inline">{truck.year} {truck.make} {truck.model}</span>
-            <span className="md:hidden">{truck.make}</span>
-            <button onClick={onClearTruck} className="ml-0.5 hover:text-orange-200">
-              <X className="w-3 h-3" />
-            </button>
-          </Badge>
-        ) : (
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={onTruckClick}
-            className="border-white/20 bg-white/5 hover:bg-white/10 text-white/70 hover:text-white h-8 px-2 md:px-3"
-            title="Select Truck"
-          >
-            <Truck className="w-4 h-4 md:mr-1.5" />
-            <span className="hidden md:inline text-xs">Truck</span>
-          </Button>
-        )}
-      </motion.div>
-
-      {/* Audio Recorder */}
-      <motion.div whileTap={{ scale: 0.98 }} className="shrink-0">
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={onAudioClick}
-          className="border-white/20 bg-white/5 hover:bg-white/10 text-white/70 hover:text-white h-8 px-2 md:px-3"
-          title="Record Sound"
+            <Icon className="w-3.5 h-3.5" />
+            <span className="max-w-[80px] truncate">{label}</span>
+            {count && <span className="text-[10px] opacity-70">{count}</span>}
+            {onClear && (
+              <button onClick={(e) => { e.stopPropagation(); onClear(); }} className="ml-0.5 p-0.5 rounded hover:bg-white/10">
+                <X className="w-2.5 h-2.5" />
+              </button>
+            )}
+          </div>
+        </motion.div>
+      );
+    }
+    return (
+      <motion.div whileTap={{ scale: 0.95 }} className="shrink-0">
+        <button
+          onClick={onClick}
+          className="flex items-center gap-1.5 px-2.5 py-2 rounded-xl border border-white/10 bg-white/5 hover:bg-white/10 text-white/60 hover:text-white/90 text-xs transition-colors"
         >
-          <Mic className="w-4 h-4 md:mr-1.5" />
-          <span className="hidden md:inline text-xs">Sound</span>
-        </Button>
+          <Icon className="w-3.5 h-3.5" />
+          <span>{label}</span>
+        </button>
       </motion.div>
+    );
+  };
 
-      {/* Error Codes */}
-      <motion.div whileTap={{ scale: 0.98 }} className="shrink-0">
-        {errorCodes.length > 0 ? (
-          <Badge 
-            className="bg-red-500/20 text-red-400 border border-red-500/30 px-2 md:px-3 py-1.5 md:py-2 text-xs md:text-sm cursor-pointer hover:bg-red-500/30 transition-colors flex items-center gap-1.5"
-            onClick={onErrorCodesClick}
-          >
-            <AlertCircle className="w-3.5 h-3.5 md:w-4 md:h-4" />
-            {errorCodes.length} <span className="hidden md:inline">code{errorCodes.length > 1 ? 's' : ''}</span>
-            <button onClick={(e) => { e.stopPropagation(); onClearCodes(); }} className="ml-0.5 hover:text-red-200">
-              <X className="w-3 h-3" />
-            </button>
-          </Badge>
-        ) : (
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={onErrorCodesClick}
-            className="border-white/20 bg-white/5 hover:bg-white/10 text-white/70 hover:text-white h-8 px-2 md:px-3"
-            title="Error Codes"
-          >
-            <AlertCircle className="w-4 h-4 md:mr-1.5" />
-            <span className="hidden md:inline text-xs">Codes</span>
-          </Button>
-        )}
-      </motion.div>
-
-      {/* Symptoms */}
-      <motion.div whileTap={{ scale: 0.98 }} className="shrink-0">
-        {symptoms.length > 0 ? (
-          <Badge 
-            className="bg-yellow-500/20 text-yellow-400 border border-yellow-500/30 px-2 md:px-3 py-1.5 md:py-2 text-xs md:text-sm cursor-pointer hover:bg-yellow-500/30 transition-colors flex items-center gap-1.5"
-            onClick={onSymptomsClick}
-          >
-            <AlertTriangle className="w-3.5 h-3.5 md:w-4 md:h-4" />
-            {symptoms.length} <span className="hidden md:inline">symptom{symptoms.length > 1 ? 's' : ''}</span>
-            <button onClick={(e) => { e.stopPropagation(); onClearSymptoms(); }} className="ml-0.5 hover:text-yellow-200">
-              <X className="w-3 h-3" />
-            </button>
-          </Badge>
-        ) : (
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={onSymptomsClick}
-            className="border-white/20 bg-white/5 hover:bg-white/10 text-white/70 hover:text-white h-8 px-2 md:px-3"
-            title="Symptoms"
-          >
-            <AlertTriangle className="w-4 h-4 md:mr-1.5" />
-            <span className="hidden md:inline text-xs">Symptoms</span>
-          </Button>
-        )}
-      </motion.div>
+  return (
+    <div className="flex flex-nowrap gap-1.5 overflow-x-auto scrollbar-hide py-0.5">
+      <ToolButton
+        icon={Truck}
+        label={truck ? `${truck.make} ${truck.model}`.substring(0, 16) : 'Truck'}
+        active={!!truck}
+        color="orange"
+        onClick={onTruckClick}
+        onClear={truck ? onClearTruck : undefined}
+      />
+      <ToolButton
+        icon={Mic}
+        label="Sound"
+        onClick={onAudioClick}
+      />
+      <ToolButton
+        icon={AlertCircle}
+        label={errorCodes.length > 0 ? `${errorCodes.length} code${errorCodes.length > 1 ? 's' : ''}` : 'Codes'}
+        active={errorCodes.length > 0}
+        color="red"
+        onClick={onErrorCodesClick}
+        onClear={errorCodes.length > 0 ? onClearCodes : undefined}
+      />
+      <ToolButton
+        icon={AlertTriangle}
+        label={symptoms.length > 0 ? `${symptoms.length} symptom${symptoms.length > 1 ? 's' : ''}` : 'Symptoms'}
+        active={symptoms.length > 0}
+        color="yellow"
+        onClick={onSymptomsClick}
+        onClear={symptoms.length > 0 ? onClearSymptoms : undefined}
+      />
     </div>
   );
 }

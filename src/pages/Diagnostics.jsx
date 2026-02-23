@@ -3,7 +3,7 @@ import { entities } from '@/services/entityService';
 import { invokeLLM, uploadFile } from '@/services/aiService';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
-import { Loader2, FileText, Wrench, Plus, AlertTriangle, History, Info } from 'lucide-react';
+import { Loader2, FileText, Wrench, MessageSquarePlus, AlertTriangle, History, Info } from 'lucide-react';
 import { toast } from 'sonner';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useQueryClient } from '@tanstack/react-query';
@@ -76,11 +76,8 @@ export default function Diagnostics() {
   const messagesEndRef = useRef(null);
   const textareaRef = useRef(null);
   const inputAreaRef = useRef(null);
-  const messagesContainerRef = useRef(null);
-  const lastScrollTopRef = useRef(0);
   const [isGeneratingReport, setIsGeneratingReport] = useState(false);
   const [showNudge, setShowNudge] = useState(false);
-  const [inputHidden, setInputHidden] = useState(false);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -89,33 +86,6 @@ export default function Diagnostics() {
   useEffect(() => {
     scrollToBottom();
   }, [messages]);
-
-  // Detect if AI is asking clarifying questions — keep input pinned
-  const lastAssistantMsg = messages.length > 0 ? [...messages].reverse().find(m => m.role === 'assistant') : null;
-  const hasClarifyingQuestions = lastAssistantMsg?.clarifying_questions?.length > 0;
-
-  // Hide input when scrolling up through messages, show on scroll down
-  useEffect(() => {
-    const container = messagesContainerRef.current;
-    if (!container) return;
-    const handleScroll = () => {
-      const st = container.scrollTop;
-      const maxScroll = container.scrollHeight - container.clientHeight;
-      // Near bottom (within 100px) — always show
-      if (maxScroll - st < 100) {
-        setInputHidden(false);
-      } else if (st < lastScrollTopRef.current - 5) {
-        // Scrolling up
-        setInputHidden(true);
-      } else if (st > lastScrollTopRef.current + 5) {
-        // Scrolling down
-        setInputHidden(false);
-      }
-      lastScrollTopRef.current = st;
-    };
-    container.addEventListener('scroll', handleScroll, { passive: true });
-    return () => container.removeEventListener('scroll', handleScroll);
-  }, []);
 
   // Keep input above mobile keyboard using visualViewport API
   useEffect(() => {
@@ -854,7 +824,7 @@ Focus on:
   return (
     <div className="min-h-screen flex flex-col">
       {/* Messages Area */}
-      <div ref={messagesContainerRef} className="flex-1 overflow-y-auto">
+      <div className="flex-1 overflow-y-auto">
         <div className="max-w-4xl mx-auto px-4 py-6">
           {isFirstMessage ? (
             <motion.div
@@ -983,7 +953,7 @@ Focus on:
       </div>
 
       {/* Input Area */}
-      <div ref={inputAreaRef} className={`fixed bottom-0 left-0 right-0 z-40 bg-gradient-to-t from-[#0b1012] via-[#0b1012] to-transparent pt-8 safe-bottom transition-transform duration-300 ${inputHidden && !hasClarifyingQuestions && !isLoading ? 'translate-y-full' : 'translate-y-0'}`} style={{ transition: 'transform 0.3s ease-out' }}>
+      <div ref={inputAreaRef} className="fixed bottom-0 left-0 right-0 z-40 bg-gradient-to-t from-[#0b1012] via-[#0b1012] to-transparent pt-8 safe-bottom" style={{ transition: 'transform 0.15s ease-out' }}>
         <div className="max-w-4xl mx-auto px-4 pb-4">
           {!isFirstMessage && (
             <div className="mb-3 space-y-2">
@@ -1033,45 +1003,39 @@ Focus on:
                 </div>
 
                 <div className="flex items-center gap-1.5 ml-auto shrink-0">
-                  <Button
+                  <button
                     onClick={() => setShowChatHistory(true)}
-                    variant="outline"
-                    size="sm"
-                    className="border-white/20 bg-white/5 hover:bg-white/10 text-white/70 hover:text-white h-8 px-2 md:px-3"
+                    className="flex items-center gap-1.5 px-2.5 py-2 rounded-xl border border-white/10 bg-white/5 hover:bg-white/10 text-white/60 hover:text-white/90 text-xs transition-colors"
                     title={t('diagnostics.chatHistory') || 'Chat History'}
                   >
-                    <History className="w-4 h-4 md:mr-1.5" />
-                    <span className="hidden md:inline text-xs">{t('diagnostics.chatHistory') || 'History'}</span>
-                  </Button>
+                    <History className="w-3.5 h-3.5" />
+                    <span className="hidden md:inline">History</span>
+                  </button>
                   {messages.length > 0 && (
-                    <Button
+                    <button
                       onClick={handleNewChat}
-                      variant="outline"
-                      size="sm"
-                      className="border-white/20 bg-white/5 hover:bg-white/10 text-white/70 hover:text-white h-8 px-2 md:px-3"
+                      className="flex items-center gap-1.5 px-2.5 py-2 rounded-xl bg-gradient-to-r from-orange-500/20 to-orange-600/20 border border-orange-500/30 text-orange-400 hover:from-orange-500/30 hover:to-orange-600/30 text-xs font-medium transition-all"
                       title={t('diagnostics.newChat')}
                     >
-                      <Plus className="w-4 h-4 md:mr-1.5" />
-                      <span className="hidden md:inline text-xs">{t('diagnostics.newChat')}</span>
-                    </Button>
+                      <MessageSquarePlus className="w-3.5 h-3.5" />
+                      <span className="hidden md:inline">{t('diagnostics.newChat')}</span>
+                    </button>
                   )}
 
                   {messages.length >= 2 && (
-                    <Button
-                      variant="outline"
-                      size="sm"
+                    <button
                       onClick={generateReport}
                       disabled={isGeneratingReport}
-                      className="border-white/20 bg-white/5 hover:bg-white/10 text-white/70 hover:text-white h-8 px-2 md:px-3"
+                      className="flex items-center gap-1.5 px-2.5 py-2 rounded-xl border border-white/10 bg-white/5 hover:bg-white/10 text-white/60 hover:text-white/90 text-xs disabled:opacity-40 transition-colors"
                       title={t('diagnostics.generateReport')}
                     >
                       {isGeneratingReport ? (
-                        <Loader2 className="w-4 h-4 md:mr-1.5 animate-spin" />
+                        <Loader2 className="w-3.5 h-3.5 animate-spin" />
                       ) : (
-                        <FileText className="w-4 h-4 md:mr-1.5" />
+                        <FileText className="w-3.5 h-3.5" />
                       )}
-                      <span className="hidden md:inline text-xs">{t('diagnostics.generateReport')}</span>
-                    </Button>
+                      <span className="hidden md:inline">{t('diagnostics.generateReport')}</span>
+                    </button>
                   )}
                 </div>
               </div>
