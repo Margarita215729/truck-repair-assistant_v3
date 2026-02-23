@@ -16,6 +16,7 @@ const FALLBACK_VALUES = {
   OWNER_PRICE_ANNUAL: '',
   FLEET_PRICE_MONTHLY: '',
   FLEET_PRICE_ANNUAL: '',
+  APP_URL: '',
 };
 
 function getEnv(key) {
@@ -53,6 +54,7 @@ export const env = {
   OWNER_PRICE_ANNUAL: getEnv('OWNER_PRICE_ANNUAL'),
   FLEET_PRICE_MONTHLY: getEnv('FLEET_PRICE_MONTHLY'),
   FLEET_PRICE_ANNUAL: getEnv('FLEET_PRICE_ANNUAL'),
+  APP_URL: getEnv('APP_URL'),
 };
 
 export const isDevelopment = () => {
