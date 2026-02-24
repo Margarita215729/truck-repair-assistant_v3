@@ -329,18 +329,34 @@ ${communitySolutionsContext}
 ${forumContext}
 
 COMMUNICATION RULES:
-- Keep initial responses SHORT (2-3 sentences)
-- Lead with clarifying questions FIRST, only provide detailed analysis after gathering info
-- NEVER include questions in "response" — use "clarifying_questions" array only
-- MAXIMUM 2 rounds of clarifying questions, then PROVIDE SOLUTION with repair_instructions and suggested_parts
+- Keep initial responses SHORT (2-3 sentences) but ALWAYS informative
+- On FIRST message: ask 2-3 targeted clarifying questions AND simultaneously provide your PRELIMINARY diagnosis based on what you already know. Include at least a basic repair_instructions entry with probable steps.
+- MAXIMUM 2 rounds of clarifying questions for maximum diagnostic accuracy, then PROVIDE FULL SOLUTION
 - Current question round: ${questionRounds + 1}/2
-${questionRounds >= 1 ? '- THIS IS YOUR LAST ROUND OF QUESTIONS. Next response MUST include repair_instructions and suggested_parts.' : ''}
-${questionRounds >= 2 ? '- STOP ASKING QUESTIONS. Provide complete diagnosis with repair_instructions and suggested_parts NOW.' : ''}
+${questionRounds >= 1 ? '- You have gathered initial info. Dig DEEPER — ask follow-up questions about specific components, sounds, conditions. Provide progressively more detailed repair_instructions with each round.' : ''}
+${questionRounds >= 2 ? '- STOP ASKING QUESTIONS. Provide complete detailed diagnosis with FULL repair_instructions (at least 3-5 steps) and suggested_parts NOW. This is mandatory.' : ''}
+- NEVER return empty repair_instructions after round 1. If unsure, provide the MOST LIKELY diagnosis.
+- ALWAYS fill in "response" with a detailed analysis paragraph — never a single generic sentence.
 
 DIAGNOSTIC APPROACH:
-1. TRIAGE: determine urgency + affected system
-2. NARROW DOWN: specific component / subsystem
-3. SOLUTION: repair instructions, parts, cost-saving tips
+1. Immediately identify the MOST LIKELY root cause based on truck model + symptoms + error codes
+2. Provide specific diagnostic steps the driver can perform RIGHT NOW
+3. Give actionable repair instructions with tools, parts, and time estimates
+4. If multiple causes are possible, rank them by probability
+
+INSUFFICIENT INFORMATION HANDLING:
+- If the user's message is too vague, incomplete, or lacks critical details (no truck model, no symptoms described, just "help" or "problem"), set "insufficient_info" to true
+- When insufficient_info is true: set "response" to explain WHAT specific information is missing and WHY it matters for diagnosis
+- ALWAYS provide "preliminary_suggestions" — a list of general troubleshooting steps the user can do RIGHT NOW even without a precise diagnosis
+- Even with insufficient info, try to give SOMETHING useful — never leave the user empty-handed
+- Example: user says "truck broken" → insufficient_info: true, explain you need make/model/year, symptoms, error codes, and provide general inspection checklist
+
+CRITICAL RULES:
+- NEVER say "General truck issue detected" or similar vague phrases
+- ALWAYS reference the specific truck make/model and symptoms in your analysis
+- For DPF/EGR/emission symptoms, provide the SPECIFIC regeneration procedure or EGR cleaning steps
+- For error codes, explain EXACTLY what each code means for THIS truck model
+- Include real-world knowledge: common failures for this truck/engine combo, TSBs, recalls
 
 AUDIO ANALYSIS:
 - When DSP audio analysis data is provided, use the frequency patterns, anomaly scores, and component classifications to support your diagnostic assessment
@@ -367,10 +383,24 @@ User: ${messageText}${audioUrl ? '\n[User has attached an audio recording of eng
       const response = await invokeLLM({
         prompt: fullPrompt,
         add_context_from_internet: true,
+        model: 'openai/gpt-4o',
         response_json_schema: {
           type: "object",
           properties: {
-            response: { type: "string", description: "The main diagnostic response with forum insights embedded" },
+            response: { type: "string", description: "Detailed diagnostic response — NEVER generic. Always reference specific truck, symptoms, and likely causes." },
+            insufficient_info: { type: "boolean", description: "Set to true when the user's message lacks critical details needed for accurate diagnosis (no truck model, vague symptoms, etc.)" },
+            missing_details: { type: "array", items: { type: "string" }, description: "List of specific missing pieces of information (e.g. 'Truck make and model', 'Specific symptoms', 'Error codes')" },
+            preliminary_suggestions: {
+              type: "array",
+              items: {
+                type: "object",
+                properties: {
+                  title: { type: "string", description: "Short actionable title" },
+                  description: { type: "string", description: "What to do and why" }
+                }
+              },
+              description: "General troubleshooting steps user can take even without full info"
+            },
             dtc_analysis: {
               type: "array",
               items: {
@@ -493,7 +523,11 @@ User: ${messageText}${audioUrl ? '\n[User has attached an audio recording of eng
         clarifying_questions: filteredQuestions,
         repair_instructions: response.repair_instructions || [],
         diagnostic_progress: response.diagnostic_progress || null,
-        community_matches: response.community_matches || null
+        community_matches: response.community_matches || null,
+        isFallback: response._isFallback || false,
+        insufficient_info: response.insufficient_info || false,
+        missing_details: response.missing_details || [],
+        preliminary_suggestions: response.preliminary_suggestions || [],
       };
 
       // Save conversation using functional state to avoid stale closure
