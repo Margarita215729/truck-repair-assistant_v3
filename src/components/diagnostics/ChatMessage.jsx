@@ -141,6 +141,53 @@ export default function ChatMessage({ message, onPartClick, onAnswerQuestion, on
           )}
         </div>
 
+        {/* Insufficient Info Warning */}
+        {message.insufficient_info && (
+          <div className="mt-3 p-3 bg-amber-500/10 border border-amber-500/25 rounded-xl space-y-3">
+            <div className="flex items-center gap-2">
+              <AlertTriangle className="w-4 h-4 text-amber-400 shrink-0" />
+              <span className="text-sm font-semibold text-amber-300">Недостаточно информации для качественного анализа</span>
+            </div>
+            {message.missing_details && message.missing_details.length > 0 && (
+              <div>
+                <p className="text-xs text-white/50 mb-1.5">Для точной диагностики укажите:</p>
+                <ul className="space-y-1">
+                  {message.missing_details.map((detail, i) => (
+                    <li key={i} className="flex items-center gap-2 text-xs text-amber-200/80">
+                      <span className="w-1.5 h-1.5 rounded-full bg-amber-400 shrink-0" />
+                      {detail}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+            {message.preliminary_suggestions && message.preliminary_suggestions.length > 0 && (
+              <div className="pt-2 border-t border-amber-500/20">
+                <p className="text-xs text-white/50 mb-2">Что можно сделать уже сейчас:</p>
+                <div className="space-y-2">
+                  {message.preliminary_suggestions.map((sug, i) => (
+                    <div key={i} className="flex items-start gap-2">
+                      <Lightbulb className="w-3.5 h-3.5 text-amber-400 mt-0.5 shrink-0" />
+                      <div>
+                        <span className="text-xs font-medium text-white/90">{sug.title}</span>
+                        <p className="text-xs text-white/60 mt-0.5">{sug.description}</p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Offline/Fallback Warning */}
+        {message.isFallback && (
+          <div className="mt-2 px-3 py-2 bg-yellow-500/10 border border-yellow-500/20 rounded-xl flex items-center gap-2">
+            <AlertTriangle className="w-4 h-4 text-yellow-400 shrink-0" />
+            <span className="text-xs text-yellow-300/80">Service temporarily unavailable — showing offline diagnosis. Try again in a moment for full analysis.</span>
+          </div>
+        )}
+
         {/* Forum Insights */}
         {message.trending_issues && message.trending_issues.length > 0 && (
           <div className="mt-3 p-3 bg-orange-500/10 border border-orange-500/20 rounded-xl">

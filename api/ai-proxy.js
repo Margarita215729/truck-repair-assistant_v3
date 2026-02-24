@@ -4,7 +4,7 @@ const GITHUB_MODELS_URL = 'https://models.github.ai/inference/chat/completions';
 const DEFAULT_MODEL = 'openai/gpt-4o-mini';
 const ALLOWED_MODELS = new Set(['openai/gpt-4o-mini', 'openai/gpt-4o']);
 const MAX_MESSAGES = 50;
-const MAX_TOKENS_LIMIT = 4096;
+const MAX_TOKENS_LIMIT = 16384;
 
 let _supabase;
 function getSupabase() {
