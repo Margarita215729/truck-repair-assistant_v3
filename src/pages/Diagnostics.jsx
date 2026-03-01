@@ -849,10 +849,6 @@ Focus on:
               animate={{ opacity: 1, y: 0 }}
               className="flex flex-col items-center justify-center min-h-[60vh] text-center"
             >
-              <div className="relative mb-6 flex items-center justify-center">
-                <img src="/logo.svg" alt="" className="w-24 h-24 opacity-[0.04] blur-[1px] select-none pointer-events-none" />
-              </div>
-
               <div className="w-full max-w-2xl mb-8 space-y-4">
                 <div className="flex items-center justify-between gap-4">
                   <div className="flex-1">
