@@ -27,7 +27,7 @@ const SERVICE_TYPES = [
   { id: 'oil_change', label: 'Oil Change', icon: Settings },
 ];
 
-export default function ServiceFilters({ filters, onFilterChange }) {
+export default function ServiceFilters({ filters, onFilterChange, infraCounts = {} }) {
   const { t } = useLanguage();
 
   const toggleServiceType = (typeId) => {
@@ -157,6 +157,7 @@ export default function ServiceFilters({ filters, onFilterChange }) {
           >
             <ParkingCircle className="w-3.5 h-3.5" />
             {t('services.truckParking')}
+            {infraCounts.truckParking > 0 && <span className="ml-1 text-[10px] opacity-70">({infraCounts.truckParking})</span>}
           </motion.button>
           
           <motion.button
@@ -170,6 +171,7 @@ export default function ServiceFilters({ filters, onFilterChange }) {
           >
             <Scale className="w-3.5 h-3.5" />
             {t('services.weighStations')}
+            {infraCounts.weighStations > 0 && <span className="ml-1 text-[10px] opacity-70">({infraCounts.weighStations})</span>}
           </motion.button>
           
           <motion.button
@@ -183,6 +185,7 @@ export default function ServiceFilters({ filters, onFilterChange }) {
           >
             <AlertTriangle className="w-3.5 h-3.5" />
             {t('services.restrictions')}
+            {infraCounts.restrictions > 0 && <span className="ml-1 text-[10px] opacity-70">({infraCounts.restrictions})</span>}
           </motion.button>
         </div>
       </div>
