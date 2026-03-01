@@ -20,15 +20,52 @@ function withTimeout(promise, ms, label = 'operation') {
 const AUTH_TIMEOUT = 10000;     // 10 s for initial auth check
 const SUB_TIMEOUT = 8000;       // 8 s for subscription load
 
+// ─── localStorage cache helpers ──────────────────────────
+const CACHE_KEY_USER = 'tra_cached_user';
+const CACHE_KEY_SUB = 'tra_cached_subscription';
+
+function getCachedJSON(key, fallback) {
+  try {
+    const raw = localStorage.getItem(key);
+    return raw ? JSON.parse(raw) : fallback;
+  } catch { return fallback; }
+}
+
+function setCachedJSON(key, value) {
+  try { localStorage.setItem(key, JSON.stringify(value)); } catch {}
+}
+
+function clearCache() {
+  try {
+    localStorage.removeItem(CACHE_KEY_USER);
+    localStorage.removeItem(CACHE_KEY_SUB);
+  } catch {}
+}
+
 export const AuthProvider = ({ children }) => {
-  const [user, setUser] = useState(null);
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const cachedUser = getCachedJSON(CACHE_KEY_USER, null);
+  const cachedSub = getCachedJSON(CACHE_KEY_SUB, { plan: 'free', status: 'active' });
+
+  const [user, setUserRaw] = useState(cachedUser);
+  const [isAuthenticated, setIsAuthenticated] = useState(!!cachedUser);
   const [isLoadingAuth, setIsLoadingAuth] = useState(true);
   const [authError, setAuthError] = useState(null);
-  const [subscription, setSubscription] = useState({ plan: 'free', status: 'active' });
+  const [subscription, setSubscriptionRaw] = useState(cachedSub);
   const [aiUsage, setAiUsage] = useState({ used: 0, limit: 10, remaining: 10 });
   const [supabaseReachable, setSupabaseReachable] = useState(true);
   const authCheckDone = useRef(false);
+
+  // Wrappers that also update localStorage
+  const setUser = useCallback((u) => {
+    setUserRaw(u);
+    if (u) setCachedJSON(CACHE_KEY_USER, u);
+    else localStorage.removeItem(CACHE_KEY_USER);
+  }, []);
+
+  const setSubscription = useCallback((s) => {
+    setSubscriptionRaw(s);
+    if (s) setCachedJSON(CACHE_KEY_SUB, s);
+  }, []);
 
   const isProUser = subscription?.plan === 'pro' || subscription?.plan === 'owner' || subscription?.plan === 'fleet' || subscription?.plan === 'lifetime';
   const planLimits = LIMITS[subscription?.plan] || LIMITS.free;
@@ -53,6 +90,7 @@ export const AuthProvider = ({ children }) => {
         setIsAuthenticated(false);
         setSubscription({ plan: 'free', status: 'active' });
         setAiUsage({ used: 0, limit: 10, remaining: 10 });
+        clearCache();
       } else if (event === 'TOKEN_REFRESHED') {
         loadSubscription();
       }
@@ -158,6 +196,7 @@ export const AuthProvider = ({ children }) => {
     setIsAuthenticated(false);
     setSubscription({ plan: 'free', status: 'active' });
     setAiUsage({ used: 0, limit: 10, remaining: 10 });
+    clearCache();
   };
 
   return (
