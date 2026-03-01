@@ -18,10 +18,10 @@ const CATEGORIES = [
 ];
 
 const IMPORTANCE = [
-  { value: 'all', label: 'Any Importance' },
-  { value: 'required', label: 'Required' },
-  { value: 'recommended', label: 'Recommended' },
-  { value: 'optional', label: 'Optional' }
+  { value: 'all', label: 'Any Source' },
+  { value: 'oem', label: 'OEM / Dealer New' },
+  { value: 'aftermarket', label: 'Aftermarket New' },
+  { value: 'used', label: 'Used Parts' }
 ];
 
 const DIFFICULTIES = [
@@ -94,7 +94,7 @@ export default function PartFilters({ filters, onFiltersChange, mode = 'recommen
   // mode === 'recommended'
   return (
     <div className="p-4 rounded-xl bg-white/5 border border-white/10">
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div>
           <label className="text-xs text-white/60 mb-2 block">Category</label>
           <Select value={filters.category || 'all'} onValueChange={(v) => updateFilter('category', v)}>
@@ -110,7 +110,7 @@ export default function PartFilters({ filters, onFiltersChange, mode = 'recommen
         </div>
 
         <div>
-          <label className="text-xs text-white/60 mb-2 block">Importance</label>
+          <label className="text-xs text-white/60 mb-2 block">Part Source</label>
           <Select value={filters.importance || 'all'} onValueChange={(v) => updateFilter('importance', v)}>
             <SelectTrigger className="bg-white/5 border-white/10 text-white">
               <SelectValue />
@@ -118,20 +118,6 @@ export default function PartFilters({ filters, onFiltersChange, mode = 'recommen
             <SelectContent>
               {IMPORTANCE.map(imp => (
                 <SelectItem key={imp.value} value={imp.value}>{imp.label}</SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
-
-        <div>
-          <label className="text-xs text-white/60 mb-2 block">Installation Difficulty</label>
-          <Select value={filters.difficulty || 'all'} onValueChange={(v) => updateFilter('difficulty', v)}>
-            <SelectTrigger className="bg-white/5 border-white/10 text-white">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              {DIFFICULTIES.map(d => (
-                <SelectItem key={d.value} value={d.value}>{d.label}</SelectItem>
               ))}
             </SelectContent>
           </Select>

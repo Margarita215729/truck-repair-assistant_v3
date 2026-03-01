@@ -21,12 +21,10 @@ import { motion } from 'framer-motion';
 import { useLanguage } from '@/lib/LanguageContext';
 
 const SERVICE_TYPES = [
-  { id: 'engine', label: 'Engine Repair', icon: Settings },
-  { id: 'electrical', label: 'Electrical', icon: Zap },
+  { id: 'semi_truck_service', label: 'Semi-Truck Service', icon: Wrench },
   { id: 'tires', label: 'Tires', icon: Gauge },
-  { id: 'brakes', label: 'Brakes', icon: Car },
-  { id: 'transmission', label: 'Transmission', icon: Settings },
-  { id: 'diagnostic', label: 'Diagnostic', icon: Wrench },
+  { id: 'truck_wash', label: 'Truck Wash', icon: Car },
+  { id: 'oil_change', label: 'Oil Change', icon: Settings },
 ];
 
 export default function ServiceFilters({ filters, onFilterChange }) {

@@ -7,6 +7,7 @@ import { BrowserRouter as Router, Route, Routes } from 'react-router-dom';
 import PageNotFound from './lib/PageNotFound';
 import { AuthProvider, useAuth } from '@/lib/AuthContext';
 import { LanguageProvider, useLanguage } from '@/lib/LanguageContext';
+import { TruckProvider } from '@/lib/TruckContext';
 import UserNotRegisteredError from '@/components/UserNotRegisteredError';
 import LoginPage from '@/pages/LoginPage';
 import AuthCallbackPage from '@/pages/AuthCallbackPage';
@@ -79,6 +80,7 @@ function App() {
   return (
     <LanguageProvider>
       <AuthProvider>
+        <TruckProvider>
         <QueryClientProvider client={queryClientInstance}>
           <Router>
             <Routes>
@@ -90,6 +92,7 @@ function App() {
           <Toaster />
           <SonnerToaster richColors position="top-right" />
         </QueryClientProvider>
+        </TruckProvider>
       </AuthProvider>
     </LanguageProvider>
   )

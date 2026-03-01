@@ -3,7 +3,8 @@ import { Link } from 'react-router-dom';
 import { createPageUrl } from './utils';
 import { useAuth } from '@/lib/AuthContext';
 import { useLanguage } from '@/lib/LanguageContext';
-import { MessageSquare, MapPin, FileText, Menu, X, User, LogIn, LogOut, Package, Globe, Crown, Zap } from 'lucide-react';
+import { useTruck } from '@/lib/TruckContext';
+import { MessageSquare, MapPin, FileText, Menu, X, User, LogIn, LogOut, Package, Globe, Crown, Zap, Truck } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -17,6 +18,7 @@ export default function Layout({ children, currentPageName }) {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const { user, isAuthenticated, isLoadingAuth, logout, subscription, isProUser } = useAuth();
   const { t, language, setLanguage, languages } = useLanguage();
+  const { truck, setShowTruckSelector } = useTruck();
 
   const navItems = [
     { name: t('nav.diagnostics'), page: 'Diagnostics', icon: MessageSquare },
@@ -57,6 +59,23 @@ export default function Layout({ children, currentPageName }) {
                   <item.icon className="w-4 h-4" />{item.name}
                 </Link>
               ))}
+              {/* Truck Selector (Diagnostics page) */}
+              {currentPageName === 'Diagnostics' && (
+                <button
+                  onClick={() => setShowTruckSelector(true)}
+                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm transition-all ${
+                    truck
+                      ? 'bg-orange-500/15 text-orange-400 border border-orange-500/30 hover:bg-orange-500/25'
+                      : 'text-white/60 hover:text-white hover:bg-white/5'
+                  }`}
+                  title={truck ? `${truck.year || ''} ${truck.make} ${truck.model}` : 'Select Truck'}
+                >
+                  <Truck className="w-4 h-4" />
+                  <span className="max-w-[120px] truncate">
+                    {truck ? `${truck.make} ${truck.model}`.substring(0, 16) : 'Truck'}
+                  </span>
+                </button>
+              )}
               {/* Language Switcher */}
               <button
                 onClick={() => setLanguage(language === 'en' ? 'ru' : 'en')}
