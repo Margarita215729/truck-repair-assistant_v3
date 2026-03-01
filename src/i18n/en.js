@@ -229,6 +229,14 @@ export default {
     hintStepOptional: 'optional',
     hintNudgeNoTruck: 'Tip: Select your truck for a more accurate diagnosis',
     hintNudgeNoContext: 'Tip: Adding error codes or symptoms improves accuracy',
+    // Tool cards
+    sound: 'Sound',
+    codes: 'Codes',
+    symptoms: 'Symptoms',
+    soundDesc: 'Record engine / brake sounds',
+    codesDesc: 'Enter DTC / fault codes',
+    symptomsDesc: 'Describe what you notice',
+    selectTruckFirst: 'Please select your truck first using the truck button in the top menu',
   },
 
   // ─── Community ───

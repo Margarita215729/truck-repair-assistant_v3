@@ -904,7 +904,7 @@ Focus on:
                     yellow: { bg: 'from-yellow-500/10 to-yellow-400/5', border: 'border-yellow-500/20 hover:border-yellow-500/40', icon: 'text-yellow-400', text: 'text-yellow-300/90' },
                   };
                   return (
-                    <div className="grid grid-cols-3 gap-3">
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                       {cards.map(({ icon: Icon, label, desc, color, onClick }) => {
                         const c = colorMap[color];
                         return (
@@ -913,14 +913,14 @@ Focus on:
                             whileHover={{ scale: toolDisabled ? 1 : 1.03 }}
                             whileTap={{ scale: 0.97 }}
                             onClick={toolDisabled ? handleDisabled : onClick}
-                            className={`relative flex flex-col items-center gap-2 p-5 rounded-2xl border bg-gradient-to-b transition-all duration-200
+                            className={`relative flex flex-col sm:flex-col flex-row items-center gap-2 sm:gap-2 p-3 sm:p-5 rounded-2xl border bg-gradient-to-b sm:bg-gradient-to-b bg-gradient-to-r transition-all duration-200
                               ${toolDisabled ? 'border-white/5 from-white/[0.02] to-transparent opacity-40 cursor-pointer' : `${c.border} ${c.bg}`}`}
                           >
-                            <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${toolDisabled ? 'bg-white/5' : 'bg-white/5'}`}>
+                            <div className={`w-10 h-10 sm:w-10 sm:h-10 rounded-xl flex items-center justify-center ${toolDisabled ? 'bg-white/5' : 'bg-white/5'}`}>
                               <Icon className={`w-5 h-5 ${toolDisabled ? 'text-white/30' : c.icon}`} />
                             </div>
                             <span className={`text-sm font-semibold ${toolDisabled ? 'text-white/30' : 'text-white/90'}`}>{label}</span>
-                            <span className={`text-[11px] leading-tight ${toolDisabled ? 'text-white/15' : 'text-white/40'}`}>{desc}</span>
+                            <span className={`text-[11px] leading-tight text-center ${toolDisabled ? 'text-white/15' : 'text-white/40'}`}>{desc}</span>
                             {toolDisabled && <Lock className="absolute top-2 right-2 w-3 h-3 text-white/20" />}
                           </motion.button>
                         );
