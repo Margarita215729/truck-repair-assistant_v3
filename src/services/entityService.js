@@ -271,18 +271,36 @@ function createEntityAPI(entityName) {
     },
 
     /**
-     * Delete a record
+     * Delete a record — verifies actual deletion and cleans local cache
      */
     async delete(id) {
       if (!hasSupabaseConfig || !supabase) {
         throw new Error('Database is not configured.');
       }
 
-      const { error } = await supabase.from(tableName).delete().eq('id', id);
+      const { data, error } = await supabase
+        .from(tableName)
+        .delete()
+        .eq('id', id)
+        .select('id');
+
       if (error) {
         console.error(`Delete ${tableName} failed:`, error);
         throw new Error(error.message || 'Failed to delete data.');
       }
+
+      // If RLS blocked the delete, PostgREST returns 200 with 0 rows
+      if (!data || data.length === 0) {
+        console.warn(`Delete ${tableName}: no rows matched id=${id} (RLS may have blocked)`);
+        throw new Error('Record not found or access denied.');
+      }
+
+      // Remove from localStorage offline cache so stale data doesn't resurface
+      const cached = getLocalCollection(entityName);
+      if (cached.length > 0) {
+        saveLocalCollection(entityName, cached.filter(item => item.id !== id));
+      }
+
       return true;
     },
 

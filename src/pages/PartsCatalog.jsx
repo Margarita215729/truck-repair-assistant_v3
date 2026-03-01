@@ -133,16 +133,16 @@ export default function PartsCatalog() {
     );
     try {
       await deleteRecommendation(id);
-      // Don't invalidate 'my-parts' — it's active, so React Query would
-      // refetch immediately and Supabase replication lag returns the deleted
-      // row, overwriting our optimistic removal.  Trust the cache update.
-      // Stats update in background (counts only, no item data).
+      // Also remove from any other cached filter variants
+      queryClient.setQueriesData({ queryKey: ['my-parts'] }, (old) =>
+        Array.isArray(old) ? old.filter(p => p.id !== id) : old
+      );
       queryClient.invalidateQueries({ queryKey: ['parts-stats'] });
-      toast.success('Recommendation removed');
+      toast.success(t('parts.recommendationRemoved') || 'Recommendation removed');
     } catch {
       // Rollback to snapshot
       queryClient.setQueryData(['my-parts', recFilters], previous);
-      toast.error('Failed to remove');
+      toast.error(t('parts.removeFailed') || 'Failed to remove');
     }
   };
 
