@@ -71,7 +71,7 @@ export default function PartsCatalog() {
   });
 
   // AI-powered fallback search — activates when vendor results are empty
-  const vendorHasResults = vendorResults && (vendorResults.finditparts?.length > 0 || vendorResults.fleetpride?.length > 0);
+  const vendorHasResults = vendorResults && (vendorResults.fleetpride?.length > 0 || vendorResults.truckpro?.length > 0);
   const { data: aiResults, isLoading: aiSearchLoading } = useQuery({
     queryKey: vendorKeys.aiSearch(searchSubmitted, { make: searchMake, model: searchModel, year: searchYear }),
     queryFn: () => aiSearchParts(searchSubmitted, { make: searchMake, model: searchModel, year: searchYear }),
@@ -124,17 +124,23 @@ export default function PartsCatalog() {
   };
 
   const handleDeleteRec = async (id) => {
+    // Snapshot for rollback
+    const previous = queryClient.getQueryData(['my-parts', recFilters]);
+
     // Optimistic removal from UI
     queryClient.setQueryData(['my-parts', recFilters], (old) =>
       old ? old.filter(p => p.id !== id) : []
     );
     try {
       await deleteRecommendation(id);
-      await refetchRec();
+      // Don't refetch immediately — trust the optimistic cache.
+      // Invalidate in background so next focus/interval picks up fresh data.
+      queryClient.invalidateQueries({ queryKey: ['my-parts'] });
       queryClient.invalidateQueries({ queryKey: ['parts-stats'] });
       toast.success('Recommendation removed');
     } catch {
-      refetchRec(); // rollback on failure
+      // Rollback to snapshot
+      queryClient.setQueryData(['my-parts', recFilters], previous);
       toast.error('Failed to remove');
     }
   };
@@ -387,8 +393,8 @@ export default function PartsCatalog() {
                           rel="noopener noreferrer"
                           className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white/5 hover:bg-white/10 border border-white/10 hover:border-white/20 text-sm text-white/70 hover:text-white transition-all"
                         >
-                          {key === 'googleShopping' ? '🔍' : key === 'finditparts' ? '🚛' : key === 'fleetpride' ? '🏪' : key === 'truckpro' ? '🔩' : '🚛'}
-                          <span className="capitalize">{key === 'googleShopping' ? 'Google' : key === 'finditparts' ? 'FinditParts' : key === 'fleetpride' ? 'FleetPride' : key === 'truckpro' ? 'TruckPro' : key === 'freightlinerParts' ? 'Freightliner Parts' : key === 'peterbiltParts' ? 'Peterbilt Parts' : key === 'kenworthParts' ? 'Kenworth Parts' : key === 'volvoTrucks' ? 'Volvo Trucks' : key === 'mackParts' ? 'Mack Parts' : key}</span>
+                          {key === 'googleShopping' ? '🔍' : key === 'fleetpride' ? '🏪' : key === 'truckpro' ? '🔩' : '🚛'}
+                          <span className="capitalize">{key === 'googleShopping' ? 'Google' : key === 'fleetpride' ? 'FleetPride' : key === 'truckpro' ? 'TruckPro' : key === 'freightlinerParts' ? 'Freightliner Parts' : key === 'peterbiltParts' ? 'Peterbilt Parts' : key === 'kenworthParts' ? 'Kenworth Parts' : key === 'volvoTrucks' ? 'Volvo Trucks' : key === 'mackParts' ? 'Mack Parts' : key}</span>
                         </a>
                       ))}
                     </div>
