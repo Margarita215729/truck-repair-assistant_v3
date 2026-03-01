@@ -8,7 +8,6 @@ import { toast } from 'sonner';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useQueryClient } from '@tanstack/react-query';
 
-import TruckSelector from '@/components/diagnostics/TruckSelector';
 import AudioRecorder from '@/components/diagnostics/AudioRecorder';
 import SymptomPicker from '@/components/diagnostics/SymptomPicker';
 import ErrorCodeInput from '@/components/diagnostics/ErrorCodeInput';
