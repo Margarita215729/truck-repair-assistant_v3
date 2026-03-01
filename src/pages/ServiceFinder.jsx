@@ -167,6 +167,7 @@ export default function ServiceFinder() {
           lng: coords[1],
           query: searchLocation || undefined,
           types,
+          serviceTypes: filters.serviceTypes?.length > 0 ? filters.serviceTypes : undefined,
           radius: 40000,
         }),
       });
@@ -187,14 +188,6 @@ export default function ServiceFinder() {
       const data = await response.json();
 
       let results = data.services || [];
-
-      // Client-side filters
-      if (filters.is24Hours) {
-        results = results.filter(s => s.is24Hours);
-      }
-      if (filters.minRating > 0) {
-        results = results.filter(s => s.rating >= filters.minRating);
-      }
 
       if (results.length > 0) {
         setServices(results);
@@ -279,7 +272,15 @@ export default function ServiceFinder() {
     setFilters(prev => ({ ...prev, [type]: !prev[type] }));
   };
 
-  const filteredServices = services.filter(s => filters[s.type]);
+  const filteredServices = services.filter(s => {
+    // Category filter (repair / parking / towing)
+    if (!filters[s.type]) return false;
+    // 24/7 filter
+    if (filters.is24Hours && !s.is24Hours) return false;
+    // Minimum rating filter
+    if (filters.minRating > 0 && s.rating < filters.minRating) return false;
+    return true;
+  });
 
   const serviceCounts = {
     repair: services.filter(s => s.type === 'repair').length,

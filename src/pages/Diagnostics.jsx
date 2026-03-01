@@ -849,7 +849,9 @@ Focus on:
               animate={{ opacity: 1, y: 0 }}
               className="flex flex-col items-center justify-center min-h-[60vh] text-center"
             >
-              <p className="text-sm text-white/40 mb-6">{t('diagnostics.startHint') || 'Start by selecting your truck, then add details'}</p>
+              <div className="relative mb-6 flex items-center justify-center">
+                <img src="/logo.svg" alt="" className="w-24 h-24 opacity-[0.04] blur-[1px] select-none pointer-events-none" />
+              </div>
 
               <div className="w-full max-w-2xl mb-8 space-y-4">
                 <div className="flex items-center justify-between gap-4">
@@ -893,27 +895,22 @@ Focus on:
                   truck={truck}
                   errorCodes={errorCodes}
                   symptoms={symptoms}
-                  onTruckClick={() => setShowTruckSelector(true)}
                   onAudioClick={() => setShowAudioRecorder(true)}
-                  onErrorCodesClick={() => {
-                    if (!truck) {
-                      toast.info(t('diagnostics.selectTruckFirst') || 'Select your truck first to enter error codes');
-                      setShowTruckSelector(true);
-                      return;
-                    }
-                    setShowErrorCodeInput(true);
-                  }}
+                  onErrorCodesClick={() => setShowErrorCodeInput(true)}
                   onSymptomsClick={() => setShowSymptomPicker(true)}
-                  onClearTruck={() => setTruck(null)}
                   onClearCodes={() => setErrorCodes([])}
                   onClearSymptoms={() => setSymptoms([])}
+                  onDisabledClick={() => {
+                    toast.info(t('diagnostics.selectTruckFirst') || 'Please select your truck first using the truck button in the top menu');
+                    setShowTruckSelector(true);
+                  }}
                 />
 
                 <button
                   onClick={() => setShowChatHistory(true)}
-                  className="text-xs text-white/30 hover:text-white/60 transition-colors underline"
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-white/10 bg-white/5 hover:bg-white/10 text-white/50 hover:text-white/90 text-xs transition-colors"
                 >
-                  <History className="w-3 h-3 inline mr-1" />
+                  <History className="w-3.5 h-3.5" />
                   {t('diagnostics.chatHistory') || 'Chat History'}
                 </button>
               </div>
@@ -1000,20 +997,15 @@ Focus on:
                     truck={truck}
                     errorCodes={errorCodes}
                     symptoms={symptoms}
-                    onTruckClick={() => setShowTruckSelector(true)}
                     onAudioClick={() => setShowAudioRecorder(true)}
-                    onErrorCodesClick={() => {
-                      if (!truck) {
-                        toast.info(t('diagnostics.selectTruckFirst') || 'Select your truck first to enter error codes');
-                        setShowTruckSelector(true);
-                        return;
-                      }
-                      setShowErrorCodeInput(true);
-                    }}
+                    onErrorCodesClick={() => setShowErrorCodeInput(true)}
                     onSymptomsClick={() => setShowSymptomPicker(true)}
-                    onClearTruck={() => setTruck(null)}
                     onClearCodes={() => setErrorCodes([])}
                     onClearSymptoms={() => setSymptoms([])}
+                    onDisabledClick={() => {
+                      toast.info(t('diagnostics.selectTruckFirst') || 'Please select your truck first using the truck button in the top menu');
+                      setShowTruckSelector(true);
+                    }}
                   />
                 </div>
 
