@@ -3,7 +3,7 @@
  * Searches for real truck repair shops, truck stops, and towing services.
  *
  * POST /api/places-search
- * Body: { lat, lng, query?, types?: string[], radius?: number, pageToken?: string }
+ * Body: { lat, lng, query?, types?: string[], serviceTypes?: string[], radius?: number, pageToken?: string }
  * Returns: { services: Service[], search_center: { lat, lng } }
  */
 
@@ -58,22 +58,41 @@ export default async function handler(req, res) {
   }
 
   try {
-    const { lat, lng, query, types = ['repair', 'parking', 'towing'], radius = 40000, pageToken } = req.body || {};
+    const { lat, lng, query, types = ['repair', 'parking', 'towing'], serviceTypes = [], radius = 40000, pageToken } = req.body || {};
 
     if (!lat || !lng) {
       return res.status(400).json({ error: 'lat and lng are required' });
     }
 
+    // Map serviceTypes IDs to search-friendly keywords
+    const SERVICE_TYPE_KEYWORDS = {
+      semi_truck_service: 'semi truck service',
+      tires: 'truck tire service',
+      truck_wash: 'truck wash',
+      oil_change: 'truck oil change lube',
+    };
+
     // Build search queries for different service types
     const searches = [];
 
     if (types.includes('repair')) {
-      searches.push({
-        type: 'repair',
-        textQuery: query
-          ? `${query} truck repair`
-          : 'truck repair shop diesel mechanic heavy duty',
-      });
+      // When serviceTypes are selected, create separate targeted searches
+      if (serviceTypes.length > 0) {
+        for (const st of serviceTypes) {
+          const kw = SERVICE_TYPE_KEYWORDS[st] || st.replace(/_/g, ' ');
+          searches.push({
+            type: 'repair',
+            textQuery: query ? `${query} ${kw}` : kw,
+          });
+        }
+      } else {
+        searches.push({
+          type: 'repair',
+          textQuery: query
+            ? `${query} truck repair`
+            : 'truck repair shop diesel mechanic heavy duty',
+        });
+      }
     }
     if (types.includes('parking')) {
       searches.push({

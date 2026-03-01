@@ -19,7 +19,6 @@ export function getSearchUrls(partNumber, partName) {
 
   return {
     googleShopping: `https://www.google.com/search?tbm=shop&q=${encoded}`,
-    finditparts: `https://www.finditparts.com/search?q=${encodedPart}`,
     fleetpride: `https://www.fleetpride.com/search?q=${encodedPart}`,
     truckpro: `https://www.truckpro.com/search?q=${encodedPart}`,
     freightlinerParts: `https://parts.freightliner.com/search?q=${encodedPart}`,
@@ -33,7 +32,6 @@ export function getSearchUrls(partNumber, partName) {
 // Vendor display info
 export const VENDOR_INFO = {
   googleShopping: { name: 'Google Shopping', icon: '🔍', color: 'text-white', bgColor: 'bg-white/10' },
-  finditparts: { name: 'FinditParts', icon: '🚛', color: 'text-orange-400', bgColor: 'bg-orange-500/10' },
   fleetpride: { name: 'FleetPride', icon: '🏪', color: 'text-purple-400', bgColor: 'bg-purple-500/10' },
   truckpro: { name: 'TruckPro', icon: '🔩', color: 'text-cyan-400', bgColor: 'bg-cyan-500/10' },
   freightlinerParts: { name: 'Freightliner Parts', icon: '🚛', color: 'text-blue-400', bgColor: 'bg-blue-500/10' },
@@ -51,7 +49,7 @@ export const VENDOR_INFO = {
  *
  * @param {string} query - Part name or description
  * @param {Object} options - { partNumber, make, model, year, condition, limit }
- * @returns {{ finditparts: VendorListing[], fleetpride: VendorListing[], truckpro: VendorListing[], searchUrls: Object, meta: Object }}
+ * @returns {{ fleetpride: VendorListing[], truckpro: VendorListing[], searchUrls: Object, meta: Object }}
  */
 export async function searchVendors(query, options = {}) {
   try {
@@ -82,7 +80,6 @@ export async function searchVendors(query, options = {}) {
       console.warn('Vendor search API error:', resp.status);
       // Graceful fallback: return search URLs only
       return {
-        finditparts: [],
         fleetpride: [],
         truckpro: [],
         searchUrls: getSearchUrls(options.partNumber, query),
@@ -94,7 +91,6 @@ export async function searchVendors(query, options = {}) {
   } catch (err) {
     console.warn('Vendor search failed:', err.message);
     return {
-      finditparts: [],
       fleetpride: [],
       truckpro: [],
       searchUrls: getSearchUrls(options.partNumber, query),
@@ -124,7 +120,6 @@ export async function searchVendorsForPart(part) {
  */
 export function aggregateListings(vendorResults) {
   const all = [
-    ...(vendorResults?.finditparts || []),
     ...(vendorResults?.fleetpride || []),
     ...(vendorResults?.truckpro || []),
   ];
@@ -150,7 +145,7 @@ For EACH part, provide:
 - Common OEM and aftermarket part numbers
 - Brands that make this part (Dorman, ACDelco, Gates, Motorcraft, etc.)
 - Approximate price range (do NOT invent exact prices)
-- Where to look: online (FinditParts, FleetPride, TruckPro, dealer parts websites) and offline (NAPA, TravelCenters of America, Pilot/Flying J)
+- Where to look: online (FleetPride, TruckPro, dealer parts websites) and offline (NAPA, TravelCenters of America, Pilot/Flying J)
 
 CRITICAL RULES:
 - Do NOT generate specific URLs — just store names.

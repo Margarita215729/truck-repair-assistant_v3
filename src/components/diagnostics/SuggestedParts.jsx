@@ -20,7 +20,7 @@ export default function SuggestedParts({ parts, onPartClick }) {
       setVendorResults(prev => ({ ...prev, [idx]: results }));
     } catch {
       const urls = getSearchUrls(part.oem_part_number || '', part.name);
-      setVendorResults(prev => ({ ...prev, [idx]: { ebay: [], finditparts: [], searchUrls: urls } }));
+      setVendorResults(prev => ({ ...prev, [idx]: { fleetpride: [], truckpro: [], searchUrls: urls } }));
     }
     setLoadingIdx(null);
   };
