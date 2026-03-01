@@ -71,7 +71,7 @@ export default function PartDetailModal({ part, open, onClose }) {
         setVendorResults(results);
       }
     } catch {
-      setVendorResults({ ebay: [], finditparts: [], searchUrls });
+      setVendorResults({ fleetpride: [], truckpro: [], searchUrls });
     }
     setVendorLoading(false);
   };
@@ -228,7 +228,7 @@ export default function PartDetailModal({ part, open, onClose }) {
             {vendorLoading && (
               <div className="flex items-center justify-center py-8 gap-3">
                 <Loader2 className="w-6 h-6 animate-spin text-orange-400" />
-                <span className="text-sm text-white/50">Searching eBay, FinditParts...</span>
+                <span className="text-sm text-white/50">Searching vendors and dealers...</span>
               </div>
             )}
 

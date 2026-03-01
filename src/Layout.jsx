@@ -59,23 +59,21 @@ export default function Layout({ children, currentPageName }) {
                   <item.icon className="w-4 h-4" />{item.name}
                 </Link>
               ))}
-              {/* Truck Selector (Diagnostics page) */}
-              {currentPageName === 'Diagnostics' && (
-                <button
-                  onClick={() => setShowTruckSelector(true)}
-                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm transition-all ${
-                    truck
-                      ? 'bg-orange-500/15 text-orange-400 border border-orange-500/30 hover:bg-orange-500/25'
-                      : 'text-white/60 hover:text-white hover:bg-white/5'
-                  }`}
-                  title={truck ? `${truck.year || ''} ${truck.make} ${truck.model}` : 'Select Truck'}
-                >
-                  <Truck className="w-4 h-4" />
-                  <span className="max-w-[120px] truncate">
-                    {truck ? `${truck.make} ${truck.model}`.substring(0, 16) : 'Truck'}
-                  </span>
-                </button>
-              )}
+              {/* Truck Selector */}
+              <button
+                onClick={() => setShowTruckSelector(true)}
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm transition-all ${
+                  truck
+                    ? 'bg-orange-500/15 text-orange-400 border border-orange-500/30 hover:bg-orange-500/25'
+                    : 'text-white/60 hover:text-white hover:bg-white/5'
+                }`}
+                title={truck ? `${truck.year || ''} ${truck.make} ${truck.model}` : 'Select Truck'}
+              >
+                <Truck className="w-4 h-4" />
+                <span className="max-w-[120px] truncate">
+                  {truck ? `${truck.make} ${truck.model}`.substring(0, 16) : 'Truck'}
+                </span>
+              </button>
               {/* Language Switcher */}
               <button
                 onClick={() => setLanguage(language === 'en' ? 'ru' : 'en')}
@@ -199,6 +197,19 @@ export default function Layout({ children, currentPageName }) {
                     <item.icon className="w-5 h-5" />{item.name}
                   </Link>
                 ))}
+
+                {/* Truck Selector (mobile) */}
+                <button
+                  onClick={() => { setShowTruckSelector(true); setMobileMenuOpen(false); }}
+                  className={`flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium transition-all ${
+                    truck
+                      ? 'bg-orange-500/15 text-orange-400'
+                      : 'text-white/60 hover:text-white hover:bg-white/5'
+                  }`}
+                >
+                  <Truck className="w-5 h-5" />
+                  {truck ? `${truck.year || ''} ${truck.make} ${truck.model}`.trim() : 'Select Truck'}
+                </button>
 
                 {/* Pricing link (authenticated) */}
                 {!isLoadingAuth && isAuthenticated && (

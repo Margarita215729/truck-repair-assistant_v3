@@ -42,7 +42,7 @@ export default function PartCard({ part, variant = 'recommended', onClick, onDel
       const results = await searchVendorsForPart(part);
       setVendorPrices(results);
     } catch {
-      setVendorPrices({ ebay: [], finditparts: [], searchUrls: getSearchUrls(part.part_number, part.name) });
+      setVendorPrices({ fleetpride: [], truckpro: [], searchUrls: getSearchUrls(part.part_number, part.name) });
     }
     setPriceLoading(false);
   };
