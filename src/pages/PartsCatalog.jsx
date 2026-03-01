@@ -133,9 +133,10 @@ export default function PartsCatalog() {
     );
     try {
       await deleteRecommendation(id);
-      // Don't refetch immediately — trust the optimistic cache.
-      // Invalidate in background so next focus/interval picks up fresh data.
-      queryClient.invalidateQueries({ queryKey: ['my-parts'] });
+      // Don't invalidate 'my-parts' — it's active, so React Query would
+      // refetch immediately and Supabase replication lag returns the deleted
+      // row, overwriting our optimistic removal.  Trust the cache update.
+      // Stats update in background (counts only, no item data).
       queryClient.invalidateQueries({ queryKey: ['parts-stats'] });
       toast.success('Recommendation removed');
     } catch {
