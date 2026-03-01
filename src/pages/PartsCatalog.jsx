@@ -1,7 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import { getMyRecommendedParts, getRecommendedStats, deleteRecommendation } from '@/services/partsService';
 import { searchVendors, aggregateListings, vendorKeys, aiSearchParts } from '@/services/vendorService';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -19,12 +19,13 @@ import { useLanguage } from '@/lib/LanguageContext';
 export default function PartsCatalog() {
   const { t } = useLanguage();
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
 
   // Tab state
   const [activeTab, setActiveTab] = useState('recommended');
 
   // Recommended tab state
-  const [recFilters, setRecFilters] = useState({ category: 'all', importance: 'all', difficulty: 'all' });
+  const [recFilters, setRecFilters] = useState({ category: 'all', importance: 'all' });
 
   // Search tab state
   const [searchQuery, setSearchQuery] = useState('');
@@ -33,6 +34,8 @@ export default function PartsCatalog() {
   const [searchMake, setSearchMake] = useState('');
   const [searchModel, setSearchModel] = useState('');
   const [searchYear, setSearchYear] = useState('');
+  const [searchVin, setSearchVin] = useState('');
+  const [searchPartNumber, setSearchPartNumber] = useState('');
 
   const [showFilters, setShowFilters] = useState(false);
   const [selectedPart, setSelectedPart] = useState(null);
@@ -68,7 +71,7 @@ export default function PartsCatalog() {
   });
 
   // AI-powered fallback search — activates when vendor results are empty
-  const vendorHasResults = vendorResults && (vendorResults.ebay?.length > 0 || vendorResults.finditparts?.length > 0);
+  const vendorHasResults = vendorResults && (vendorResults.finditparts?.length > 0 || vendorResults.fleetpride?.length > 0);
   const { data: aiResults, isLoading: aiSearchLoading } = useQuery({
     queryKey: vendorKeys.aiSearch(searchSubmitted, { make: searchMake, model: searchModel, year: searchYear }),
     queryFn: () => aiSearchParts(searchSubmitted, { make: searchMake, model: searchModel, year: searchYear }),
@@ -121,11 +124,17 @@ export default function PartsCatalog() {
   };
 
   const handleDeleteRec = async (id) => {
+    // Optimistic removal from UI
+    queryClient.setQueryData(['my-parts', recFilters], (old) =>
+      old ? old.filter(p => p.id !== id) : []
+    );
     try {
       await deleteRecommendation(id);
-      refetchRec();
+      await refetchRec();
+      queryClient.invalidateQueries({ queryKey: ['parts-stats'] });
       toast.success('Recommendation removed');
     } catch {
+      refetchRec(); // rollback on failure
       toast.error('Failed to remove');
     }
   };
@@ -309,7 +318,7 @@ export default function PartsCatalog() {
               </div>
 
               {/* Optional truck context */}
-              <div className="grid grid-cols-3 gap-3">
+              <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
                 <Input
                   value={searchMake}
                   onChange={(e) => setSearchMake(e.target.value)}
@@ -328,6 +337,19 @@ export default function PartsCatalog() {
                   placeholder="Year (e.g., 2019)"
                   className="bg-white/5 border-white/10 text-white placeholder:text-white/40 text-sm"
                 />
+                <Input
+                  value={searchVin}
+                  onChange={(e) => setSearchVin(e.target.value.slice(0, 6))}
+                  placeholder="VIN last 6 digits"
+                  maxLength={6}
+                  className="bg-white/5 border-white/10 text-white placeholder:text-white/40 text-sm"
+                />
+                <Input
+                  value={searchPartNumber}
+                  onChange={(e) => setSearchPartNumber(e.target.value)}
+                  placeholder="Part Number (OEM)"
+                  className="bg-white/5 border-white/10 text-white placeholder:text-white/40 text-sm"
+                />
               </div>
 
               <AnimatePresence>
@@ -344,7 +366,7 @@ export default function PartsCatalog() {
               <div className="flex flex-col items-center justify-center py-20 gap-3">
                 <Loader2 className="w-8 h-8 animate-spin text-orange-500" />
                 <p className="text-sm text-white/50">
-                  {aiSearchLoading ? 'AI is searching for parts and purchase options...' : 'Searching eBay, FinditParts, and more...'}
+                  {aiSearchLoading ? 'Searching for parts and purchase options...' : 'Searching vendors and dealers...'}
                 </p>
               </div>
             ) : searchSubmitted && (vendorResults || aiResults) ? (
@@ -365,8 +387,8 @@ export default function PartsCatalog() {
                           rel="noopener noreferrer"
                           className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white/5 hover:bg-white/10 border border-white/10 hover:border-white/20 text-sm text-white/70 hover:text-white transition-all"
                         >
-                          {key === 'ebay' ? '🛒' : key === 'rockauto' ? '🔧' : key === 'amazon' ? '📦' : key === 'googleShopping' ? '🔍' : key === 'finditparts' ? '🚛' : key === 'fleetpride' ? '🏪' : '🔩'}
-                          <span className="capitalize">{key === 'googleShopping' ? 'Google' : key === 'finditparts' ? 'FinditParts' : key === 'fleetpride' ? 'FleetPride' : key === 'truckpro' ? 'TruckPro' : key}</span>
+                          {key === 'googleShopping' ? '🔍' : key === 'finditparts' ? '🚛' : key === 'fleetpride' ? '🏪' : key === 'truckpro' ? '🔩' : '🚛'}
+                          <span className="capitalize">{key === 'googleShopping' ? 'Google' : key === 'finditparts' ? 'FinditParts' : key === 'fleetpride' ? 'FleetPride' : key === 'truckpro' ? 'TruckPro' : key === 'freightlinerParts' ? 'Freightliner Parts' : key === 'peterbiltParts' ? 'Peterbilt Parts' : key === 'kenworthParts' ? 'Kenworth Parts' : key === 'volvoTrucks' ? 'Volvo Trucks' : key === 'mackParts' ? 'Mack Parts' : key}</span>
                         </a>
                       ))}
                     </div>
@@ -378,8 +400,6 @@ export default function PartsCatalog() {
                     <div className="mb-4 flex items-center justify-between">
                       <span className="text-sm text-white/60">
                         {vendorListings.length} {vendorListings.length !== 1 ? 'listings' : 'listing'} found
-                        {vendorResults?.meta?.sources?.ebay && ' from eBay'}
-                        {vendorResults?.meta?.sources?.finditparts && ', FinditParts'}
                       </span>
                     </div>
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -400,9 +420,9 @@ export default function PartsCatalog() {
                     <div className="mb-4 p-3 rounded-xl bg-gradient-to-r from-purple-500/10 to-orange-500/10 border border-purple-500/20">
                       <div className="flex items-center gap-2 mb-1">
                         <Sparkles className="w-4 h-4 text-purple-400" />
-                        <span className="text-sm font-semibold text-white/90">AI-Powered Results</span>
+                        <span className="text-sm font-semibold text-white/90">Extended Search Results</span>
                       </div>
-                      <p className="text-xs text-white/50">Vendor APIs returned no live listings. AI found these parts with purchase options.</p>
+                      <p className="text-xs text-white/50">No live vendor listings found. Here are parts with purchase options from our extended search.</p>
                     </div>
 
                     <div className="space-y-4">
@@ -412,7 +432,6 @@ export default function PartsCatalog() {
                             <div className="flex-1">
                               <div className="flex items-center gap-2 mb-1">
                                 <h3 className="font-semibold text-white">{part.title}</h3>
-                                <Badge className="bg-purple-500/20 text-purple-300 border border-purple-500/30 text-[10px]">AI</Badge>
                               </div>
                               {part.partNumber && (
                                 <p className="text-xs text-orange-400 font-mono mb-1">#{part.partNumber}</p>
@@ -470,15 +489,19 @@ export default function PartsCatalog() {
                               </p>
                               <div className="flex flex-wrap gap-2">
                                 {part.offlineStores.map((store, si) => (
-                                  <div
+                                  <a
                                     key={si}
-                                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white/5 border border-white/10 text-xs text-white/60"
+                                    href={store.url && store.url.startsWith('http') ? store.url : `https://www.google.com/maps/search/${encodeURIComponent(store.name + ' near me')}`}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white/5 hover:bg-white/10 border border-white/10 hover:border-white/20 text-xs text-white/60 hover:text-white transition-all cursor-pointer"
                                   >
                                     <MapPin className="w-3 h-3 text-orange-400" />
                                     <span className="font-medium">{store.name}</span>
                                     {store.availability && <span className="text-white/40">· {store.availability}</span>}
                                     {store.notes && <span className="text-white/30">· {store.notes}</span>}
-                                  </div>
+                                    <ExternalLink className="w-3 h-3 text-white/30" />
+                                  </a>
                                 ))}
                               </div>
                             </div>
@@ -500,7 +523,7 @@ export default function PartsCatalog() {
                 <ShoppingCart className="w-16 h-16 mx-auto mb-4 text-white/20" />
                 <h3 className="text-xl font-semibold text-white mb-2">Search Vendor Inventory</h3>
                 <p className="text-white/60">
-                  Enter a part name, OEM number, or description to find live pricing from eBay, FinditParts, RockAuto, and more.
+                  Enter a part name, OEM number, or description to find live pricing from dealers and vendors.
                 </p>
               </div>
             ) : null}

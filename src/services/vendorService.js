@@ -18,38 +18,40 @@ export function getSearchUrls(partNumber, partName) {
   const encodedPart = encodeURIComponent(searchTerm);
 
   return {
-    ebay: `https://www.ebay.com/sch/i.html?_nkw=${encoded}&_sacat=6028`,
-    rockauto: partNumber
-      ? `https://www.rockauto.com/en/partsearch/?partnum=${encodeURIComponent(partNumber)}`
-      : `https://www.rockauto.com/en/partsearch/?partnum=${encodedPart}`,
-    amazon: `https://www.amazon.com/s?k=${encoded}+truck+parts`,
     googleShopping: `https://www.google.com/search?tbm=shop&q=${encoded}`,
     finditparts: `https://www.finditparts.com/search?q=${encodedPart}`,
     fleetpride: `https://www.fleetpride.com/search?q=${encodedPart}`,
     truckpro: `https://www.truckpro.com/search?q=${encodedPart}`,
+    freightlinerParts: `https://parts.freightliner.com/search?q=${encodedPart}`,
+    peterbiltParts: `https://www.peterbiltparts.com/search?q=${encodedPart}`,
+    kenworthParts: `https://www.kenworth.com/parts/?q=${encodedPart}`,
+    volvoTrucks: `https://www.volvotrucks.us/parts/?q=${encodedPart}`,
+    mackParts: `https://www.macktrucks.com/parts/?q=${encodedPart}`,
   };
 }
 
 // Vendor display info
 export const VENDOR_INFO = {
-  ebay: { name: 'eBay Motors', icon: '🛒', color: 'text-blue-400', bgColor: 'bg-blue-500/10' },
-  rockauto: { name: 'RockAuto', icon: '🔧', color: 'text-green-400', bgColor: 'bg-green-500/10' },
-  amazon: { name: 'Amazon', icon: '📦', color: 'text-yellow-400', bgColor: 'bg-yellow-500/10' },
   googleShopping: { name: 'Google Shopping', icon: '🔍', color: 'text-white', bgColor: 'bg-white/10' },
   finditparts: { name: 'FinditParts', icon: '🚛', color: 'text-orange-400', bgColor: 'bg-orange-500/10' },
   fleetpride: { name: 'FleetPride', icon: '🏪', color: 'text-purple-400', bgColor: 'bg-purple-500/10' },
   truckpro: { name: 'TruckPro', icon: '🔩', color: 'text-cyan-400', bgColor: 'bg-cyan-500/10' },
+  freightlinerParts: { name: 'Freightliner Parts', icon: '🚛', color: 'text-blue-400', bgColor: 'bg-blue-500/10' },
+  peterbiltParts: { name: 'Peterbilt Parts', icon: '🚛', color: 'text-red-400', bgColor: 'bg-red-500/10' },
+  kenworthParts: { name: 'Kenworth Parts', icon: '🚛', color: 'text-yellow-400', bgColor: 'bg-yellow-500/10' },
+  volvoTrucks: { name: 'Volvo Trucks', icon: '🚛', color: 'text-blue-300', bgColor: 'bg-blue-500/10' },
+  mackParts: { name: 'Mack Parts', icon: '🚛', color: 'text-amber-400', bgColor: 'bg-amber-500/10' },
 };
 
 // ─── Server-side vendor search via API route ─────────────────────────
 
 /**
  * Search vendors for parts through the serverless API function.
- * Returns live prices from eBay + FinditParts + constructed URLs.
+ * Returns live prices from vendor APIs + constructed search URLs.
  *
  * @param {string} query - Part name or description
  * @param {Object} options - { partNumber, make, model, year, condition, limit }
- * @returns {{ ebay: VendorListing[], finditparts: VendorListing[], searchUrls: Object, meta: Object }}
+ * @returns {{ finditparts: VendorListing[], fleetpride: VendorListing[], truckpro: VendorListing[], searchUrls: Object, meta: Object }}
  */
 export async function searchVendors(query, options = {}) {
   try {
@@ -80,8 +82,9 @@ export async function searchVendors(query, options = {}) {
       console.warn('Vendor search API error:', resp.status);
       // Graceful fallback: return search URLs only
       return {
-        ebay: [],
         finditparts: [],
+        fleetpride: [],
+        truckpro: [],
         searchUrls: getSearchUrls(options.partNumber, query),
         meta: { query, partNumber: options.partNumber || '', totalResults: 0, sources: {} },
       };
@@ -91,8 +94,9 @@ export async function searchVendors(query, options = {}) {
   } catch (err) {
     console.warn('Vendor search failed:', err.message);
     return {
-      ebay: [],
       finditparts: [],
+      fleetpride: [],
+      truckpro: [],
       searchUrls: getSearchUrls(options.partNumber, query),
       meta: { query, partNumber: options.partNumber || '', totalResults: 0, sources: {} },
     };
@@ -120,8 +124,9 @@ export async function searchVendorsForPart(part) {
  */
 export function aggregateListings(vendorResults) {
   const all = [
-    ...(vendorResults?.ebay || []),
     ...(vendorResults?.finditparts || []),
+    ...(vendorResults?.fleetpride || []),
+    ...(vendorResults?.truckpro || []),
   ];
   // Sort by price ascending
   return all.sort((a, b) => (a.price || Infinity) - (b.price || Infinity));
@@ -145,7 +150,7 @@ For EACH part, provide:
 - Common OEM and aftermarket part numbers
 - Brands that make this part (Dorman, ACDelco, Gates, Motorcraft, etc.)
 - Approximate price range (do NOT invent exact prices)
-- Where to look: online (RockAuto, Amazon, eBay, FleetPride) and offline (AutoZone, O'Reilly, NAPA, TravelCenters of America)
+- Where to look: online (FinditParts, FleetPride, TruckPro, dealer parts websites) and offline (NAPA, TravelCenters of America, Pilot/Flying J)
 
 CRITICAL RULES:
 - Do NOT generate specific URLs — just store names.

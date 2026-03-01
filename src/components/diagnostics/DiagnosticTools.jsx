@@ -63,27 +63,31 @@ export default function DiagnosticTools({
         onClick={onTruckClick}
         onClear={truck ? onClearTruck : undefined}
       />
-      <ToolButton
-        icon={Mic}
-        label="Sound"
-        onClick={onAudioClick}
-      />
-      <ToolButton
-        icon={AlertCircle}
-        label={errorCodes.length > 0 ? `${errorCodes.length} code${errorCodes.length > 1 ? 's' : ''}` : 'Codes'}
-        active={errorCodes.length > 0}
-        color="red"
-        onClick={onErrorCodesClick}
-        onClear={errorCodes.length > 0 ? onClearCodes : undefined}
-      />
-      <ToolButton
-        icon={AlertTriangle}
-        label={symptoms.length > 0 ? `${symptoms.length} symptom${symptoms.length > 1 ? 's' : ''}` : 'Symptoms'}
-        active={symptoms.length > 0}
-        color="yellow"
-        onClick={onSymptomsClick}
-        onClear={symptoms.length > 0 ? onClearSymptoms : undefined}
-      />
+      {truck && (
+        <>
+          <ToolButton
+            icon={Mic}
+            label="Sound"
+            onClick={onAudioClick}
+          />
+          <ToolButton
+            icon={AlertCircle}
+            label={errorCodes.length > 0 ? `${errorCodes.length} code${errorCodes.length > 1 ? 's' : ''}` : 'Codes'}
+            active={errorCodes.length > 0}
+            color="red"
+            onClick={onErrorCodesClick}
+            onClear={errorCodes.length > 0 ? onClearCodes : undefined}
+          />
+          <ToolButton
+            icon={AlertTriangle}
+            label={symptoms.length > 0 ? `${symptoms.length} symptom${symptoms.length > 1 ? 's' : ''}` : 'Symptoms'}
+            active={symptoms.length > 0}
+            color="yellow"
+            onClick={onSymptomsClick}
+            onClear={symptoms.length > 0 ? onClearSymptoms : undefined}
+          />
+        </>
+      )}
     </div>
   );
 }
