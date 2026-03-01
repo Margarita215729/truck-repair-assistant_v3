@@ -100,12 +100,8 @@ export default function ServiceMap({
     }
   }, [userLocation]);
 
-  const filteredServices = services.filter(s => {
-    if (filters.repair && s.type === 'repair') return true;
-    if (filters.parking && s.type === 'parking') return true;
-    if (filters.towing && s.type === 'towing') return true;
-    return false;
-  });
+  // Services are already filtered by the parent — use directly
+  const filteredServices = services;
 
   // Restriction segments that have start+end points (for polylines)
   const restrictionSegments = restrictions.filter(r => r.lat_end && r.lng_end);

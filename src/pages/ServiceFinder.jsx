@@ -112,7 +112,8 @@ export default function ServiceFinder() {
     return null;
   };
 
-  const searchServices = async (searchLocation, overrideCoords = null) => {
+  const searchServices = async (searchLocation, overrideCoords = null, overrideFilters = null) => {
+    const activeFilters = overrideFilters || filters;
     let coords = overrideCoords || userCoords;
 
     // If user typed an address but we have no coords, geocode it
@@ -137,9 +138,9 @@ export default function ServiceFinder() {
     try {
       // Determine which types to search based on active filters
       const types = [];
-      if (filters.repair) types.push('repair');
-      if (filters.parking) types.push('parking');
-      if (filters.towing) types.push('towing');
+      if (activeFilters.repair) types.push('repair');
+      if (activeFilters.parking) types.push('parking');
+      if (activeFilters.towing) types.push('towing');
       if (types.length === 0) types.push('repair', 'parking', 'towing');
 
       // Get auth token (non-blocking — proceed even without it for graceful error)
@@ -167,7 +168,7 @@ export default function ServiceFinder() {
           lng: coords[1],
           query: searchLocation || undefined,
           types,
-          serviceTypes: filters.serviceTypes?.length > 0 ? filters.serviceTypes : undefined,
+          serviceTypes: activeFilters.serviceTypes?.length > 0 ? activeFilters.serviceTypes : undefined,
           radius: 40000,
         }),
       });
@@ -268,8 +269,23 @@ export default function ServiceFinder() {
     );
   };
 
+  const handleFilterChange = (newFilters) => {
+    const apiChanged =
+      newFilters.repair !== filters.repair ||
+      newFilters.parking !== filters.parking ||
+      newFilters.towing !== filters.towing ||
+      JSON.stringify(newFilters.serviceTypes) !== JSON.stringify(filters.serviceTypes);
+
+    setFilters(newFilters);
+
+    // Auto re-search when API-affecting filters change and we already have results
+    if (apiChanged && userCoords && services.length > 0) {
+      searchServices(location, null, newFilters);
+    }
+  };
+
   const toggleFilter = (type) => {
-    setFilters(prev => ({ ...prev, [type]: !prev[type] }));
+    handleFilterChange({ ...filters, [type]: !filters[type] });
   };
 
   const filteredServices = services.filter(s => {
@@ -391,7 +407,7 @@ export default function ServiceFinder() {
                 className="overflow-hidden"
               >
                 <div className="pt-3 space-y-3">
-                  <ServiceFilters filters={filters} onFilterChange={setFilters} />
+                  <ServiceFilters filters={filters} onFilterChange={handleFilterChange} />
 
                   <div className="flex flex-wrap items-center gap-2">
                     <span className="text-xs text-white/40">{t('services.showLabel')}</span>
@@ -405,35 +421,22 @@ export default function ServiceFinder() {
                       {t('services.repair')} ({serviceCounts.repair})
                     </Toggle>
 
-                    <div className="w-px h-5 bg-white/10" />
-                    
-                    <span className="text-xs text-white/40">{t('services.layers')}</span>
-
                     <Toggle
-                      pressed={filters.showTruckParking}
-                      onPressedChange={() => toggleFilter('showTruckParking')}
-                      className={`h-8 px-2.5 text-xs ${filters.showTruckParking ? 'bg-cyan-500/20 text-cyan-400 border-cyan-500/30' : 'bg-white/5 text-white/60 border-white/10'} border`}
+                      pressed={filters.parking}
+                      onPressedChange={() => toggleFilter('parking')}
+                      className={`h-8 px-2.5 text-xs ${filters.parking ? 'bg-green-500/20 text-green-400 border-green-500/30' : 'bg-white/5 text-white/60 border-white/10'} border`}
                     >
                       <ParkingCircle className="w-3.5 h-3.5 mr-1.5" />
-                      {t('services.truckParking')} ({serviceCounts.truckParking})
+                      {t('services.parking') || 'Parking'} ({serviceCounts.parking})
                     </Toggle>
 
                     <Toggle
-                      pressed={filters.showWeighStations}
-                      onPressedChange={() => toggleFilter('showWeighStations')}
-                      className={`h-8 px-2.5 text-xs ${filters.showWeighStations ? 'bg-purple-500/20 text-purple-400 border-purple-500/30' : 'bg-white/5 text-white/60 border-white/10'} border`}
+                      pressed={filters.towing}
+                      onPressedChange={() => toggleFilter('towing')}
+                      className={`h-8 px-2.5 text-xs ${filters.towing ? 'bg-red-500/20 text-red-400 border-red-500/30' : 'bg-white/5 text-white/60 border-white/10'} border`}
                     >
-                      <Scale className="w-3.5 h-3.5 mr-1.5" />
-                      {t('services.weighStations')} ({serviceCounts.weighStations})
-                    </Toggle>
-
-                    <Toggle
-                      pressed={filters.showRestrictions}
-                      onPressedChange={() => toggleFilter('showRestrictions')}
-                      className={`h-8 px-2.5 text-xs ${filters.showRestrictions ? 'bg-amber-500/20 text-amber-400 border-amber-500/30' : 'bg-white/5 text-white/60 border-white/10'} border`}
-                    >
-                      <AlertTriangle className="w-3.5 h-3.5 mr-1.5" />
-                      {t('services.restrictions')} ({serviceCounts.restrictions})
+                      <Truck className="w-3.5 h-3.5 mr-1.5" />
+                      {t('services.towing') || 'Towing'} ({serviceCounts.towing})
                     </Toggle>
                   </div>
                 </div>
@@ -542,7 +545,7 @@ export default function ServiceFinder() {
             {(viewMode === 'map' || viewMode === 'split') && (
               <div className={`${viewMode === 'map' ? 'h-[calc(100vh-180px)]' : 'h-[calc(100vh-200px)] lg:sticky lg:top-28'}`}>
                 <ServiceMap
-                  services={services}
+                  services={filteredServices}
                   userLocation={userCoords}
                   selectedService={selectedService}
                   onSelectService={setSelectedService}
