@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { entities } from '@/services/entityService';
 import { fetchAllInfrastructure } from '@/services/truckInfraService';
 import { useQuery } from '@tanstack/react-query';
@@ -58,6 +58,7 @@ export default function ServiceFinder() {
   // Infrastructure data from Supabase
   const [infraData, setInfraData] = useState({ parking: [], weighStations: [], restrictions: [] });
   const [infraLoading, setInfraLoading] = useState(false);
+  const infraCoordsRef = useRef(null); // tracks coords we last fetched infra for
 
   const { data: allReviews = [] } = useQuery({
     queryKey: ['service-reviews'],
@@ -68,14 +69,17 @@ export default function ServiceFinder() {
   // No auto-geolocation on mount — request only on explicit user action
   // to avoid consuming the browser permission prompt before the user is ready.
 
-  // Fetch infrastructure data whenever userCoords change (always pre-fetch all types)
-  const loadInfrastructure = useCallback(async (coords) => {
+  // Fetch infrastructure data — deduped by coords so toggling layers is instant
+  const loadInfrastructure = useCallback(async (coords, force = false) => {
     if (!coords) return;
+    const key = `${coords[0].toFixed(4)},${coords[1].toFixed(4)}`;
+    if (!force && infraCoordsRef.current === key) return; // already fetched for these coords
 
     setInfraLoading(true);
     try {
       const data = await fetchAllInfrastructure(coords[0], coords[1], 50);
       setInfraData(data);
+      infraCoordsRef.current = key;
     } catch (err) {
       console.warn('Infrastructure fetch failed:', err);
       toast.error(t('services.infraFailed'));
@@ -84,12 +88,13 @@ export default function ServiceFinder() {
     }
   }, [t]);
 
-  // Reload infra when coords change
+  // Fetch infra when any layer is enabled and we have coords (no redundant refetch)
   useEffect(() => {
-    if (userCoords) {
+    const anyLayerOn = filters.showTruckParking || filters.showWeighStations || filters.showRestrictions;
+    if (userCoords && anyLayerOn) {
       loadInfrastructure(userCoords);
     }
-  }, [userCoords, loadInfrastructure]);
+  }, [userCoords, filters.showTruckParking, filters.showWeighStations, filters.showRestrictions, loadInfrastructure]);
 
   /** Geocode a text address to { lat, lng } via server-side proxy */
   const geocodeAddress = async (address) => {
@@ -486,7 +491,7 @@ export default function ServiceFinder() {
                   <Button
                     variant="ghost"
                     size="sm"
-                    onClick={() => { searchServices(location); loadInfrastructure(userCoords); }}
+                    onClick={() => { searchServices(location); loadInfrastructure(userCoords, true); }}
                     className="text-white/60 hover:text-white"
                   >
                     <RefreshCw className="w-4 h-4 mr-1" />

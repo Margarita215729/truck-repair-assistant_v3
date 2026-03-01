@@ -21,15 +21,40 @@ function buildBBox(lat, lng, radiusMiles) {
   return `${lat - d},${lng - dLng},${lat + d},${lng + dLng}`;
 }
 
-async function queryOverpass(query) {
-  const res = await fetch(OVERPASS_API, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-    body: `data=${encodeURIComponent(query)}`,
-  });
-  if (!res.ok) throw new Error(`Overpass API ${res.status}`);
-  const data = await res.json();
-  return data.elements || [];
+async function queryOverpass(query, retries = 2) {
+  for (let attempt = 0; attempt <= retries; attempt++) {
+    try {
+      const controller = new AbortController();
+      const timer = setTimeout(() => controller.abort(), 30000);
+
+      const res = await fetch(OVERPASS_API, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: `data=${encodeURIComponent(query)}`,
+        signal: controller.signal,
+      });
+      clearTimeout(timer);
+
+      // Rate-limited or gateway timeout → retry after backoff
+      if (res.status === 429 || res.status === 504) {
+        if (attempt < retries) {
+          await new Promise(r => setTimeout(r, (attempt + 1) * 2000));
+          continue;
+        }
+      }
+
+      if (!res.ok) throw new Error(`Overpass API ${res.status}`);
+      const data = await res.json();
+      return data.elements || [];
+    } catch (err) {
+      if (attempt < retries && (err.name === 'AbortError' || err.message?.includes('429'))) {
+        await new Promise(r => setTimeout(r, (attempt + 1) * 2000));
+        continue;
+      }
+      throw err;
+    }
+  }
+  throw new Error('Overpass API failed after retries');
 }
 
 // ─── Haversine ────────────────────────────────────────────────────────
@@ -260,12 +285,164 @@ export async function fetchNearbyRestrictions(lat, lng, radius = DEFAULT_RADIUS)
 }
 
 export async function fetchAllInfrastructure(lat, lng, radius = DEFAULT_RADIUS) {
+  // ── Single combined Overpass query — avoids rate-limiting from 3 parallel requests
+  try {
+    return await fetchAllFromOSM(lat, lng, radius);
+  } catch (e) {
+    console.warn('Overpass combined query failed, falling back to Supabase:', e.message);
+  }
+
+  // Fallback: try each type from Supabase independently
   const [parking, weighStations, restrictions] = await Promise.all([
-    fetchNearbyParking(lat, lng, radius),
-    fetchNearbyWeighStations(lat, lng, radius),
-    fetchNearbyRestrictions(lat, lng, radius),
+    fetchParkingFromSupabase(lat, lng, radius),
+    fetchWeighStationsFromSupabase(lat, lng, radius),
+    fetchRestrictionsFromSupabase(lat, lng, radius),
   ]);
   return { parking, weighStations, restrictions };
+}
+
+/**
+ * Combined Overpass fetch — one HTTP request for all infrastructure types.
+ * Prevents 429 rate-limiting that occurred with 3 parallel requests.
+ */
+async function fetchAllFromOSM(lat, lng, radius) {
+  const bbox = buildBBox(lat, lng, radius);
+  const query = `[out:json][timeout:25];
+(
+  node["amenity"="fuel"]["hgv"~"yes|designated"](${bbox});
+  node["amenity"="parking"]["hgv"~"yes|designated"](${bbox});
+  node["amenity"="parking"]["access"="hgv"](${bbox});
+  node["highway"="rest_area"](${bbox});
+  node["highway"="services"](${bbox});
+  way["amenity"="fuel"]["hgv"~"yes|designated"](${bbox});
+  way["amenity"="parking"]["hgv"~"yes|designated"](${bbox});
+  way["highway"="rest_area"](${bbox});
+  way["highway"="services"](${bbox});
+  node["amenity"="weighbridge"](${bbox});
+  node["highway"="weigh_station"](${bbox});
+  node["man_made"="weighbridge"](${bbox});
+  way["amenity"="weighbridge"](${bbox});
+  way["highway"="weigh_station"](${bbox});
+  node["maxheight"](${bbox});
+  way["maxheight"](${bbox});
+  node["maxweight"](${bbox});
+  way["maxweight"](${bbox});
+  node["maxwidth"](${bbox});
+  way["maxwidth"](${bbox});
+  way["hgv"="no"](${bbox});
+);
+out center 300;`;
+
+  const elements = await queryOverpass(query);
+
+  const parking = [];
+  const weighStations = [];
+  const restrictions = [];
+  const seenIds = new Set();
+
+  for (const el of elements) {
+    const tags = el.tags || {};
+    const elLat = el.lat || el.center?.lat;
+    const elLng = el.lon || el.center?.lon;
+    if (!elLat || !elLng) continue;
+
+    const id = `osm-${el.id}`;
+    if (seenIds.has(id)) continue;
+    seenIds.add(id);
+
+    // ── classify: weigh station > restriction > parking ──
+    const isWeighStation = tags.amenity === 'weighbridge' || tags.highway === 'weigh_station' || tags.man_made === 'weighbridge';
+
+    if (isWeighStation) {
+      weighStations.push({
+        id,
+        name: tags.name || 'Weigh Station',
+        address: [tags['addr:street'], tags['addr:city'], tags['addr:state']].filter(Boolean).join(', ') || '',
+        latitude: elLat, longitude: elLng, lat: elLat, lng: elLng,
+        _type: 'weigh_station',
+        state_code: tags['addr:state'] || '',
+        highway: tags.highway_ref || tags.ref || '',
+        direction: tags.direction || '',
+        status: 'unknown', status_updated_at: null,
+        scale_type: tags.weighbridge === 'weigh_in_motion' ? 'weigh_in_motion' : 'static',
+        has_prepass: false, has_bypass: false,
+        hours: tags.opening_hours || '',
+        phone: tags.phone || '',
+        source: 'osm', source_id: String(el.id),
+        distance: haversineMiles(lat, lng, elLat, elLng),
+      });
+      continue;
+    }
+
+    const heightFt = parseMetricToFt(tags.maxheight);
+    const weightTons = parseMetricToTons(tags.maxweight);
+    const widthFt = parseMetricToFt(tags.maxwidth);
+    const isHgvBan = tags.hgv === 'no';
+    const hasRestriction = heightFt || weightTons || widthFt || isHgvBan;
+
+    if (hasRestriction) {
+      let restrictionType = 'combined';
+      if (heightFt && !weightTons && !widthFt) restrictionType = 'height';
+      else if (weightTons && !heightFt && !widthFt) restrictionType = 'weight';
+      else if (widthFt && !heightFt && !weightTons) restrictionType = 'width';
+      else if (isHgvBan && !heightFt && !weightTons && !widthFt) restrictionType = 'road';
+
+      const roadName = tags.name || tags.ref || '';
+      restrictions.push({
+        id,
+        name: roadName
+          ? `${roadName}${heightFt ? ` — ${heightFt}ft` : ''}`
+          : `Restriction${heightFt ? ` ${heightFt}ft` : ''}${weightTons ? ` ${weightTons}t` : ''}`,
+        description: isHgvBan ? 'No trucks allowed' : '',
+        latitude: elLat, longitude: elLng, lat: elLat, lng: elLng,
+        lat_end: null, lng_end: null,
+        _type: 'truck_restriction',
+        state_code: tags['addr:state'] || '',
+        road_name: roadName,
+        height_ft: heightFt, weight_tons: weightTons, width_ft: widthFt, length_ft: null,
+        restriction_type: restrictionType,
+        is_active: true, detour_info: '',
+        source: 'osm', source_id: String(el.id),
+        distance: haversineMiles(lat, lng, elLat, elLng),
+      });
+      continue;
+    }
+
+    // Everything else → truck parking
+    const amenities = [];
+    if (tags.fuel === 'yes' || tags.amenity === 'fuel') amenities.push('fuel');
+    if (tags.shower === 'yes') amenities.push('showers');
+    if (tags.restaurant === 'yes' || tags.food === 'yes') amenities.push('food');
+    if (tags.internet_access === 'wlan' || tags.internet_access === 'yes') amenities.push('wifi');
+
+    const isRestArea = tags.highway === 'rest_area' || tags.highway === 'services';
+    const isTruckStop = tags.amenity === 'fuel' && (tags.hgv === 'yes' || tags.hgv === 'designated');
+
+    parking.push({
+      id,
+      name: tags.name || (isRestArea ? 'Rest Area' : isTruckStop ? 'Truck Stop' : 'Truck Parking'),
+      address: [tags['addr:street'], tags['addr:city'], tags['addr:state']].filter(Boolean).join(', ') || '',
+      latitude: elLat, longitude: elLng, lat: elLat, lng: elLng,
+      _type: 'truck_parking',
+      state_code: tags['addr:state'] || '',
+      total_spaces: parseInt(tags.capacity) || 0,
+      available_spaces: 0, occupancy_pct: 0, occupancy_status: 'unknown', occupancy_updated_at: null,
+      parking_type: isRestArea ? 'public_rest_area' : isTruckStop ? 'truck_stop' : 'public',
+      amenities,
+      operator: tags.operator || tags.brand || '',
+      is24_hours: tags.opening_hours === '24/7',
+      phone: tags.phone || tags['contact:phone'] || '',
+      website: tags.website || '',
+      source: 'osm', source_id: String(el.id),
+      distance: haversineMiles(lat, lng, elLat, elLng),
+    });
+  }
+
+  return {
+    parking: parking.sort((a, b) => a.distance - b.distance),
+    weighStations: weighStations.sort((a, b) => a.distance - b.distance),
+    restrictions: restrictions.sort((a, b) => a.distance - b.distance),
+  };
 }
 
 // ─── UI helpers ───────────────────────────────────────────────────────
