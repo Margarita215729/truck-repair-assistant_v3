@@ -3,7 +3,7 @@ import { entities } from '@/services/entityService';
 import { invokeLLM, uploadFile } from '@/services/aiService';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
-import { Loader2, FileText, Wrench, MessageSquarePlus, AlertTriangle, History, Info } from 'lucide-react';
+import { Loader2, FileText, Wrench, MessageSquarePlus, AlertTriangle, AlertCircle, Mic, Lock, History, Info } from 'lucide-react';
 import { toast } from 'sonner';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useQueryClient } from '@tanstack/react-query';
@@ -887,26 +887,55 @@ Focus on:
                   </div>
                 </div>
 
-                <DiagnosticTools
-                  truck={truck}
-                  errorCodes={errorCodes}
-                  symptoms={symptoms}
-                  onAudioClick={() => setShowAudioRecorder(true)}
-                  onErrorCodesClick={() => setShowErrorCodeInput(true)}
-                  onSymptomsClick={() => setShowSymptomPicker(true)}
-                  onClearCodes={() => setErrorCodes([])}
-                  onClearSymptoms={() => setSymptoms([])}
-                  onDisabledClick={() => {
+                {/* ── Tool cards grid ── */}
+                {(() => {
+                  const toolDisabled = !truck;
+                  const handleDisabled = () => {
                     toast.info(t('diagnostics.selectTruckFirst') || 'Please select your truck first using the truck button in the top menu');
                     setShowTruckSelector(true);
-                  }}
-                />
+                  };
+                  const cards = [
+                    { icon: Mic,            label: t('diagnostics.sound') || 'Sound',    desc: t('diagnostics.soundDesc') || 'Record engine / brake sounds',    color: 'orange', onClick: () => setShowAudioRecorder(true) },
+                    { icon: AlertCircle,     label: t('diagnostics.codes') || 'Codes',    desc: t('diagnostics.codesDesc') || 'Enter DTC / fault codes',         color: 'red',    onClick: () => setShowErrorCodeInput(true) },
+                    { icon: AlertTriangle,   label: t('diagnostics.symptoms') || 'Symptoms', desc: t('diagnostics.symptomsDesc') || 'Describe what you notice', color: 'yellow', onClick: () => setShowSymptomPicker(true) },
+                  ];
+                  const colorMap = {
+                    orange: { bg: 'from-orange-500/10 to-orange-400/5', border: 'border-orange-500/20 hover:border-orange-500/40', icon: 'text-orange-400', text: 'text-orange-300/90' },
+                    red:    { bg: 'from-red-500/10 to-red-400/5',       border: 'border-red-500/20 hover:border-red-500/40',       icon: 'text-red-400',    text: 'text-red-300/90' },
+                    yellow: { bg: 'from-yellow-500/10 to-yellow-400/5', border: 'border-yellow-500/20 hover:border-yellow-500/40', icon: 'text-yellow-400', text: 'text-yellow-300/90' },
+                  };
+                  return (
+                    <div className="grid grid-cols-3 gap-3">
+                      {cards.map(({ icon: Icon, label, desc, color, onClick }) => {
+                        const c = colorMap[color];
+                        return (
+                          <motion.button
+                            key={label}
+                            whileHover={{ scale: toolDisabled ? 1 : 1.03 }}
+                            whileTap={{ scale: 0.97 }}
+                            onClick={toolDisabled ? handleDisabled : onClick}
+                            className={`relative flex flex-col items-center gap-2 p-5 rounded-2xl border bg-gradient-to-b transition-all duration-200
+                              ${toolDisabled ? 'border-white/5 from-white/[0.02] to-transparent opacity-40 cursor-pointer' : `${c.border} ${c.bg}`}`}
+                          >
+                            <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${toolDisabled ? 'bg-white/5' : 'bg-white/5'}`}>
+                              <Icon className={`w-5 h-5 ${toolDisabled ? 'text-white/30' : c.icon}`} />
+                            </div>
+                            <span className={`text-sm font-semibold ${toolDisabled ? 'text-white/30' : 'text-white/90'}`}>{label}</span>
+                            <span className={`text-[11px] leading-tight ${toolDisabled ? 'text-white/15' : 'text-white/40'}`}>{desc}</span>
+                            {toolDisabled && <Lock className="absolute top-2 right-2 w-3 h-3 text-white/20" />}
+                          </motion.button>
+                        );
+                      })}
+                    </div>
+                  );
+                })()}
 
+                {/* ── Chat History (subtle) ── */}
                 <button
                   onClick={() => setShowChatHistory(true)}
-                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-white/10 bg-white/5 hover:bg-white/10 text-white/50 hover:text-white/90 text-xs transition-colors"
+                  className="flex items-center gap-1.5 mx-auto mt-2 px-3 py-1 rounded-lg text-white/30 hover:text-white/60 text-[11px] transition-colors"
                 >
-                  <History className="w-3.5 h-3.5" />
+                  <History className="w-3 h-3" />
                   {t('diagnostics.chatHistory') || 'Chat History'}
                 </button>
               </div>
@@ -1165,13 +1194,6 @@ Focus on:
       </div>
 
       {/* Modals */}
-      <TruckSelector
-        open={showTruckSelector}
-        onClose={() => setShowTruckSelector(false)}
-        onSelect={(t) => { setTruck(t); setShowNudge(false); }}
-        currentTruck={truck}
-      />
-      
       <AudioRecorder
         open={showAudioRecorder}
         onClose={() => setShowAudioRecorder(false)}
