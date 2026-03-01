@@ -5,6 +5,7 @@ import { useAuth } from '@/lib/AuthContext';
 import { useLanguage } from '@/lib/LanguageContext';
 import { useTruck } from '@/lib/TruckContext';
 import { MessageSquare, MapPin, FileText, Menu, X, User, LogIn, LogOut, Package, Globe, Crown, Zap, Truck } from 'lucide-react';
+import TruckSelector from '@/components/diagnostics/TruckSelector';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -18,7 +19,7 @@ export default function Layout({ children, currentPageName }) {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const { user, isAuthenticated, isLoadingAuth, logout, subscription, isProUser } = useAuth();
   const { t, language, setLanguage, languages } = useLanguage();
-  const { truck, setShowTruckSelector } = useTruck();
+  const { truck, setTruck, showTruckSelector, setShowTruckSelector } = useTruck();
 
   const navItems = [
     { name: t('nav.diagnostics'), page: 'Diagnostics', icon: MessageSquare },
@@ -254,6 +255,14 @@ export default function Layout({ children, currentPageName }) {
       </header>
 
       <main className="pt-16 min-h-screen">{children}</main>
+
+      {/* Global Truck Selector Modal */}
+      <TruckSelector
+        open={showTruckSelector}
+        onClose={() => setShowTruckSelector(false)}
+        onSelect={(t) => setTruck(t)}
+        currentTruck={truck}
+      />
     </div>
   );
 }
