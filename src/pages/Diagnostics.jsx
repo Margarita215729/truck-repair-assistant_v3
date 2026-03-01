@@ -27,6 +27,7 @@ import UpgradePrompt from '@/components/subscription/UpgradePrompt';
 import { useAiLimit } from '@/hooks/useAiLimit';
 import { useAuth } from '@/lib/AuthContext';
 import { useLanguage } from '@/lib/LanguageContext';
+import { useTruck } from '@/lib/TruckContext';
 import { buildNormalizedPayload } from '@/utils/normalizeIntake';
 import { saveAIPartRecommendations } from '@/services/partsService';
 import { searchForums, formatForumContext } from '@/services/forumSearchService';
@@ -36,6 +37,7 @@ export default function Diagnostics() {
   const { isProUser } = useAuth();
   const { canUse, checkAndIncrement, isLimitReached, dismissLimit, usage } = useAiLimit();
   const queryClient = useQueryClient();
+  const { truck, setTruck, showTruckSelector, setShowTruckSelector } = useTruck();
   const [messages, setMessages] = useState([]);
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -45,7 +47,6 @@ export default function Diagnostics() {
   const [showChatHistory, setShowChatHistory] = useState(false);
   
   // Diagnostic tools state
-  const [truck, setTruck] = useState(null);
   const [errorCodes, setErrorCodes] = useState([]);
   const [symptoms, setSymptoms] = useState([]);
   const [activeToolkit, setActiveToolkit] = useState(null);
@@ -59,7 +60,6 @@ export default function Diagnostics() {
   });
   
   // Modal states
-  const [showTruckSelector, setShowTruckSelector] = useState(false);
   const [showAudioRecorder, setShowAudioRecorder] = useState(false);
   const [showSymptomPicker, setShowSymptomPicker] = useState(false);
   const [showErrorCodeInput, setShowErrorCodeInput] = useState(false);
@@ -849,31 +849,7 @@ Focus on:
               animate={{ opacity: 1, y: 0 }}
               className="flex flex-col items-center justify-center min-h-[60vh] text-center"
             >
-              <div className="relative mb-8">
-                <img src="/logo.svg" alt="Truck Repair Assistant" className="w-24 h-24 brand-logo" />
-              </div>
-              
-              <h1 className="text-3xl md:text-4xl font-bold mb-3">
-                <span className="brand-text-gradient">Truck Repair</span>
-                <span className="text-white ml-2">Assistant</span>
-              </h1>
-              <div className="text-base text-white/60 max-w-md mb-6 text-left space-y-2">
-                {t('diagnostics.welcomeDesc').split('\n').map((line, i) => (
-                  <p key={i}>{line}</p>
-                ))}
-              </div>
-
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setShowChatHistory(true)}
-                className="mb-6 border-white/20 bg-white/5 hover:bg-white/10 text-white/70 hover:text-white"
-              >
-                <History className="w-4 h-4 mr-2" />
-                {t('diagnostics.chatHistory') || 'Chat History'}
-              </Button>
-
-              {/* Roadside Context Panel removed — VIN moved to TruckSelector */}
+              <p className="text-sm text-white/40 mb-6">{t('diagnostics.startHint') || 'Start by selecting your truck, then add details'}</p>
 
               <div className="w-full max-w-2xl mb-8 space-y-4">
                 <div className="flex items-center justify-between gap-4">
@@ -919,12 +895,27 @@ Focus on:
                   symptoms={symptoms}
                   onTruckClick={() => setShowTruckSelector(true)}
                   onAudioClick={() => setShowAudioRecorder(true)}
-                  onErrorCodesClick={() => setShowErrorCodeInput(true)}
+                  onErrorCodesClick={() => {
+                    if (!truck) {
+                      toast.info(t('diagnostics.selectTruckFirst') || 'Select your truck first to enter error codes');
+                      setShowTruckSelector(true);
+                      return;
+                    }
+                    setShowErrorCodeInput(true);
+                  }}
                   onSymptomsClick={() => setShowSymptomPicker(true)}
                   onClearTruck={() => setTruck(null)}
                   onClearCodes={() => setErrorCodes([])}
                   onClearSymptoms={() => setSymptoms([])}
                 />
+
+                <button
+                  onClick={() => setShowChatHistory(true)}
+                  className="text-xs text-white/30 hover:text-white/60 transition-colors underline"
+                >
+                  <History className="w-3 h-3 inline mr-1" />
+                  {t('diagnostics.chatHistory') || 'Chat History'}
+                </button>
               </div>
             </motion.div>
           ) : (
@@ -1011,7 +1002,14 @@ Focus on:
                     symptoms={symptoms}
                     onTruckClick={() => setShowTruckSelector(true)}
                     onAudioClick={() => setShowAudioRecorder(true)}
-                    onErrorCodesClick={() => setShowErrorCodeInput(true)}
+                    onErrorCodesClick={() => {
+                      if (!truck) {
+                        toast.info(t('diagnostics.selectTruckFirst') || 'Select your truck first to enter error codes');
+                        setShowTruckSelector(true);
+                        return;
+                      }
+                      setShowErrorCodeInput(true);
+                    }}
                     onSymptomsClick={() => setShowSymptomPicker(true)}
                     onClearTruck={() => setTruck(null)}
                     onClearCodes={() => setErrorCodes([])}
@@ -1142,7 +1140,7 @@ Focus on:
                   sendMessage(messageToSend);
                 }
               }}
-              disabled={(!input.trim() && !(truck && symptoms.length > 0) && pendingAnswers.length === 0) || isLoading}
+              disabled={(!truck && isFirstMessage) || (!input.trim() && !(truck && symptoms.length > 0) && pendingAnswers.length === 0) || isLoading}
               className="w-full mt-2 py-3 rounded-xl bg-gradient-to-r from-brand-orange to-brand-orange-light hover:from-[#e8851f] hover:to-[#d67a18] disabled:opacity-50 disabled:cursor-not-allowed shadow-lg shadow-brand-orange/20 text-white font-semibold text-sm tracking-wide"
             >
               {isLoading ? (

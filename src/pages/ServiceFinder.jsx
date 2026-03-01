@@ -17,7 +17,8 @@ import {
   Map as MapIcon,
   RefreshCw,
   Scale,
-  AlertTriangle
+  AlertTriangle,
+  Filter
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { toast } from 'sonner';
@@ -40,16 +41,17 @@ export default function ServiceFinder() {
   const [selectedService, setSelectedService] = useState(null);
   const [viewMode, setViewMode] = useState('split');
   const [isLocating, setIsLocating] = useState(false);
+  const [showSearchParams, setShowSearchParams] = useState(false);
   const [filters, setFilters] = useState({
     repair: true,
-    parking: true,
-    towing: true,
+    parking: false,
+    towing: false,
     serviceTypes: [],
     is24Hours: false,
     minRating: 0,
     // Infrastructure layers
-    showTruckParking: true,
-    showWeighStations: true,
+    showTruckParking: false,
+    showWeighStations: false,
     showRestrictions: false,
   });
 
@@ -299,120 +301,62 @@ export default function ServiceFinder() {
   return (
     <div className="min-h-screen">
       <div className="bg-[#0a0a0a] border-b border-white/5 sticky top-16 z-40">
-        <div className="max-w-7xl mx-auto px-4 py-4">
-          <form onSubmit={handleSearch} className="flex flex-col sm:flex-row gap-3">
-            <div className="relative flex-1">
-              <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-white/40" />
-              <Input
-                value={location}
-                onChange={(e) => setLocation(e.target.value)}
-                placeholder={t('services.searchPlaceholder')}
-                className="pl-10 h-12 bg-white/5 border-white/10 text-white placeholder:text-white/40"
-              />
-            </div>
-            <div className="flex gap-2">
+        <div className="max-w-7xl mx-auto px-4 py-3">
+          {/* Compact search bar — always visible */}
+          <div className="flex items-center gap-2">
+            <form onSubmit={handleSearch} className="flex flex-1 gap-2">
+              <div className="relative flex-1">
+                <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-white/40" />
+                <Input
+                  value={location}
+                  onChange={(e) => setLocation(e.target.value)}
+                  placeholder={t('services.searchPlaceholder')}
+                  className="pl-9 h-10 bg-white/5 border-white/10 text-white placeholder:text-white/40 text-sm"
+                />
+              </div>
               <Button
                 type="button"
                 variant="outline"
+                size="sm"
                 onClick={handleUseCurrentLocation}
                 disabled={isLocating}
-                className="h-12 border-white/20 hover:bg-white/10 whitespace-nowrap"
+                className="h-10 border-white/20 hover:bg-white/10 whitespace-nowrap px-3"
               >
                 {isLocating ? (
-                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  <Loader2 className="w-4 h-4 animate-spin" />
                 ) : (
-                  <MapPin className="w-4 h-4 mr-2" />
+                  <MapPin className="w-4 h-4" />
                 )}
-                {isLocating ? (t('services.locating') || 'Locating...') : t('services.useMyLocation')}
               </Button>
               <Button
                 type="submit"
                 disabled={isLoading}
-                className="h-12 px-6 bg-gradient-to-r from-orange-500 to-orange-600 hover:from-orange-600 hover:to-orange-700"
+                size="sm"
+                className="h-10 px-4 bg-gradient-to-r from-orange-500 to-orange-600 hover:from-orange-600 hover:to-orange-700"
               >
                 {isLoading ? (
-                  <Loader2 className="w-5 h-5 animate-spin" />
+                  <Loader2 className="w-4 h-4 animate-spin" />
                 ) : (
-                  <>
-                    <Search className="w-4 h-4 mr-2" />
-                    {t('services.searchServices')}
-                  </>
+                  <Search className="w-4 h-4" />
                 )}
               </Button>
-            </div>
-          </form>
+            </form>
 
-          <div className="mt-4">
-            <ServiceFilters filters={filters} onFilterChange={setFilters} />
-          </div>
-
-          <div className="flex flex-wrap items-center gap-3 mt-4">
-            <span className="text-sm text-white/40">{t('services.showLabel')}</span>
-            
-            <Toggle
-              pressed={filters.repair}
-              onPressedChange={() => toggleFilter('repair')}
-              className={`h-9 px-3 ${filters.repair ? 'bg-orange-500/20 text-orange-400 border-orange-500/30' : 'bg-white/5 text-white/60 border-white/10'} border`}
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setShowSearchParams(!showSearchParams)}
+              className="h-10 px-3 text-white/60 hover:text-white"
             >
-              <Wrench className="w-4 h-4 mr-2" />
-              {t('services.repair')} ({serviceCounts.repair})
-            </Toggle>
-            
-            <Toggle
-              pressed={filters.parking}
-              onPressedChange={() => toggleFilter('parking')}
-              className={`h-9 px-3 ${filters.parking ? 'bg-blue-500/20 text-blue-400 border-blue-500/30' : 'bg-white/5 text-white/60 border-white/10'} border`}
-            >
-              <ParkingCircle className="w-4 h-4 mr-2" />
-              {t('services.parking')} ({serviceCounts.parking})
-            </Toggle>
-            
-            <Toggle
-              pressed={filters.towing}
-              onPressedChange={() => toggleFilter('towing')}
-              className={`h-9 px-3 ${filters.towing ? 'bg-red-500/20 text-red-400 border-red-500/30' : 'bg-white/5 text-white/60 border-white/10'} border`}
-            >
-              <Truck className="w-4 h-4 mr-2" />
-              {t('services.towing')} ({serviceCounts.towing})
-            </Toggle>
+              <Filter className="w-4 h-4" />
+            </Button>
 
-            <div className="w-px h-6 bg-white/10 mx-1" />
-            
-            <span className="text-sm text-white/40">{t('services.layers')}</span>
-
-            <Toggle
-              pressed={filters.showTruckParking}
-              onPressedChange={() => toggleFilter('showTruckParking')}
-              className={`h-9 px-3 ${filters.showTruckParking ? 'bg-cyan-500/20 text-cyan-400 border-cyan-500/30' : 'bg-white/5 text-white/60 border-white/10'} border`}
-            >
-              <ParkingCircle className="w-4 h-4 mr-2" />
-              {t('services.truckParking')} ({serviceCounts.truckParking})
-            </Toggle>
-
-            <Toggle
-              pressed={filters.showWeighStations}
-              onPressedChange={() => toggleFilter('showWeighStations')}
-              className={`h-9 px-3 ${filters.showWeighStations ? 'bg-purple-500/20 text-purple-400 border-purple-500/30' : 'bg-white/5 text-white/60 border-white/10'} border`}
-            >
-              <Scale className="w-4 h-4 mr-2" />
-              {t('services.weighStations')} ({serviceCounts.weighStations})
-            </Toggle>
-
-            <Toggle
-              pressed={filters.showRestrictions}
-              onPressedChange={() => toggleFilter('showRestrictions')}
-              className={`h-9 px-3 ${filters.showRestrictions ? 'bg-amber-500/20 text-amber-400 border-amber-500/30' : 'bg-white/5 text-white/60 border-white/10'} border`}
-            >
-              <AlertTriangle className="w-4 h-4 mr-2" />
-              {t('services.restrictions')} ({serviceCounts.restrictions})
-            </Toggle>
-
-            <div className="ml-auto flex items-center gap-1 bg-white/5 rounded-lg p-1">
+            <div className="flex items-center gap-1 bg-white/5 rounded-lg p-1">
               <Button
                 variant="ghost"
                 size="sm"
                 onClick={() => setViewMode('list')}
-                className={`h-8 px-3 ${viewMode === 'list' ? 'bg-white/10 text-white' : 'text-white/60'}`}
+                className={`h-7 px-2 ${viewMode === 'list' ? 'bg-white/10 text-white' : 'text-white/60'}`}
               >
                 <List className="w-4 h-4" />
               </Button>
@@ -420,7 +364,7 @@ export default function ServiceFinder() {
                 variant="ghost"
                 size="sm"
                 onClick={() => setViewMode('split')}
-                className={`h-8 px-3 ${viewMode === 'split' ? 'bg-white/10 text-white' : 'text-white/60'}`}
+                className={`h-7 px-2 ${viewMode === 'split' ? 'bg-white/10 text-white' : 'text-white/60'}`}
               >
                 {t('services.split')}
               </Button>
@@ -428,12 +372,73 @@ export default function ServiceFinder() {
                 variant="ghost"
                 size="sm"
                 onClick={() => setViewMode('map')}
-                className={`h-8 px-3 ${viewMode === 'map' ? 'bg-white/10 text-white' : 'text-white/60'}`}
+                className={`h-7 px-2 ${viewMode === 'map' ? 'bg-white/10 text-white' : 'text-white/60'}`}
               >
                 <MapIcon className="w-4 h-4" />
               </Button>
             </div>
           </div>
+
+          {/* Collapsible filters section */}
+          <AnimatePresence>
+            {showSearchParams && (
+              <motion.div
+                initial={{ height: 0, opacity: 0 }}
+                animate={{ height: 'auto', opacity: 1 }}
+                exit={{ height: 0, opacity: 0 }}
+                transition={{ duration: 0.2 }}
+                className="overflow-hidden"
+              >
+                <div className="pt-3 space-y-3">
+                  <ServiceFilters filters={filters} onFilterChange={setFilters} />
+
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span className="text-xs text-white/40">{t('services.showLabel')}</span>
+                    
+                    <Toggle
+                      pressed={filters.repair}
+                      onPressedChange={() => toggleFilter('repair')}
+                      className={`h-8 px-2.5 text-xs ${filters.repair ? 'bg-orange-500/20 text-orange-400 border-orange-500/30' : 'bg-white/5 text-white/60 border-white/10'} border`}
+                    >
+                      <Wrench className="w-3.5 h-3.5 mr-1.5" />
+                      {t('services.repair')} ({serviceCounts.repair})
+                    </Toggle>
+
+                    <div className="w-px h-5 bg-white/10" />
+                    
+                    <span className="text-xs text-white/40">{t('services.layers')}</span>
+
+                    <Toggle
+                      pressed={filters.showTruckParking}
+                      onPressedChange={() => toggleFilter('showTruckParking')}
+                      className={`h-8 px-2.5 text-xs ${filters.showTruckParking ? 'bg-cyan-500/20 text-cyan-400 border-cyan-500/30' : 'bg-white/5 text-white/60 border-white/10'} border`}
+                    >
+                      <ParkingCircle className="w-3.5 h-3.5 mr-1.5" />
+                      {t('services.truckParking')} ({serviceCounts.truckParking})
+                    </Toggle>
+
+                    <Toggle
+                      pressed={filters.showWeighStations}
+                      onPressedChange={() => toggleFilter('showWeighStations')}
+                      className={`h-8 px-2.5 text-xs ${filters.showWeighStations ? 'bg-purple-500/20 text-purple-400 border-purple-500/30' : 'bg-white/5 text-white/60 border-white/10'} border`}
+                    >
+                      <Scale className="w-3.5 h-3.5 mr-1.5" />
+                      {t('services.weighStations')} ({serviceCounts.weighStations})
+                    </Toggle>
+
+                    <Toggle
+                      pressed={filters.showRestrictions}
+                      onPressedChange={() => toggleFilter('showRestrictions')}
+                      className={`h-8 px-2.5 text-xs ${filters.showRestrictions ? 'bg-amber-500/20 text-amber-400 border-amber-500/30' : 'bg-white/5 text-white/60 border-white/10'} border`}
+                    >
+                      <AlertTriangle className="w-3.5 h-3.5 mr-1.5" />
+                      {t('services.restrictions')} ({serviceCounts.restrictions})
+                    </Toggle>
+                  </div>
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
         </div>
       </div>
 
@@ -471,7 +476,7 @@ export default function ServiceFinder() {
             'grid-cols-1'
           }`}>
             {(viewMode === 'list' || viewMode === 'split') && (
-              <div className={`space-y-4 ${viewMode === 'split' ? 'lg:max-h-[calc(100vh-250px)] lg:overflow-y-auto lg:pr-2' : ''}`}>
+              <div className={`space-y-4 ${viewMode === 'split' ? 'lg:max-h-[calc(100vh-180px)] lg:overflow-y-auto lg:pr-2' : ''}`}>
                 <div className="flex items-center justify-between">
                   <p className="text-sm text-white/60">
                     {listItems.length} {listItems.length !== 1 ? t('services.results') : t('services.result')}
@@ -534,7 +539,7 @@ export default function ServiceFinder() {
             )}
 
             {(viewMode === 'map' || viewMode === 'split') && (
-              <div className={`${viewMode === 'map' ? 'h-[calc(100vh-250px)]' : 'h-[600px] lg:sticky lg:top-36'}`}>
+              <div className={`${viewMode === 'map' ? 'h-[calc(100vh-180px)]' : 'h-[calc(100vh-200px)] lg:sticky lg:top-28'}`}>
                 <ServiceMap
                   services={services}
                   userLocation={userCoords}
