@@ -68,11 +68,9 @@ export default function ServiceFinder() {
   // No auto-geolocation on mount — request only on explicit user action
   // to avoid consuming the browser permission prompt before the user is ready.
 
-  // Fetch infrastructure data whenever userCoords change and layers are enabled
+  // Fetch infrastructure data whenever userCoords change (always pre-fetch all types)
   const loadInfrastructure = useCallback(async (coords) => {
     if (!coords) return;
-    const anyLayerOn = filters.showTruckParking || filters.showWeighStations || filters.showRestrictions;
-    if (!anyLayerOn) return;
 
     setInfraLoading(true);
     try {
@@ -84,9 +82,9 @@ export default function ServiceFinder() {
     } finally {
       setInfraLoading(false);
     }
-  }, [filters.showTruckParking, filters.showWeighStations, filters.showRestrictions, t]);
+  }, [t]);
 
-  // Reload infra when coords or layer toggles change
+  // Reload infra when coords change
   useEffect(() => {
     if (userCoords) {
       loadInfrastructure(userCoords);
@@ -407,7 +405,7 @@ export default function ServiceFinder() {
                 className="overflow-hidden"
               >
                 <div className="pt-3 space-y-3">
-                  <ServiceFilters filters={filters} onFilterChange={handleFilterChange} />
+                  <ServiceFilters filters={filters} onFilterChange={handleFilterChange} infraCounts={serviceCounts} />
 
                   <div className="flex flex-wrap items-center gap-2">
                     <span className="text-xs text-white/40">{t('services.showLabel')}</span>
