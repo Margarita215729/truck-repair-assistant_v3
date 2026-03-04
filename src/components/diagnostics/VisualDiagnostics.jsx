@@ -206,13 +206,13 @@ export default function VisualDiagnostics({ open, onClose, onDiagnosisComplete }
     } catch (error) {
       const msg = error.message || '';
       if (error.status === 429) {
-        toast.error(t('diagnostics.aiLimitReached') || 'Daily AI limit reached');
+        toast.error(t('diagnostics.aiLimitReached') || 'Daily request limit reached');
       } else if (msg.includes('not enabled') || msg.includes('API key') || msg.includes('PERMISSION_DENIED')) {
         toast.error(msg, { duration: 10000 });
       } else if (msg.includes('Gemini API not configured')) {
-        toast.error('Gemini Vision AI is not configured. Contact support.', { duration: 10000 });
+        toast.error('Vision service is not configured. Contact support.', { duration: 10000 });
       } else if (error.status === 502) {
-        toast.error(msg || 'Vision AI service temporarily unavailable. Please try again in a moment.', { duration: 8000 });
+        toast.error(msg || 'Vision service temporarily unavailable. Please try again in a moment.', { duration: 8000 });
       } else {
         // Always show the actual error for debugging — not a generic translation
         toast.error(`Analysis failed: ${msg || 'Unknown error. Check console for details.'}`, { duration: 8000 });
@@ -372,7 +372,7 @@ export default function VisualDiagnostics({ open, onClose, onDiagnosisComplete }
                   {isAnalyzing ? (
                     <>
                       <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                      {t('visualDiagnostics.analyzing') || 'Analyzing with Gemini Vision AI...'}
+                      {t('visualDiagnostics.analyzing') || 'Analyzing image...'}
                     </>
                   ) : (
                     <>
@@ -415,7 +415,7 @@ export default function VisualDiagnostics({ open, onClose, onDiagnosisComplete }
               <Loader2 className="w-5 h-5 text-emerald-400 animate-spin" />
               <div>
                 <p className="text-sm font-medium text-white">
-                  {t('visualDiagnostics.aiAnalyzing') || 'Gemini Vision AI analyzing...'}
+                  {t('visualDiagnostics.aiAnalyzing') || 'Analyzing your image...'}
                 </p>
                 <p className="text-xs text-white/60">
                   {t('visualDiagnostics.aiAnalyzingDesc') || 'Identifying issues, warning lights, damage, and wear patterns'}
