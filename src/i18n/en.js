@@ -345,6 +345,14 @@ export default {
     loadingInfra: 'Loading infrastructure data...',
     infraFailed: 'Could not load infrastructure data.',
     noInfraData: 'No infrastructure data in this area yet.',
+    // Routing
+    buildRoute: 'Route',
+    routeBuilding: 'Building...',
+    routeMiles: 'mi',
+    routeMin: 'min',
+    routeHr: 'h ',
+    routeFailed: 'Could not build route.',
+    clearRoute: 'Clear Route',
   },
 
   // ─── Reports ───
