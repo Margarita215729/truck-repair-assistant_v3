@@ -1,6 +1,6 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import { MapContainer, TileLayer, Marker, Popup, Polyline, useMap } from 'react-leaflet';
-import { Star, Phone, AlertTriangle } from 'lucide-react';
+import { Star, Phone, AlertTriangle, Navigation, X, Clock, Route } from 'lucide-react';
 import { timeAgo } from '@/services/truckInfraService';
 import { useLanguage } from '@/lib/LanguageContext';
 import 'leaflet/dist/leaflet.css';
@@ -80,6 +80,39 @@ function MapController({ center, zoom }) {
   return null;
 }
 
+// Fit map to show the route polyline
+function RouteFitter({ routeCoords }) {
+  const map = useMap();
+  useEffect(() => {
+    if (routeCoords && routeCoords.length > 1) {
+      const bounds = L.latLngBounds(routeCoords);
+      map.fitBounds(bounds, { padding: [50, 50] });
+    }
+  }, [routeCoords, map]);
+  return null;
+}
+
+// ─── OSRM free routing ────────────────────────────────────────────────
+
+const OSRM_URL = 'https://router.project-osrm.org/route/v1/driving';
+
+async function fetchOSRMRoute(from, to) {
+  // OSRM wants lng,lat (not lat,lng)
+  const url = `${OSRM_URL}/${from[1]},${from[0]};${to[1]},${to[0]}?overview=full&geometries=geojson&steps=false`;
+  const res = await fetch(url);
+  if (!res.ok) throw new Error(`OSRM ${res.status}`);
+  const data = await res.json();
+  if (!data.routes || data.routes.length === 0) throw new Error('No route found');
+  const route = data.routes[0];
+  // GeoJSON coords are [lng, lat] → flip to [lat, lng] for Leaflet
+  const coords = route.geometry.coordinates.map(([lng, lat]) => [lat, lng]);
+  return {
+    coords,
+    distanceMiles: Math.round(route.distance / 1609.344 * 10) / 10,
+    durationMin: Math.round(route.duration / 60),
+  };
+}
+
 export default function ServiceMap({
   services,
   userLocation,
@@ -94,10 +127,47 @@ export default function ServiceMap({
   const { t } = useLanguage();
   const [mapCenter, setMapCenter] = useState(userLocation || [39.8283, -98.5795]);
 
+  // ── Routing state ──
+  const [routeData, setRouteData] = useState(null);        // { coords, distanceMiles, durationMin }
+  const [routeTarget, setRouteTarget] = useState(null);     // { name, lat, lng }
+  const [routeLoading, setRouteLoading] = useState(false);
+
   useEffect(() => {
     if (userLocation) {
       setMapCenter(userLocation);
     }
+  }, [userLocation]);
+
+  const buildRoute = useCallback(async (destLat, destLng, destName) => {
+    if (!userLocation) return;
+    setRouteLoading(true);
+    try {
+      const data = await fetchOSRMRoute(userLocation, [destLat, destLng]);
+      setRouteData(data);
+      setRouteTarget({ name: destName, lat: destLat, lng: destLng });
+    } catch (err) {
+      console.warn('Route building failed:', err);
+      // Fallback: open Google Maps directions in a new tab
+      window.open(
+        `https://www.google.com/maps/dir/${userLocation[0]},${userLocation[1]}/${destLat},${destLng}`,
+        '_blank'
+      );
+    } finally {
+      setRouteLoading(false);
+    }
+  }, [userLocation]);
+
+  const clearRoute = useCallback(() => {
+    setRouteData(null);
+    setRouteTarget(null);
+  }, []);
+
+  const openExternalNav = useCallback((destLat, destLng) => {
+    const origin = userLocation ? `${userLocation[0]},${userLocation[1]}` : '';
+    window.open(
+      `https://www.google.com/maps/dir/${origin}/${destLat},${destLng}`,
+      '_blank'
+    );
   }, [userLocation]);
 
   // Services are already filtered by the parent — use directly
@@ -107,8 +177,77 @@ export default function ServiceMap({
   const restrictionSegments = restrictions.filter(r => r.lat_end && r.lng_end);
   const restrictionPoints = restrictions.filter(r => !r.lat_end || !r.lng_end);
 
+  // Reusable route button for popups
+  const RouteButton = ({ lat, lng, name }) => (
+    <div className="flex gap-1 mt-2 border-t border-gray-200 pt-2">
+      <button
+        onClick={(e) => { e.stopPropagation(); buildRoute(lat, lng, name); }}
+        disabled={!userLocation || routeLoading}
+        className="flex-1 flex items-center justify-center gap-1 px-2 py-1.5 text-xs font-medium rounded bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-40 disabled:cursor-not-allowed transition"
+      >
+        {routeLoading ? (
+          <span className="animate-pulse">{t('services.routeBuilding')}</span>
+        ) : (
+          <>
+            <Navigation className="w-3 h-3" />
+            {t('services.buildRoute')}
+          </>
+        )}
+      </button>
+      <button
+        onClick={(e) => { e.stopPropagation(); openExternalNav(lat, lng); }}
+        className="flex items-center justify-center gap-1 px-2 py-1.5 text-xs font-medium rounded bg-gray-100 text-gray-700 hover:bg-gray-200 transition"
+        title="Google Maps"
+      >
+        <Route className="w-3 h-3" />
+        Maps
+      </button>
+    </div>
+  );
+
   return (
-    <div className="h-full w-full rounded-xl overflow-hidden border border-white/10">
+    <div className="h-full w-full rounded-xl overflow-hidden border border-white/10 relative">
+      {/* Route Info Panel — overlay on top of map */}
+      {routeData && routeTarget && (
+        <div className="absolute top-3 left-3 right-3 z-[1000] bg-white/95 backdrop-blur rounded-lg shadow-lg p-3 flex items-center justify-between gap-3">
+          <div className="flex items-center gap-3 min-w-0">
+            <div className="w-8 h-8 rounded-full bg-blue-600 flex items-center justify-center flex-shrink-0">
+              <Navigation className="w-4 h-4 text-white" />
+            </div>
+            <div className="min-w-0">
+              <p className="text-sm font-semibold text-gray-900 truncate">{routeTarget.name}</p>
+              <div className="flex items-center gap-3 text-xs text-gray-600">
+                <span className="flex items-center gap-1">
+                  <Route className="w-3 h-3" />
+                  {routeData.distanceMiles} {t('services.routeMiles')}
+                </span>
+                <span className="flex items-center gap-1">
+                  <Clock className="w-3 h-3" />
+                  {routeData.durationMin < 60
+                    ? `${routeData.durationMin} ${t('services.routeMin')}`
+                    : `${Math.floor(routeData.durationMin / 60)}${t('services.routeHr')} ${routeData.durationMin % 60}${t('services.routeMin')}`
+                  }
+                </span>
+              </div>
+            </div>
+          </div>
+          <div className="flex items-center gap-1 flex-shrink-0">
+            <button
+              onClick={() => openExternalNav(routeTarget.lat, routeTarget.lng)}
+              className="p-1.5 rounded-md text-xs font-medium bg-blue-600 text-white hover:bg-blue-700 transition"
+              title="Google Maps"
+            >
+              <Route className="w-4 h-4" />
+            </button>
+            <button
+              onClick={clearRoute}
+              className="p-1.5 rounded-md text-gray-500 hover:bg-gray-200 transition"
+            >
+              <X className="w-4 h-4" />
+            </button>
+          </div>
+        </div>
+      )}
       <MapContainer
         center={mapCenter}
         zoom={12}
@@ -121,6 +260,17 @@ export default function ServiceMap({
         />
         
         <MapController center={mapCenter} zoom={12} />
+
+        {/* Route polyline */}
+        {routeData && (
+          <>
+            <RouteFitter routeCoords={routeData.coords} />
+            <Polyline
+              positions={routeData.coords}
+              pathOptions={{ color: '#3b82f6', weight: 5, opacity: 0.85, lineCap: 'round', lineJoin: 'round' }}
+            />
+          </>
+        )}
 
         {/* User location */}
         {userLocation && (
@@ -156,6 +306,7 @@ export default function ServiceMap({
                     {service.phone}
                   </a>
                 )}
+                <RouteButton lat={service.lat} lng={service.lng} name={service.name} />
               </div>
             </Popup>
           </Marker>
@@ -209,6 +360,7 @@ export default function ServiceMap({
                     ))}
                   </div>
                 )}
+                <RouteButton lat={lot.lat} lng={lot.lng} name={lot.name} />
               </div>
             </Popup>
           </Marker>
@@ -250,6 +402,7 @@ export default function ServiceMap({
                    ws.scale_type === 'both' ? t('services.scaleTypeBoth') : ''}
                 </p>
                 {ws.hours && <p className="text-xs text-gray-400 mt-0.5">{ws.hours}</p>}
+                <RouteButton lat={ws.lat} lng={ws.lng} name={ws.name} />
               </div>
             </Popup>
           </Marker>
@@ -291,6 +444,7 @@ export default function ServiceMap({
                     {t('services.detour')}: {r.detour_info}
                   </p>
                 )}
+                <RouteButton lat={r.lat} lng={r.lng} name={r.name} />
               </div>
             </Popup>
           </Marker>
@@ -322,6 +476,7 @@ export default function ServiceMap({
                     {r.width_ft && <p className="text-orange-600 font-medium">{t('services.widthLimit')}: {r.width_ft} {t('services.restrictionFt')}</p>}
                   </div>
                   {r.detour_info && <p className="text-xs text-blue-600 mt-1">{t('services.detour')}: {r.detour_info}</p>}
+                  <RouteButton lat={r.lat} lng={r.lng} name={r.name} />
                 </div>
               </Popup>
             </Marker>
