@@ -345,6 +345,14 @@ export default {
     loadingInfra: 'Загрузка данных инфраструктуры...',
     infraFailed: 'Не удалось загрузить данные инфраструктуры.',
     noInfraData: 'В этом районе пока нет данных инфраструктуры.',
+    // Маршруты
+    buildRoute: 'Маршрут',
+    routeBuilding: 'Строим...',
+    routeMiles: 'миль',
+    routeMin: 'мин',
+    routeHr: 'ч ',
+    routeFailed: 'Не удалось построить маршрут.',
+    clearRoute: 'Очистить маршрут',
   },
 
   // ─── Отчёты ───
