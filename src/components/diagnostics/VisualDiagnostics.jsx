@@ -204,20 +204,18 @@ export default function VisualDiagnostics({ open, onClose, onDiagnosisComplete }
         setResult(response);
       }
     } catch (error) {
+      const msg = error.message || '';
       if (error.status === 429) {
         toast.error(t('diagnostics.aiLimitReached') || 'Daily AI limit reached');
+      } else if (msg.includes('not enabled') || msg.includes('API key') || msg.includes('PERMISSION_DENIED')) {
+        toast.error(msg, { duration: 10000 });
+      } else if (msg.includes('Gemini API not configured')) {
+        toast.error('Gemini Vision AI is not configured. Contact support.', { duration: 10000 });
+      } else if (error.status === 502) {
+        toast.error(msg || 'Vision AI service temporarily unavailable. Please try again in a moment.', { duration: 8000 });
       } else {
-        const msg = error.message || '';
-        // Surface Gemini configuration errors clearly
-        if (msg.includes('not enabled') || msg.includes('API key') || msg.includes('PERMISSION_DENIED')) {
-          toast.error(msg, { duration: 10000 });
-        } else if (msg.includes('Gemini API not configured')) {
-          toast.error('Gemini Vision AI is not configured. Contact support.', { duration: 10000 });
-        } else if (error.status === 502) {
-          toast.error(msg || 'Vision AI service temporarily unavailable. Please try again in a moment.', { duration: 8000 });
-        } else {
-          toast.error(t('visualDiagnostics.analysisFailed') || `Analysis failed: ${msg || 'Please try again.'}`);
-        }
+        // Always show the actual error for debugging — not a generic translation
+        toast.error(`Analysis failed: ${msg || 'Unknown error. Check console for details.'}`, { duration: 8000 });
       }
       console.error('Visual analysis error:', error.status, error.message, error);
     } finally {
