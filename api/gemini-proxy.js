@@ -102,25 +102,27 @@ const RESPONSE_SCHEMA = {
       type: "STRING",
       enum: ["dashboard", "engine_bay", "undercarriage", "exterior_body", "fluid_leak", "exhaust", "electrical", "part_closeup", "documentation", "REJECTED"]
     },
-    image_quality: { type: "STRING", enum: ["good", "acceptable", "poor", "very_poor"] },
-    confidence: { type: "STRING", enum: ["high", "medium", "low"] },
+    image_quality: { type: "STRING", nullable: true, enum: ["good", "acceptable", "poor", "very_poor"] },
+    confidence: { type: "STRING", nullable: true, enum: ["high", "medium", "low"] },
     findings: {
       type: "ARRAY",
+      nullable: true,
       items: {
         type: "OBJECT",
         properties: {
           item: { type: "STRING" },
-          status: { type: "STRING" },
-          color: { type: "STRING" },
+          status: { type: "STRING", nullable: true },
+          color: { type: "STRING", nullable: true },
           severity: { type: "STRING", enum: ["critical", "warning", "informational"] },
           interpretation: { type: "STRING" },
-          related_systems: { type: "ARRAY", items: { type: "STRING" } }
+          related_systems: { type: "ARRAY", nullable: true, items: { type: "STRING" } }
         },
         required: ["item", "severity", "interpretation"]
       }
     },
     dashboard_lights: {
       type: "ARRAY",
+      nullable: true,
       items: {
         type: "OBJECT",
         properties: {
@@ -128,7 +130,7 @@ const RESPONSE_SCHEMA = {
           color: { type: "STRING" },
           state: { type: "STRING" },
           meaning: { type: "STRING" },
-          action_required: { type: "STRING" }
+          action_required: { type: "STRING", nullable: true }
         },
         required: ["name", "color", "state", "meaning"]
       }
@@ -141,7 +143,7 @@ const RESPONSE_SCHEMA = {
         color_observed: { type: "STRING" },
         leak_severity: { type: "STRING" },
         probable_source: { type: "STRING" },
-        contamination_signs: { type: "STRING" }
+        contamination_signs: { type: "STRING", nullable: true }
       }
     },
     smoke_analysis: {
@@ -153,24 +155,26 @@ const RESPONSE_SCHEMA = {
         probable_causes: { type: "ARRAY", items: { type: "STRING" } }
       }
     },
-    extracted_text: { type: "ARRAY", items: { type: "STRING" } },
+    extracted_text: { type: "ARRAY", nullable: true, items: { type: "STRING" } },
     safety_assessment: {
       type: "OBJECT",
+      nullable: true,
       properties: {
         can_drive: { type: "BOOLEAN" },
         urgency: { type: "STRING", enum: ["immediate_stop", "service_within_24h", "service_soon", "monitor", "cosmetic_only"] },
-        safety_warnings: { type: "ARRAY", items: { type: "STRING" } },
-        roadside_actions: { type: "ARRAY", items: { type: "STRING" } }
+        safety_warnings: { type: "ARRAY", nullable: true, items: { type: "STRING" } },
+        roadside_actions: { type: "ARRAY", nullable: true, items: { type: "STRING" } }
       },
       required: ["can_drive", "urgency"]
     },
     probable_diagnosis: {
       type: "OBJECT",
+      nullable: true,
       properties: {
         primary: { type: "STRING" },
         confidence: { type: "STRING" },
-        secondary_possibilities: { type: "ARRAY", items: { type: "STRING" } },
-        recommended_next_steps: { type: "ARRAY", items: { type: "STRING" } }
+        secondary_possibilities: { type: "ARRAY", nullable: true, items: { type: "STRING" } },
+        recommended_next_steps: { type: "ARRAY", nullable: true, items: { type: "STRING" } }
       },
       required: ["primary", "confidence"]
     }
