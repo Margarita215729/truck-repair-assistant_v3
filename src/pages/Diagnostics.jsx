@@ -3,7 +3,7 @@ import { entities } from '@/services/entityService';
 import { invokeLLM, uploadFile } from '@/services/aiService';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
-import { Loader2, FileText, Wrench, MessageSquarePlus, AlertTriangle, AlertCircle, Mic, Lock, History, Info } from 'lucide-react';
+import { Loader2, FileText, Wrench, MessageSquarePlus, AlertTriangle, AlertCircle, Mic, Lock, History, Info, Eye } from 'lucide-react';
 import { toast } from 'sonner';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useQueryClient } from '@tanstack/react-query';
@@ -22,6 +22,7 @@ import ClarifyingQuestions from '@/components/diagnostics/ClarifyingQuestions.js
 import PartPhotoAnalyzer from '@/components/diagnostics/PartPhotoAnalyzer';
 import InteractiveRepairGuide from '@/components/diagnostics/InteractiveRepairGuide';
 import ChatHistory from '@/components/diagnostics/ChatHistory';
+import VisualDiagnostics from '@/components/diagnostics/VisualDiagnostics';
 import UpgradePrompt from '@/components/subscription/UpgradePrompt';
 import { useAiLimit } from '@/hooks/useAiLimit';
 import { useAuth } from '@/lib/AuthContext';
@@ -66,6 +67,7 @@ export default function Diagnostics() {
   const [showToolkitManager, setShowToolkitManager] = useState(false);
   const [selectedPartDetail, setSelectedPartDetail] = useState(null);
   const [showPartPhoto, setShowPartPhoto] = useState(false);
+  const [showVisualDiagnostics, setShowVisualDiagnostics] = useState(false);
   const [showRepairGuide, setShowRepairGuide] = useState(false);
   const [repairGuideProblem, setRepairGuideProblem] = useState('');
   const [pendingAnswers, setPendingAnswers] = useState([]);
@@ -234,6 +236,19 @@ export default function Diagnostics() {
     const message = `I've identified a part from a photo:\n\nPart: ${partInfo.part_name}\nCondition: ${partInfo.condition}\n${partInfo.oem_numbers?.length ? `OEM Numbers: ${partInfo.oem_numbers.join(', ')}` : ''}\n\nWhat should I know about replacing this part?`;
     sendMessage(message);
     setShowPartPhoto(false);
+  };
+
+  const handleVisualDiagnosisComplete = (result) => {
+    const lines = [`Visual diagnosis (${result.image_category || 'photo'}) result:`];
+    if (result.probable_diagnosis?.primary) lines.push(`Diagnosis: ${result.probable_diagnosis.primary}`);
+    if (result.safety_assessment?.urgency) lines.push(`Urgency: ${result.safety_assessment.urgency}`);
+    if (result.dashboard_lights?.length) lines.push(`Dashboard lights: ${result.dashboard_lights.map(l => l.name).join(', ')}`);
+    if (result.findings?.length) lines.push(`Findings: ${result.findings.map(f => `${f.item} (${f.severity})`).join('; ')}`);
+    if (result.fluid_analysis?.fluid_type) lines.push(`Fluid leak: ${result.fluid_analysis.fluid_type} - ${result.fluid_analysis.probable_source || 'unknown source'}`);
+    if (result.probable_diagnosis?.recommended_next_steps?.length) lines.push(`\nRecommended steps:\n${result.probable_diagnosis.recommended_next_steps.map((s, i) => `${i + 1}. ${s}`).join('\n')}`);
+    lines.push('\nPlease advise on repairs and needed parts.');
+    sendMessage(lines.join('\n'));
+    setShowVisualDiagnostics(false);
   };
 
   const handleGenerateGuide = (problem) => {
@@ -897,14 +912,16 @@ Focus on:
                     { icon: Mic,            label: t('diagnostics.sound') || 'Sound',    desc: t('diagnostics.soundDesc') || 'Record engine / brake sounds',    color: 'orange', onClick: () => setShowAudioRecorder(true) },
                     { icon: AlertCircle,     label: t('diagnostics.codes') || 'Codes',    desc: t('diagnostics.codesDesc') || 'Enter DTC / fault codes',         color: 'red',    onClick: () => setShowErrorCodeInput(true) },
                     { icon: AlertTriangle,   label: t('diagnostics.symptoms') || 'Symptoms', desc: t('diagnostics.symptomsDesc') || 'Describe what you notice', color: 'yellow', onClick: () => setShowSymptomPicker(true) },
+                    { icon: Eye,             label: t('diagnostics.visual') || 'Visual',  desc: t('diagnostics.visualDesc') || 'Photo / video of the issue',     color: 'emerald', onClick: () => setShowVisualDiagnostics(true) },
                   ];
                   const colorMap = {
-                    orange: { bg: 'from-orange-500/10 to-orange-400/5', border: 'border-orange-500/20 hover:border-orange-500/40', icon: 'text-orange-400', text: 'text-orange-300/90' },
-                    red:    { bg: 'from-red-500/10 to-red-400/5',       border: 'border-red-500/20 hover:border-red-500/40',       icon: 'text-red-400',    text: 'text-red-300/90' },
-                    yellow: { bg: 'from-yellow-500/10 to-yellow-400/5', border: 'border-yellow-500/20 hover:border-yellow-500/40', icon: 'text-yellow-400', text: 'text-yellow-300/90' },
+                    orange:  { bg: 'from-orange-500/10 to-orange-400/5',  border: 'border-orange-500/20 hover:border-orange-500/40',  icon: 'text-orange-400',  text: 'text-orange-300/90' },
+                    red:     { bg: 'from-red-500/10 to-red-400/5',        border: 'border-red-500/20 hover:border-red-500/40',        icon: 'text-red-400',     text: 'text-red-300/90' },
+                    yellow:  { bg: 'from-yellow-500/10 to-yellow-400/5',  border: 'border-yellow-500/20 hover:border-yellow-500/40',  icon: 'text-yellow-400',  text: 'text-yellow-300/90' },
+                    emerald: { bg: 'from-emerald-500/10 to-emerald-400/5', border: 'border-emerald-500/20 hover:border-emerald-500/40', icon: 'text-emerald-400', text: 'text-emerald-300/90' },
                   };
                   return (
-                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                    <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
                       {cards.map(({ icon: Icon, label, desc, color, onClick }) => {
                         const c = colorMap[color];
                         return (
@@ -1261,6 +1278,12 @@ Focus on:
           handleNewChat();
           setShowChatHistory(false);
         }}
+      />
+
+      <VisualDiagnostics
+        open={showVisualDiagnostics}
+        onClose={() => setShowVisualDiagnostics(false)}
+        onDiagnosisComplete={handleVisualDiagnosisComplete}
       />
     </div>
   );
