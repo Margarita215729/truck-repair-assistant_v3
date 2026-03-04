@@ -249,9 +249,10 @@ export default async function handler(req, res) {
     // Add text prompt
     parts.push({ text: userPrompt });
 
-    const geminiApiKey = process.env.GOOGLE_MAPS_API_KEY;
+    // Prefer dedicated GEMINI_API_KEY, fall back to GOOGLE_MAPS_API_KEY
+    const geminiApiKey = process.env.GEMINI_API_KEY || process.env.GOOGLE_MAPS_API_KEY;
     if (!geminiApiKey) {
-      return res.status(500).json({ error: 'Gemini API not configured' });
+      return res.status(500).json({ error: 'Gemini API not configured. Set GEMINI_API_KEY in Vercel environment variables.' });
     }
 
     const geminiBody = {

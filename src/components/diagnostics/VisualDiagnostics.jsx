@@ -211,11 +211,15 @@ export default function VisualDiagnostics({ open, onClose, onDiagnosisComplete }
         // Surface Gemini configuration errors clearly
         if (msg.includes('not enabled') || msg.includes('API key') || msg.includes('PERMISSION_DENIED')) {
           toast.error(msg, { duration: 10000 });
+        } else if (msg.includes('Gemini API not configured')) {
+          toast.error('Gemini Vision AI is not configured. Contact support.', { duration: 10000 });
+        } else if (error.status === 502) {
+          toast.error(msg || 'Vision AI service temporarily unavailable. Please try again in a moment.', { duration: 8000 });
         } else {
-          toast.error(t('visualDiagnostics.analysisFailed') || 'Analysis failed. Please try again.');
+          toast.error(t('visualDiagnostics.analysisFailed') || `Analysis failed: ${msg || 'Please try again.'}`);
         }
       }
-      console.error('Visual analysis error:', error);
+      console.error('Visual analysis error:', error.status, error.message, error);
     } finally {
       setIsAnalyzing(false);
     }
