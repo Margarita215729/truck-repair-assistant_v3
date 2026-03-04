@@ -310,7 +310,7 @@ export default function PartDetailModal({ part, open, onClose }) {
           {/* Source */}
           {part.source && (
             <p className="text-xs text-white/30 pt-2 border-t border-white/5">
-              Source: {part.source === 'ai_diagnostic' ? 'AI Diagnostic Session' : part.source}
+              Source: {part.source === 'ai_diagnostic' ? 'Diagnostic Session' : part.source}
             </p>
           )}
         </div>
