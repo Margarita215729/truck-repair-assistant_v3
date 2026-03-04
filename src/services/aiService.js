@@ -299,6 +299,146 @@ function generateFallbackResponse(prompt, schema) {
 }
 
 /**
+ * Invoke Gemini 2.0 Flash for visual diagnostics (photo / video analysis).
+ * Uses a dedicated server-side proxy (/api/gemini-proxy) with truck-specific
+ * system instructions and content filtering (rejects non-truck images).
+ *
+ * @param {Object} opts
+ * @param {Array<{file: File}>} opts.media - Array of image/video File objects
+ * @param {string} [opts.prompt]           - Optional user description
+ * @param {Object} [opts.truck_context]    - { year, make, model, engine, vin }
+ * @returns {Promise<Object>} Structured diagnostic result or { rejected, reason }
+ */
+export async function invokeGeminiVision({ media, prompt, truck_context }) {
+  if (!media || media.length === 0) {
+    throw new Error('At least one image or video is required');
+  }
+
+  // Convert File objects to base64
+  const mediaPayload = await Promise.all(
+    media.map(async ({ file }) => {
+      const base64 = await fileToBase64(file);
+      return { data: base64, mimeType: file.type || 'image/jpeg' };
+    })
+  );
+
+  try {
+    // Production: via server proxy
+    if (hasSupabaseConfig && supabase) {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (session?.access_token) {
+        return await callGeminiProxy(mediaPayload, prompt, truck_context, session.access_token);
+      }
+    }
+
+    // Dev fallback: direct Gemini API call
+    const devKey = env.GOOGLE_MAPS_API_KEY;
+    if (devKey) {
+      return await callGeminiDirect(mediaPayload, prompt, truck_context, devKey);
+    }
+
+    throw new Error('No Gemini API configuration available');
+  } catch (error) {
+    if (error.status === 429 || error.message?.includes('limit')) {
+      throw error;
+    }
+    console.error('Gemini Vision invocation failed:', error.message);
+    throw error;
+  }
+}
+
+async function callGeminiProxy(media, prompt, truckContext, accessToken) {
+  const response = await fetch('/api/gemini-proxy', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${accessToken}`,
+    },
+    body: JSON.stringify({ media, prompt, truck_context: truckContext }),
+  });
+
+  if (response.status === 429) {
+    const err = await response.json().catch(() => ({}));
+    const error = new Error(err.error || 'Daily AI request limit reached');
+    error.status = 429;
+    error.limit = err.limit;
+    throw error;
+  }
+
+  if (!response.ok) {
+    const errorBody = await response.text().catch(() => 'no body');
+    console.error('Gemini proxy error:', response.status, errorBody);
+    const err = new Error(`Gemini proxy error: ${response.status}`);
+    err.status = response.status;
+    throw err;
+  }
+
+  return response.json();
+}
+
+async function callGeminiDirect(media, prompt, truckContext, apiKey) {
+  let userPrompt = '';
+  if (truckContext) {
+    userPrompt += `TRUCK CONTEXT: ${truckContext.year || ''} ${truckContext.make || ''} ${truckContext.model || ''}`;
+    if (truckContext.engine) userPrompt += `, Engine: ${truckContext.engine}`;
+    userPrompt += '\n\n';
+  }
+  userPrompt += prompt || 'Analyze this image/video and provide a diagnostic assessment.';
+
+  const parts = [
+    ...media.map(item => ({ inlineData: { mimeType: item.mimeType, data: item.data } })),
+    { text: userPrompt },
+  ];
+
+  const response = await fetch(
+    `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`,
+    {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        systemInstruction: {
+          parts: [{ text: 'You are a HEAVY-DUTY TRUCK Visual Diagnostic System. Analyze ONLY truck-related images (Class 5-8). If the image is not truck-related, set is_truck_related=false. Respond in JSON with fields: is_truck_related, image_category, findings, dashboard_lights, fluid_analysis, smoke_analysis, extracted_text, safety_assessment, probable_diagnosis.' }],
+        },
+        contents: [{ role: 'user', parts }],
+        generationConfig: {
+          temperature: 0.2,
+          maxOutputTokens: 8192,
+          responseMimeType: 'application/json',
+        },
+      }),
+    }
+  );
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    throw new Error(`Gemini API error: ${response.status} - ${errorText}`);
+  }
+
+  const data = await response.json();
+  const text = data.candidates?.[0]?.content?.parts?.[0]?.text;
+  if (!text) throw new Error('Empty response from Gemini');
+
+  try {
+    return JSON.parse(text);
+  } catch {
+    return { is_truck_related: true, image_category: 'unknown', raw_response: text };
+  }
+}
+
+function fileToBase64(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => {
+      // Strip the data URL prefix (data:image/jpeg;base64,...)
+      const base64 = reader.result.split(',')[1];
+      resolve(base64);
+    };
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
+}
+
+/**
  * Upload a file to storage
  * Uses Supabase Storage or returns a local blob URL
  */
@@ -328,4 +468,4 @@ export async function uploadFile({ file }) {
   return { file_url: localUrl };
 }
 
-export default { invokeLLM, uploadFile };
+export default { invokeLLM, invokeGeminiVision, uploadFile };
