@@ -314,11 +314,14 @@ export async function invokeGeminiVision({ media, prompt, truck_context }) {
     throw new Error('At least one image or video is required');
   }
 
-  // Convert File objects to base64
+  // Convert File objects to base64 (compress images to stay under Vercel 4.5MB body limit)
   const mediaPayload = await Promise.all(
     media.map(async ({ file }) => {
-      const base64 = await fileToBase64(file);
-      return { data: base64, mimeType: file.type || 'image/jpeg' };
+      const isImage = file.type.startsWith('image/');
+      // Compress images client-side to avoid exceeding Vercel body size limit
+      const processedFile = isImage ? await compressImage(file, 1200, 0.8) : file;
+      const base64 = await fileToBase64(processedFile);
+      return { data: base64, mimeType: processedFile.type || 'image/jpeg' };
     })
   );
 
@@ -357,30 +360,35 @@ async function callGeminiProxy(media, prompt, truckContext, accessToken) {
     body: JSON.stringify({ media, prompt, truck_context: truckContext }),
   });
 
+  // Read body once as text, then parse — avoids double-read bug
+  const bodyText = await response.text().catch(() => '');
+  let bodyJson;
+  try {
+    bodyJson = JSON.parse(bodyText);
+  } catch {
+    bodyJson = null;
+  }
+
   if (response.status === 429) {
-    const err = await response.json().catch(() => ({}));
-    const error = new Error(err.error || 'Daily AI request limit reached');
+    const error = new Error(bodyJson?.error || 'Daily AI request limit reached');
     error.status = 429;
-    error.limit = err.limit;
+    error.limit = bodyJson?.limit;
     throw error;
   }
 
   if (!response.ok) {
-    let errorMessage = `Gemini proxy error: ${response.status}`;
-    try {
-      const errorBody = await response.json();
-      errorMessage = errorBody.error || errorMessage;
-    } catch {
-      const text = await response.text().catch(() => '');
-      if (text) errorMessage = text;
-    }
+    const errorMessage = bodyJson?.error || bodyText || `Gemini proxy error: ${response.status}`;
     console.error('Gemini proxy error:', response.status, errorMessage);
     const err = new Error(errorMessage);
     err.status = response.status;
     throw err;
   }
 
-  return response.json();
+  if (!bodyJson) {
+    throw new Error('Invalid JSON response from Gemini proxy');
+  }
+
+  return bodyJson;
 }
 
 async function callGeminiDirect(media, prompt, truckContext, apiKey) {
@@ -442,6 +450,65 @@ function fileToBase64(file) {
     };
     reader.onerror = reject;
     reader.readAsDataURL(file);
+  });
+}
+
+/**
+ * Compress an image file to reduce payload size.
+ * Resizes to maxDimension and compresses to JPEG with given quality.
+ * This is critical for Vercel Hobby plan which has a 4.5MB body limit.
+ * A typical phone photo (5-12MB) becomes 6.8-16MB in base64 JSON — way over limit.
+ * After compression: ~200-500KB → ~300-700KB in base64 → well within limit.
+ */
+function compressImage(file, maxDimension = 1200, quality = 0.8) {
+  return new Promise((resolve, reject) => {
+    // Skip compression for small files (< 2MB)
+    if (file.size < 2 * 1024 * 1024) {
+      resolve(file);
+      return;
+    }
+
+    const img = new Image();
+    img.onload = () => {
+      try {
+        let { width, height } = img;
+
+        // Scale down if larger than maxDimension
+        if (width > maxDimension || height > maxDimension) {
+          const ratio = Math.min(maxDimension / width, maxDimension / height);
+          width = Math.round(width * ratio);
+          height = Math.round(height * ratio);
+        }
+
+        const canvas = document.createElement('canvas');
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(img, 0, 0, width, height);
+
+        canvas.toBlob(
+          (blob) => {
+            if (!blob) {
+              resolve(file); // fallback to original
+              return;
+            }
+            const compressed = new File([blob], file.name, { type: 'image/jpeg' });
+            console.log(`Image compressed: ${(file.size/1024).toFixed(0)}KB → ${(compressed.size/1024).toFixed(0)}KB`);
+            resolve(compressed);
+          },
+          'image/jpeg',
+          quality
+        );
+      } catch (err) {
+        console.warn('Image compression failed, using original:', err);
+        resolve(file);
+      }
+    };
+    img.onerror = () => {
+      console.warn('Failed to load image for compression, using original');
+      resolve(file);
+    };
+    img.src = URL.createObjectURL(file);
   });
 }
 
