@@ -1,0 +1,37 @@
+{
+  // ── Conventional Commits ──
+  "conventionalCommits.scopes": [
+    "api",
+    "gemini",
+    "ai",
+    "diagnostics",
+    "visual-diag",
+    "parts",
+    "community",
+    "profile",
+    "reports",
+    "services",
+    "subscription",
+    "auth",
+    "i18n",
+    "ui",
+    "config",
+    "stripe",
+    "supabase",
+    "deps"
+  ],
+  "conventionalCommits.showNewVersionNotes": false,
+  "conventionalCommits.autoCommit": true,
+  "conventionalCommits.showEditor": false,
+  "conventionalCommits.lineBreak": "\n",
+  "conventionalCommits.promptBody": false,
+  "conventionalCommits.promptFooter": false,
+  "conventionalCommits.promptScopes": true,
+
+  // ── Copilot commit messages ──
+  "github.copilot.chat.commitMessageGeneration.instructions": [
+    {
+      "text": "Generate commit messages following Conventional Commits format: type(scope): description. Types: feat, fix, refactor, chore, docs, style, perf, test, ci, build. Scopes: api, gemini, ai, diagnostics, visual-diag, parts, community, profile, reports, services, subscription, auth, i18n, ui, config, stripe, supabase, deps. Keep the subject under 72 chars. Use imperative mood (add, fix, update — not added, fixed, updated). Write in English."
+    }
+  ]
+}
