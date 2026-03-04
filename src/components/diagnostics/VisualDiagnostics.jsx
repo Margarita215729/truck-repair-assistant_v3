@@ -207,7 +207,13 @@ export default function VisualDiagnostics({ open, onClose, onDiagnosisComplete }
       if (error.status === 429) {
         toast.error(t('diagnostics.aiLimitReached') || 'Daily AI limit reached');
       } else {
-        toast.error(t('visualDiagnostics.analysisFailed') || 'Analysis failed. Please try again.');
+        const msg = error.message || '';
+        // Surface Gemini configuration errors clearly
+        if (msg.includes('not enabled') || msg.includes('API key') || msg.includes('PERMISSION_DENIED')) {
+          toast.error(msg, { duration: 10000 });
+        } else {
+          toast.error(t('visualDiagnostics.analysisFailed') || 'Analysis failed. Please try again.');
+        }
       }
       console.error('Visual analysis error:', error);
     } finally {

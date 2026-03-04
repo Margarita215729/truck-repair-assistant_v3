@@ -366,9 +366,16 @@ async function callGeminiProxy(media, prompt, truckContext, accessToken) {
   }
 
   if (!response.ok) {
-    const errorBody = await response.text().catch(() => 'no body');
-    console.error('Gemini proxy error:', response.status, errorBody);
-    const err = new Error(`Gemini proxy error: ${response.status}`);
+    let errorMessage = `Gemini proxy error: ${response.status}`;
+    try {
+      const errorBody = await response.json();
+      errorMessage = errorBody.error || errorMessage;
+    } catch {
+      const text = await response.text().catch(() => '');
+      if (text) errorMessage = text;
+    }
+    console.error('Gemini proxy error:', response.status, errorMessage);
+    const err = new Error(errorMessage);
     err.status = response.status;
     throw err;
   }
