@@ -314,14 +314,11 @@ export async function invokeGeminiVision({ media, prompt, truck_context }) {
     throw new Error('At least one image or video is required');
   }
 
-  // Convert File objects to base64 (compress images to stay under Vercel 4.5MB body limit)
+  // Convert File objects to base64 — send at full resolution for maximum diagnostic quality
   const mediaPayload = await Promise.all(
     media.map(async ({ file }) => {
-      const isImage = file.type.startsWith('image/');
-      // Compress images client-side to avoid exceeding Vercel body size limit
-      const processedFile = isImage ? await compressImage(file, 1200, 0.8) : file;
-      const base64 = await fileToBase64(processedFile);
-      return { data: base64, mimeType: processedFile.type || 'image/jpeg' };
+      const base64 = await fileToBase64(file);
+      return { data: base64, mimeType: file.type || 'image/jpeg' };
     })
   );
 
@@ -450,65 +447,6 @@ function fileToBase64(file) {
     };
     reader.onerror = reject;
     reader.readAsDataURL(file);
-  });
-}
-
-/**
- * Compress an image file to reduce payload size.
- * Resizes to maxDimension and compresses to JPEG with given quality.
- * This is critical for Vercel Hobby plan which has a 4.5MB body limit.
- * A typical phone photo (5-12MB) becomes 6.8-16MB in base64 JSON — way over limit.
- * After compression: ~200-500KB → ~300-700KB in base64 → well within limit.
- */
-function compressImage(file, maxDimension = 1200, quality = 0.8) {
-  return new Promise((resolve, reject) => {
-    // Skip compression for small files (< 2MB)
-    if (file.size < 2 * 1024 * 1024) {
-      resolve(file);
-      return;
-    }
-
-    const img = new Image();
-    img.onload = () => {
-      try {
-        let { width, height } = img;
-
-        // Scale down if larger than maxDimension
-        if (width > maxDimension || height > maxDimension) {
-          const ratio = Math.min(maxDimension / width, maxDimension / height);
-          width = Math.round(width * ratio);
-          height = Math.round(height * ratio);
-        }
-
-        const canvas = document.createElement('canvas');
-        canvas.width = width;
-        canvas.height = height;
-        const ctx = canvas.getContext('2d');
-        ctx.drawImage(img, 0, 0, width, height);
-
-        canvas.toBlob(
-          (blob) => {
-            if (!blob) {
-              resolve(file); // fallback to original
-              return;
-            }
-            const compressed = new File([blob], file.name, { type: 'image/jpeg' });
-            console.log(`Image compressed: ${(file.size/1024).toFixed(0)}KB → ${(compressed.size/1024).toFixed(0)}KB`);
-            resolve(compressed);
-          },
-          'image/jpeg',
-          quality
-        );
-      } catch (err) {
-        console.warn('Image compression failed, using original:', err);
-        resolve(file);
-      }
-    };
-    img.onerror = () => {
-      console.warn('Failed to load image for compression, using original');
-      resolve(file);
-    };
-    img.src = URL.createObjectURL(file);
   });
 }
 
