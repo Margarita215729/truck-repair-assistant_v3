@@ -92,85 +92,85 @@ RULES:
 - Include specific part numbers when you can identify them.
 - Reference TSBs and common failure points when applicable.`;
 
-/* ── Gemini response JSON schema ── */
+/* ── Gemini response JSON schema (types MUST be uppercase for the REST API) ── */
 const RESPONSE_SCHEMA = {
-  type: "object",
+  type: "OBJECT",
   properties: {
-    is_truck_related: { type: "boolean" },
-    rejection_reason: { type: "string", nullable: true },
+    is_truck_related: { type: "BOOLEAN" },
+    rejection_reason: { type: "STRING", nullable: true },
     image_category: {
-      type: "string",
+      type: "STRING",
       enum: ["dashboard", "engine_bay", "undercarriage", "exterior_body", "fluid_leak", "exhaust", "electrical", "part_closeup", "documentation", "REJECTED"]
     },
-    image_quality: { type: "string", enum: ["good", "acceptable", "poor", "very_poor"] },
-    confidence: { type: "string", enum: ["high", "medium", "low"] },
+    image_quality: { type: "STRING", enum: ["good", "acceptable", "poor", "very_poor"] },
+    confidence: { type: "STRING", enum: ["high", "medium", "low"] },
     findings: {
-      type: "array",
+      type: "ARRAY",
       items: {
-        type: "object",
+        type: "OBJECT",
         properties: {
-          item: { type: "string" },
-          status: { type: "string" },
-          color: { type: "string" },
-          severity: { type: "string", enum: ["critical", "warning", "informational"] },
-          interpretation: { type: "string" },
-          related_systems: { type: "array", items: { type: "string" } }
+          item: { type: "STRING" },
+          status: { type: "STRING" },
+          color: { type: "STRING" },
+          severity: { type: "STRING", enum: ["critical", "warning", "informational"] },
+          interpretation: { type: "STRING" },
+          related_systems: { type: "ARRAY", items: { type: "STRING" } }
         },
         required: ["item", "severity", "interpretation"]
       }
     },
     dashboard_lights: {
-      type: "array",
+      type: "ARRAY",
       items: {
-        type: "object",
+        type: "OBJECT",
         properties: {
-          name: { type: "string" },
-          color: { type: "string" },
-          state: { type: "string" },
-          meaning: { type: "string" },
-          action_required: { type: "string" }
+          name: { type: "STRING" },
+          color: { type: "STRING" },
+          state: { type: "STRING" },
+          meaning: { type: "STRING" },
+          action_required: { type: "STRING" }
         },
         required: ["name", "color", "state", "meaning"]
       }
     },
     fluid_analysis: {
-      type: "object",
+      type: "OBJECT",
       nullable: true,
       properties: {
-        fluid_type: { type: "string" },
-        color_observed: { type: "string" },
-        leak_severity: { type: "string" },
-        probable_source: { type: "string" },
-        contamination_signs: { type: "string" }
+        fluid_type: { type: "STRING" },
+        color_observed: { type: "STRING" },
+        leak_severity: { type: "STRING" },
+        probable_source: { type: "STRING" },
+        contamination_signs: { type: "STRING" }
       }
     },
     smoke_analysis: {
-      type: "object",
+      type: "OBJECT",
       nullable: true,
       properties: {
-        color: { type: "string" },
-        density: { type: "string" },
-        probable_causes: { type: "array", items: { type: "string" } }
+        color: { type: "STRING" },
+        density: { type: "STRING" },
+        probable_causes: { type: "ARRAY", items: { type: "STRING" } }
       }
     },
-    extracted_text: { type: "array", items: { type: "string" } },
+    extracted_text: { type: "ARRAY", items: { type: "STRING" } },
     safety_assessment: {
-      type: "object",
+      type: "OBJECT",
       properties: {
-        can_drive: { type: "boolean" },
-        urgency: { type: "string", enum: ["immediate_stop", "service_within_24h", "service_soon", "monitor", "cosmetic_only"] },
-        safety_warnings: { type: "array", items: { type: "string" } },
-        roadside_actions: { type: "array", items: { type: "string" } }
+        can_drive: { type: "BOOLEAN" },
+        urgency: { type: "STRING", enum: ["immediate_stop", "service_within_24h", "service_soon", "monitor", "cosmetic_only"] },
+        safety_warnings: { type: "ARRAY", items: { type: "STRING" } },
+        roadside_actions: { type: "ARRAY", items: { type: "STRING" } }
       },
       required: ["can_drive", "urgency"]
     },
     probable_diagnosis: {
-      type: "object",
+      type: "OBJECT",
       properties: {
-        primary: { type: "string" },
-        confidence: { type: "string" },
-        secondary_possibilities: { type: "array", items: { type: "string" } },
-        recommended_next_steps: { type: "array", items: { type: "string" } }
+        primary: { type: "STRING" },
+        confidence: { type: "STRING" },
+        secondary_possibilities: { type: "ARRAY", items: { type: "STRING" } },
+        recommended_next_steps: { type: "ARRAY", items: { type: "STRING" } }
       },
       required: ["primary", "confidence"]
     }
@@ -270,7 +270,22 @@ export default async function handler(req, res) {
     if (!response.ok) {
       const errorText = await response.text();
       console.error('Gemini API error:', response.status, errorText);
-      return res.status(502).json({ error: 'Vision AI service temporarily unavailable' });
+
+      // Parse Gemini error for actionable detail
+      let detail = 'Vision AI service temporarily unavailable';
+      try {
+        const errObj = JSON.parse(errorText);
+        const msg = errObj?.error?.message || '';
+        if (response.status === 403 || msg.includes('API key') || msg.includes('PERMISSION_DENIED')) {
+          detail = 'Gemini API is not enabled for this API key. Enable the Generative Language API in Google Cloud Console and ensure the key has no API restrictions blocking it.';
+        } else if (response.status === 400) {
+          detail = `Gemini request error: ${msg || errorText.slice(0, 200)}`;
+        } else if (response.status === 429) {
+          detail = 'Gemini API rate limit exceeded. Please try again in a moment.';
+        }
+      } catch { /* not JSON */ }
+
+      return res.status(502).json({ error: detail });
     }
 
     const geminiData = await response.json();
