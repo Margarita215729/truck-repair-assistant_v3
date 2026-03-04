@@ -48,7 +48,7 @@ export default function ChatMessage({ message, onPartClick, onAnswerQuestion, on
     >
       {!isUser && (
         <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-orange-500 to-orange-600 flex items-center justify-center shrink-0 mt-1">
-          <span className="text-xs font-bold">AI</span>
+          <span className="text-xs font-bold">TR</span>
         </div>
       )}
       

@@ -147,7 +147,7 @@ export default function PartPhotoAnalyzer({ open, onClose, onPartIdentified }) {
                 <div className="p-4 rounded-xl bg-orange-500/10 border border-orange-500/30 flex items-center gap-3">
                   <Loader2 className="w-5 h-5 text-orange-400 animate-spin" />
                   <div>
-                    <p className="text-sm font-medium text-white">AI analyzing part...</p>
+                    <p className="text-sm font-medium text-white">Analyzing part...</p>
                     <p className="text-xs text-white/60">Identifying part and finding alternatives</p>
                   </div>
                 </div>
