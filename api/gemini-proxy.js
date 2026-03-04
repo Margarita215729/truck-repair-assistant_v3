@@ -182,15 +182,17 @@ const RESPONSE_SCHEMA = {
   required: ["is_truck_related", "image_category"]
 };
 
-// Raise Vercel body-parser limit for base64-encoded media
+// Body is now small JSON (storage refs, not base64) — media downloaded server-side from Supabase
 export const config = {
-  api: { bodyParser: { sizeLimit: '20mb' } },
+  api: { bodyParser: { sizeLimit: '1mb' } },
 };
 
 export default async function handler(req, res) {
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Method not allowed' });
   }
+
+  let storagePaths = [];
 
   try {
     // ── Auth ──
@@ -211,22 +213,44 @@ export default async function handler(req, res) {
     }
 
     // ── Parse request ──
-    const { media, prompt, truck_context } = req.body;
+    const { mediaRefs, prompt, truck_context } = req.body;
 
-    if (!media || !Array.isArray(media) || media.length === 0) {
-      return res.status(400).json({ error: 'At least one media item required (image or video)' });
+    if (!mediaRefs || !Array.isArray(mediaRefs) || mediaRefs.length === 0) {
+      return res.status(400).json({ error: 'At least one media reference required' });
     }
 
-    // Validate media items
+    // Track storage paths for cleanup in finally block
+    storagePaths = mediaRefs.map(r => r.storagePath).filter(Boolean);
+
+    // ── Download full-quality media from Supabase Storage ──
+    const parts = [];
     let totalSize = 0;
-    for (const item of media) {
-      if (!item.data || !item.mimeType) {
-        return res.status(400).json({ error: 'Each media item must have data (base64) and mimeType' });
+
+    for (const ref of mediaRefs) {
+      if (!ref.storagePath || !ref.mimeType) {
+        return res.status(400).json({ error: 'Each media ref must have storagePath and mimeType' });
       }
-      if (!ALLOWED_MIME_TYPES.has(item.mimeType)) {
-        return res.status(400).json({ error: `Unsupported MIME type: ${item.mimeType}. Allowed: ${[...ALLOWED_MIME_TYPES].join(', ')}` });
+      if (!ALLOWED_MIME_TYPES.has(ref.mimeType)) {
+        return res.status(400).json({ error: `Unsupported MIME type: ${ref.mimeType}. Allowed: ${[...ALLOWED_MIME_TYPES].join(', ')}` });
       }
-      totalSize += item.data.length * 0.75; // base64 → bytes
+
+      const { data: blob, error: dlError } = await getSupabase().storage
+        .from('vision-temp')
+        .download(ref.storagePath);
+
+      if (dlError || !blob) {
+        return res.status(400).json({ error: `Failed to retrieve file: ${dlError?.message || 'File not found'}` });
+      }
+
+      const buffer = Buffer.from(await blob.arrayBuffer());
+      totalSize += buffer.length;
+
+      parts.push({
+        inlineData: {
+          mimeType: ref.mimeType,
+          data: buffer.toString('base64'),
+        },
+      });
     }
 
     if (totalSize > MAX_REQUEST_SIZE) {
@@ -235,18 +259,6 @@ export default async function handler(req, res) {
 
     // ── Build Gemini request ──
     const userPrompt = buildUserPrompt(prompt, truck_context);
-
-    const parts = [];
-    // Add media first
-    for (const item of media) {
-      parts.push({
-        inlineData: {
-          mimeType: item.mimeType,
-          data: item.data,
-        },
-      });
-    }
-    // Add text prompt
     parts.push({ text: userPrompt });
 
     // Prefer dedicated GEMINI_API_KEY, fall back to GOOGLE_MAPS_API_KEY
@@ -328,6 +340,14 @@ export default async function handler(req, res) {
   } catch (error) {
     console.error('Gemini proxy error:', error);
     return res.status(500).json({ error: 'Internal server error' });
+  } finally {
+    // Always clean up temporary files from Supabase Storage
+    if (storagePaths.length > 0) {
+      getSupabase().storage
+        .from('vision-temp')
+        .remove(storagePaths)
+        .catch(err => console.warn('Failed to clean up vision-temp files:', err));
+    }
   }
 }
 
