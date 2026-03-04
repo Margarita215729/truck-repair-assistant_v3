@@ -14,7 +14,7 @@ import { useLanguage } from '@/lib/LanguageContext';
 import { useTruck } from '@/lib/TruckContext';
 
 const MAX_VIDEO_DURATION = 15; // seconds
-const MAX_FILE_SIZE = 15 * 1024 * 1024; // 15 MB
+const MAX_FILE_SIZE = 20 * 1024 * 1024; // 20 MB — files go to Supabase Storage, not in HTTP body
 
 export default function VisualDiagnostics({ open, onClose, onDiagnosisComplete }) {
   const { t } = useLanguage();

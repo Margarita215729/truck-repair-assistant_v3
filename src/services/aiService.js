@@ -314,31 +314,63 @@ export async function invokeGeminiVision({ media, prompt, truck_context }) {
     throw new Error('At least one image or video is required');
   }
 
-  // Convert File objects to base64 — send at full resolution for maximum diagnostic quality
-  const mediaPayload = await Promise.all(
-    media.map(async ({ file }) => {
-      const base64 = await fileToBase64(file);
-      return { data: base64, mimeType: file.type || 'image/jpeg' };
-    })
-  );
+  // Production: upload to Supabase Storage → send refs to proxy (avoids Vercel body size limit)
+  // Files are sent at FULL resolution for maximum diagnostic quality
+  if (hasSupabaseConfig && supabase) {
+    const { data: { session } } = await supabase.auth.getSession();
+    if (session?.access_token) {
+      return await analyzeViaStorage(media, prompt, truck_context, session);
+    }
+  }
+
+  // Dev fallback: convert to base64 and call Gemini directly (no Vercel limit in local dev)
+  const devKey = env.GOOGLE_MAPS_API_KEY;
+  if (devKey) {
+    const mediaPayload = await Promise.all(
+      media.map(async ({ file }) => {
+        const base64 = await fileToBase64(file);
+        return { data: base64, mimeType: file.type || 'image/jpeg' };
+      })
+    );
+    return await callGeminiDirect(mediaPayload, prompt, truck_context, devKey);
+  }
+
+  throw new Error('No Gemini API configuration available');
+}
+
+/**
+ * Upload media to Supabase Storage, send lightweight refs to the server proxy.
+ * The proxy downloads full-quality files server-side, sends to Gemini, then deletes them.
+ * This avoids Vercel's 4.5MB request body limit while preserving original image quality.
+ */
+async function analyzeViaStorage(media, prompt, truckContext, session) {
+  const storagePaths = [];
 
   try {
-    // Production: via server proxy
-    if (hasSupabaseConfig && supabase) {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (session?.access_token) {
-        return await callGeminiProxy(mediaPayload, prompt, truck_context, session.access_token);
+    const mediaRefs = [];
+    for (const { file } of media) {
+      const ext = file.name?.split('.').pop() || 'bin';
+      const path = `${session.user.id}/${Date.now()}_${Math.random().toString(36).slice(2)}.${ext}`;
+
+      const { error } = await supabase.storage
+        .from('vision-temp')
+        .upload(path, file, { contentType: file.type, upsert: false });
+
+      if (error) {
+        throw new Error(`Failed to upload file for analysis: ${error.message}`);
       }
+
+      storagePaths.push(path);
+      mediaRefs.push({ storagePath: path, mimeType: file.type || 'image/jpeg' });
     }
 
-    // Dev fallback: direct Gemini API call
-    const devKey = env.GOOGLE_MAPS_API_KEY;
-    if (devKey) {
-      return await callGeminiDirect(mediaPayload, prompt, truck_context, devKey);
-    }
-
-    throw new Error('No Gemini API configuration available');
+    // Proxy receives tiny JSON payload (~200 bytes per file instead of megabytes)
+    return await callGeminiProxy(mediaRefs, prompt, truckContext, session.access_token);
   } catch (error) {
+    // Server cleans up on success; client cleans up on client-side / network errors
+    if (storagePaths.length > 0) {
+      supabase.storage.from('vision-temp').remove(storagePaths).catch(() => {});
+    }
     if (error.status === 429 || error.message?.includes('limit')) {
       throw error;
     }
@@ -347,14 +379,14 @@ export async function invokeGeminiVision({ media, prompt, truck_context }) {
   }
 }
 
-async function callGeminiProxy(media, prompt, truckContext, accessToken) {
+async function callGeminiProxy(mediaRefs, prompt, truckContext, accessToken) {
   const response = await fetch('/api/gemini-proxy', {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
       'Authorization': `Bearer ${accessToken}`,
     },
-    body: JSON.stringify({ media, prompt, truck_context: truckContext }),
+    body: JSON.stringify({ mediaRefs, prompt, truck_context: truckContext }),
   });
 
   // Read body once as text, then parse — avoids double-read bug
