@@ -18,6 +18,21 @@
     },
     "api/parts/search.js": {
       "maxDuration": 30
+    },
+    "api/telematics/oauth-start.js": {
+      "maxDuration": 10
+    },
+    "api/telematics/oauth-callback.js": {
+      "maxDuration": 30
+    },
+    "api/telematics/truck-state-snapshot.js": {
+      "maxDuration": 60
+    },
+    "api/webhooks/samsara.js": {
+      "maxDuration": 30
+    },
+    "api/webhooks/motive.js": {
+      "maxDuration": 30
     }
   }
 }

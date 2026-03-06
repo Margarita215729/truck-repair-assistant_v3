@@ -24,14 +24,19 @@ import {
   Loader2,
   Crown,
   CreditCard,
-  Zap
+  Zap,
+  Link,
+  Unlink,
+  Radio
 } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { toast } from 'sonner';
 import { useLanguage } from '@/lib/LanguageContext';
 import { useAuth } from '@/lib/AuthContext';
 import { subscriptionService } from '@/services/subscriptionService';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
+import { supabase } from '@/api/supabaseClient';
+import { connectProvider } from '@/services/telematics/telematicsService';
 
 import ProfileStats from '@/components/profile/ProfileStats';
 import TruckGarage from '@/components/profile/TruckGarage';
@@ -41,6 +46,7 @@ export default function Profile() {
   const { t } = useLanguage();
   const { subscription, isProUser, planLimits, aiUsage } = useAuth();
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
   const [isEditing, setIsEditing] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [isManagingSubscription, setIsManagingSubscription] = useState(false);
@@ -53,6 +59,10 @@ export default function Profile() {
       maintenance_reminders: true
     }
   });
+
+  // Telematics state
+  const [telematicsConnections, setTelematicsConnections] = useState([]);
+  const [telematicsLoading, setTelematicsLoading] = useState(false);
 
   const queryClient = useQueryClient();
 
@@ -78,6 +88,46 @@ export default function Profile() {
     queryFn: () => entities.Truck.list(),
     enabled: !!user
   });
+
+  // Handle telematics OAuth callback results
+  useEffect(() => {
+    const connected = searchParams.get('telematics_connected');
+    const error = searchParams.get('telematics_error');
+    if (connected) {
+      toast.success(`${connected} connected successfully!`);
+      const next = new URLSearchParams(searchParams);
+      next.delete('telematics_connected');
+      setSearchParams(next, { replace: true });
+      loadTelematicsStatus();
+    }
+    if (error) {
+      toast.error(`Telematics connection failed: ${error}`);
+      const next = new URLSearchParams(searchParams);
+      next.delete('telematics_error');
+      setSearchParams(next, { replace: true });
+    }
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Load telematics connection status
+  const loadTelematicsStatus = async () => {
+    if (!supabase) return;
+    setTelematicsLoading(true);
+    try {
+      const { data } = await supabase
+        .from('telematics_connections')
+        .select('provider, status, last_sync_at, provider_vehicle_id')
+        .order('created_at', { ascending: false });
+      setTelematicsConnections(data || []);
+    } catch (err) {
+      console.error('Failed to load telematics status:', err);
+    } finally {
+      setTelematicsLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    if (user) loadTelematicsStatus();
+  }, [user]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     if (user) {
@@ -152,6 +202,10 @@ export default function Profile() {
 
   const handleLogout = () => {
     authService.logout();
+  };
+
+  const getConnectionForProvider = (provider) => {
+    return telematicsConnections.find(c => c.provider === provider);
   };
 
   const stats = {
@@ -449,6 +503,96 @@ export default function Profile() {
               />
             </div>
           </div>
+        </Card>
+
+        {/* Telematics Connections */}
+        <Card className="p-6 bg-white/5 border-white/10">
+          <h3 className="text-lg font-semibold text-white flex items-center gap-2 mb-4">
+            <Radio className="w-5 h-5 text-orange-500" />
+            Telematics
+          </h3>
+          <p className="text-sm text-white/50 mb-4">
+            Connect your fleet telematics provider to get live truck data, fault codes, and signals directly in diagnostics.
+          </p>
+          <div className="space-y-3">
+            {/* Samsara */}
+            {(() => {
+              const conn = getConnectionForProvider('samsara');
+              const isConnected = conn?.status === 'active';
+              return (
+                <div className="flex items-center justify-between p-3 rounded-xl bg-white/[0.03] border border-white/5">
+                  <div className="flex items-center gap-3">
+                    <div className="w-8 h-8 rounded-lg bg-blue-500/20 flex items-center justify-center">
+                      <Link className="w-4 h-4 text-blue-400" />
+                    </div>
+                    <div>
+                      <p className="text-sm font-medium text-white">Samsara</p>
+                      <p className="text-xs text-white/40">
+                        {isConnected
+                          ? `Connected${conn.last_sync_at ? ` — last sync ${new Date(conn.last_sync_at).toLocaleString()}` : ''}`
+                          : 'Not connected'}
+                      </p>
+                    </div>
+                  </div>
+                  {isConnected ? (
+                    <Badge className="bg-green-500/20 text-green-400 border-green-500/30">Connected</Badge>
+                  ) : (
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="border-blue-500/30 text-blue-400 hover:bg-blue-500/10"
+                      onClick={() => connectProvider('samsara')}
+                    >
+                      <Link className="w-3.5 h-3.5 mr-1.5" />
+                      Connect
+                    </Button>
+                  )}
+                </div>
+              );
+            })()}
+
+            {/* Motive */}
+            {(() => {
+              const conn = getConnectionForProvider('motive');
+              const isConnected = conn?.status === 'active';
+              return (
+                <div className="flex items-center justify-between p-3 rounded-xl bg-white/[0.03] border border-white/5">
+                  <div className="flex items-center gap-3">
+                    <div className="w-8 h-8 rounded-lg bg-emerald-500/20 flex items-center justify-center">
+                      <Link className="w-4 h-4 text-emerald-400" />
+                    </div>
+                    <div>
+                      <p className="text-sm font-medium text-white">Motive (KeepTruckin)</p>
+                      <p className="text-xs text-white/40">
+                        {isConnected
+                          ? `Connected${conn.last_sync_at ? ` — last sync ${new Date(conn.last_sync_at).toLocaleString()}` : ''}`
+                          : 'Not connected'}
+                      </p>
+                    </div>
+                  </div>
+                  {isConnected ? (
+                    <Badge className="bg-green-500/20 text-green-400 border-green-500/30">Connected</Badge>
+                  ) : (
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="border-emerald-500/30 text-emerald-400 hover:bg-emerald-500/10"
+                      onClick={() => connectProvider('motive')}
+                    >
+                      <Link className="w-3.5 h-3.5 mr-1.5" />
+                      Connect
+                    </Button>
+                  )}
+                </div>
+              );
+            })()}
+          </div>
+          {telematicsLoading && (
+            <div className="flex items-center gap-2 mt-3 text-white/40 text-xs">
+              <Loader2 className="w-3 h-3 animate-spin" />
+              Loading connection status...
+            </div>
+          )}
         </Card>
 
         {/* Truck Garage */}
