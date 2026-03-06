@@ -4,6 +4,15 @@
  */
 import { supabase, hasSupabaseConfig } from '@/api/supabaseClient';
 
+// ─── Stripe payments paused ────────────────────────────────────────────
+// Stripe serverless functions moved to api/_stripe-paused/ to stay within
+// Vercel free tier limit (12 functions). To re-enable:
+//   1. Move files from api/_stripe-paused/ back to api/
+//   2. Restore "api/stripe-webhook.js" entry in vercel.json functions
+//   3. Set STRIPE_PAUSED = false below
+// ────────────────────────────────────────────────────────────────────────
+const STRIPE_PAUSED = true;
+
 export const subscriptionService = {
   /**
    * Get current user's subscription
@@ -76,6 +85,10 @@ export const subscriptionService = {
    * Create Stripe Checkout session via Vercel API route
    */
   async createCheckoutSession(priceId) {
+    if (STRIPE_PAUSED) {
+      throw new Error('Payments are temporarily unavailable. The feature will be enabled soon.');
+    }
+
     const { data: { session } } = await supabase.auth.getSession();
     if (!session) throw new Error('Not authenticated. Please log in and try again.');
 
@@ -107,6 +120,10 @@ export const subscriptionService = {
    * Open Stripe Billing Portal for subscription management
    */
   async openBillingPortal() {
+    if (STRIPE_PAUSED) {
+      throw new Error('Subscription management is temporarily unavailable. The feature will be enabled soon.');
+    }
+
     const { data: { session } } = await supabase.auth.getSession();
     if (!session) throw new Error('Not authenticated');
 
