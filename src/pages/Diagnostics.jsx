@@ -31,6 +31,7 @@ import { useTruck } from '@/lib/TruckContext';
 import { buildNormalizedPayload } from '@/utils/normalizeIntake';
 import { saveAIPartRecommendations } from '@/services/partsService';
 import { searchForums, formatForumContext } from '@/services/forumSearchService';
+import { getTruckStateSnapshot } from '@/services/telematics/telematicsService';
 
 export default function Diagnostics() {
   const { t } = useLanguage();
@@ -74,6 +75,10 @@ export default function Diagnostics() {
   const [askedQuestions, setAskedQuestions] = useState(new Set());
   const [questionRounds, setQuestionRounds] = useState(0);
 
+  // Telematics truck state
+  const [truckStateSnapshot, setTruckStateSnapshot] = useState(null);
+  const [truckStateInterpretation, setTruckStateInterpretation] = useState(null);
+
   const messagesEndRef = useRef(null);
   const textareaRef = useRef(null);
   const inputAreaRef = useRef(null);
@@ -101,6 +106,8 @@ export default function Diagnostics() {
     setPendingAnswers([]);
     setAskedQuestions(new Set());
     setQuestionRounds(0);
+    setTruckStateSnapshot(null);
+    setTruckStateInterpretation(null);
     setRoadsideContext({
       whenItHappens: '',
       recentEvents: [],
@@ -119,6 +126,8 @@ export default function Diagnostics() {
       setPendingAnswers([]);
       setAskedQuestions(new Set());
       setQuestionRounds(0);
+      setTruckStateSnapshot(null);
+      setTruckStateInterpretation(null);
       // Restore truck context if available
       if (conv.truck_make || conv.truck_model) {
         setTruck({
@@ -144,7 +153,7 @@ export default function Diagnostics() {
     let context = '';
     
     if (activeToolkit) {
-      context += `\n\n🔧 ACTIVE DIAGNOSTIC TOOLKIT: "${activeToolkit.name}"`;
+      context += `\n\n\uD83D\uDD27 ACTIVE DIAGNOSTIC TOOLKIT: "${activeToolkit.name}"`;
       context += `\nToolkit Truck: ${activeToolkit.truck_year} ${activeToolkit.truck_make} ${activeToolkit.truck_model}`;
       
       if (activeToolkit.description) {
@@ -163,11 +172,11 @@ export default function Diagnostics() {
         context += `\nToolkit Notes: ${activeToolkit.notes}`;
       }
       
-      context += `\n\n⚠️ CRITICAL: This is a pre-configured toolkit. The user is specifically asking about this combination of truck, codes, and symptoms. Search forums extensively for this EXACT combination. Find trending issues, proven solutions, and community consensus for: ${activeToolkit.truck_make} ${activeToolkit.truck_model} with codes ${activeToolkit.error_codes?.join(', ') || 'N/A'}.`;
+      context += `\n\n\u26A0\uFE0F CRITICAL: This is a pre-configured toolkit. The user is specifically asking about this combination of truck, codes, and symptoms. Search forums extensively for this EXACT combination. Find trending issues, proven solutions, and community consensus for: ${activeToolkit.truck_make} ${activeToolkit.truck_model} with codes ${activeToolkit.error_codes?.join(', ') || 'N/A'}.`;
     }
     
     if (truck) {
-      context += `\n\n🚛 TRUCK DETAILS: ${truck.year} ${truck.make} ${truck.model}`;
+      context += `\n\n\uD83D\uDE9B TRUCK DETAILS: ${truck.year} ${truck.make} ${truck.model}`;
       
       if (truck.details) {
         const details = truck.details;
@@ -197,20 +206,46 @@ export default function Diagnostics() {
     }
     
     if (errorCodes.length > 0) {
-      context += `\n\n⚠️ Error Codes: ${errorCodes.join(', ')}`;
+      context += `\n\n\u26A0\uFE0F Error Codes: ${errorCodes.join(', ')}`;
     }
     
     if (symptoms.length > 0) {
-      context += `\n\n🔍 Symptoms: ${symptoms.join(', ')}`;
+      context += `\n\n\uD83D\uDD0D Symptoms: ${symptoms.join(', ')}`;
     }
 
     // Roadside context fields
     const rc = roadsideContext || {};
-    if (rc.whenItHappens) context += `\n⏱️ When it happens: ${rc.whenItHappens}`;
-    if (rc.recentEvents?.length > 0) context += `\n📅 Recent events: ${rc.recentEvents.join(', ')}`;
-    if (rc.dashboardMessage) context += `\n🔔 Dashboard message: ${rc.dashboardMessage}`;
-    if (rc.checksAlreadyDone) context += `\n✅ Already checked/replaced: ${rc.checksAlreadyDone}`;
-    if (truck?.vin) context += `\n🔑 VIN: ${truck.vin}`;
+    if (rc.whenItHappens) context += `\n\u23F1\uFE0F When it happens: ${rc.whenItHappens}`;
+    if (rc.recentEvents?.length > 0) context += `\n\uD83D\uDCC5 Recent events: ${rc.recentEvents.join(', ')}`;
+    if (rc.dashboardMessage) context += `\n\uD83D\uDD14 Dashboard message: ${rc.dashboardMessage}`;
+    if (rc.checksAlreadyDone) context += `\n\u2705 Already checked/replaced: ${rc.checksAlreadyDone}`;
+    if (truck?.vin) context += `\n\uD83D\uDD11 VIN: ${truck.vin}`;
+
+    // Live telematics truck state
+    if (truckStateSnapshot) {
+      context += '\n\n\uD83D\uDDA5\uFE0F LIVE TRUCK COMPUTER STATE (from telematics):';
+      const snap = truckStateSnapshot;
+      if (snap.summary_status) context += `\nOverall Status: ${snap.summary_status.toUpperCase()}`;
+      if (snap.stats) {
+        context += `\nActive Faults: ${snap.stats.total_active_faults || 0}`;
+        context += `\nSignals Tracked: ${snap.stats.total_signals || 0}`;
+      }
+      if (snap.faults?.length > 0) {
+        context += '\nFault Codes from Telematics:';
+        snap.faults.forEach(f => {
+          context += `\n  - ${f.code_type || 'DTC'} ${f.code}: ${f.description || 'N/A'} [${f.severity || 'unknown'}]`;
+        });
+      }
+      if (snap.signals?.length > 0) {
+        context += '\nLive Signals:';
+        snap.signals.slice(0, 10).forEach(s => {
+          context += `\n  - ${s.signal_name}: ${s.value} ${s.unit || ''}`;
+        });
+      }
+      if (truckStateInterpretation?.overall_assessment) {
+        context += `\nAI Assessment: ${truckStateInterpretation.overall_assessment}`;
+      }
+    }
     
     return context;
   };
@@ -290,8 +325,8 @@ export default function Diagnostics() {
     try {
       const contextPrompt = buildContextPrompt();
       
-      // Run community solutions fetch and forum search in parallel
-      const [communitySolutions, forumSearchResult] = await Promise.all([
+      // Run community solutions fetch, forum search, and truck state fetch in parallel
+      const [communitySolutions, forumSearchResult, truckStateResult] = await Promise.all([
         // Fetch relevant community solutions from local KnowledgeBase
         (async () => {
           try {
@@ -317,16 +352,32 @@ export default function Diagnostics() {
           symptoms,
           freeText: messageText.substring(0, 100),
         }),
+
+        // Fetch live truck state from telematics (non-blocking)
+        (async () => {
+          try {
+            if (!truck?.details?.id) return null;
+            const result = await getTruckStateSnapshot(truck.details.id);
+            if (result?.snapshot) {
+              setTruckStateSnapshot(result.snapshot);
+              setTruckStateInterpretation(result.interpretation);
+            }
+            return result;
+          } catch (err) {
+            console.error('Truck state fetch failed:', err);
+            return null;
+          }
+        })(),
       ]);
       
       let communitySolutionsContext = '';
       if (communitySolutions.length > 0) {
-        communitySolutionsContext = `\n\n📚 RELEVANT COMMUNITY SOLUTIONS (${communitySolutions.length} found):\n`;
+        communitySolutionsContext = `\n\n\uD83D\uDCDA RELEVANT COMMUNITY SOLUTIONS (${communitySolutions.length} found):\n`;
         communitySolutions.forEach((sol, i) => {
           communitySolutionsContext += `\n${i + 1}. "${sol.title}" by ${sol.created_by}`;
           communitySolutionsContext += `\n   Truck: ${sol.truck_make} ${sol.truck_model || ''} ${sol.engine_type ? `(${sol.engine_type})` : ''}`;
-          communitySolutionsContext += `\n   Rating: ${sol.upvotes - sol.downvotes} (${sol.upvotes}↑ ${sol.downvotes}↓)`;
-          if (sol.verified) communitySolutionsContext += ` ✓ VERIFIED`;
+          communitySolutionsContext += `\n   Rating: ${sol.upvotes - sol.downvotes} (${sol.upvotes}\u2191 ${sol.downvotes}\u2193)`;
+          if (sol.verified) communitySolutionsContext += ` \u2713 VERIFIED`;
           communitySolutionsContext += `\n   Problem: ${sol.problem_description.substring(0, 150)}...`;
           communitySolutionsContext += `\n   Solution: ${sol.solution.substring(0, 200)}...`;
           if (sol.cost_saved) communitySolutionsContext += `\n   Cost Saved: $${sol.cost_saved}`;
@@ -337,20 +388,48 @@ export default function Diagnostics() {
       // Format real forum search results (may be empty if CSE not configured or timed out)
       const forumContext = formatForumContext(forumSearchResult?.results || []);
 
+      // Format truck state context for the prompt (direct from fetch result)
+      let truckStateContext = '';
+      if (truckStateResult?.snapshot) {
+        const snap = truckStateResult.snapshot;
+        const interp = truckStateResult.interpretation;
+        truckStateContext = '\n\n\uD83D\uDDA5\uFE0F LIVE TRUCK COMPUTER STATE (telematics):';
+        if (snap.summary_status) truckStateContext += `\nStatus: ${snap.summary_status.toUpperCase()}`;
+        if (snap.faults?.length > 0) {
+          truckStateContext += '\nActive Faults from Telematics:';
+          snap.faults.forEach(f => {
+            truckStateContext += `\n- ${f.code_type || 'DTC'} ${f.code}: ${f.description || 'N/A'} [${f.severity || 'unknown'}]`;
+          });
+        }
+        if (snap.signals?.length > 0) {
+          truckStateContext += '\nLive Signals:';
+          snap.signals.slice(0, 10).forEach(s => {
+            truckStateContext += `\n- ${s.signal_name}: ${s.value} ${s.unit || ''}`;
+          });
+        }
+        if (interp?.overall_assessment) {
+          truckStateContext += `\nAI Assessment: ${interp.overall_assessment}`;
+        }
+        if (interp?.maintenance_recommendations?.length > 0) {
+          truckStateContext += `\nRecommendations: ${interp.maintenance_recommendations.join('; ')}`;
+        }
+      }
+
       let fullPrompt = `DIAGNOSTIC CONTEXT:
 ${contextPrompt}
 ${communitySolutionsContext}
 ${forumContext}
+${truckStateContext}
 
 COMMUNICATION RULES:
 - Keep initial responses SHORT (2-3 sentences) but ALWAYS informative
 - On FIRST message: ask 2-3 targeted clarifying questions AND simultaneously provide your PRELIMINARY diagnosis based on what you already know. Include at least a basic repair_instructions entry with probable steps.
 - MAXIMUM 2 rounds of clarifying questions for maximum diagnostic accuracy, then PROVIDE FULL SOLUTION
 - Current question round: ${questionRounds + 1}/2
-${questionRounds >= 1 ? '- You have gathered initial info. Dig DEEPER — ask follow-up questions about specific components, sounds, conditions. Provide progressively more detailed repair_instructions with each round.' : ''}
+${questionRounds >= 1 ? '- You have gathered initial info. Dig DEEPER \u2014 ask follow-up questions about specific components, sounds, conditions. Provide progressively more detailed repair_instructions with each round.' : ''}
 ${questionRounds >= 2 ? '- STOP ASKING QUESTIONS. Provide complete detailed diagnosis with FULL repair_instructions (at least 3-5 steps) and suggested_parts NOW. This is mandatory.' : ''}
 - NEVER return empty repair_instructions after round 1. If unsure, provide the MOST LIKELY diagnosis.
-- ALWAYS fill in "response" with a detailed analysis paragraph — never a single generic sentence.
+- ALWAYS fill in "response" with a detailed analysis paragraph \u2014 never a single generic sentence.
 
 DIAGNOSTIC APPROACH:
 1. Immediately identify the MOST LIKELY root cause based on truck model + symptoms + error codes
@@ -358,12 +437,18 @@ DIAGNOSTIC APPROACH:
 3. Give actionable repair instructions with tools, parts, and time estimates
 4. If multiple causes are possible, rank them by probability
 
+TELEMATICS DATA:
+- When LIVE TRUCK COMPUTER STATE is provided, use it as PRIMARY evidence
+- Correlate telematics fault codes with user-reported symptoms
+- Reference specific signal values (e.g., coolant temp, oil pressure) in your analysis
+- If telematics shows anomalous signals, flag them prominently
+
 INSUFFICIENT INFORMATION HANDLING:
 - If the user's message is too vague, incomplete, or lacks critical details (no truck model, no symptoms described, just "help" or "problem"), set "insufficient_info" to true
 - When insufficient_info is true: set "response" to explain WHAT specific information is missing and WHY it matters for diagnosis
-- ALWAYS provide "preliminary_suggestions" — a list of general troubleshooting steps the user can do RIGHT NOW even without a precise diagnosis
-- Even with insufficient info, try to give SOMETHING useful — never leave the user empty-handed
-- Example: user says "truck broken" → insufficient_info: true, explain you need make/model/year, symptoms, error codes, and provide general inspection checklist
+- ALWAYS provide "preliminary_suggestions" \u2014 a list of general troubleshooting steps the user can do RIGHT NOW even without a precise diagnosis
+- Even with insufficient info, try to give SOMETHING useful \u2014 never leave the user empty-handed
+- Example: user says "truck broken" \u2192 insufficient_info: true, explain you need make/model/year, symptoms, error codes, and provide general inspection checklist
 
 CRITICAL RULES:
 - NEVER say "General truck issue detected" or similar vague phrases
@@ -379,15 +464,15 @@ AUDIO ANALYSIS:
 - If DSP severity is "moderate" or higher, flag it prominently in your response
 
 FORUM REFERENCES:
-- When REAL FORUM DISCUSSIONS are provided, reference them with their actual URLs — these are verified real posts
+- When REAL FORUM DISCUSSIONS are provided, reference them with their actual URLs \u2014 these are verified real posts
 - Cite relevant forum posts to support your diagnosis (e.g., "According to a discussion on TruckersReport: [url]")
-- NEVER invent or fabricate forum URLs — only cite URLs from the provided forum context
+- NEVER invent or fabricate forum URLs \u2014 only cite URLs from the provided forum context
 - If no forum context is provided, do NOT mention forums or make up forum references
 
 PARTS SUGGESTIONS:
 - For each part: OEM number + aftermarket alternatives
 - Quality tiers: OEM, premium aftermarket, economy, remanufactured
-- NEVER invent specific prices — use approximate ranges only
+- NEVER invent specific prices \u2014 use approximate ranges only
 
 Previous conversation:
 ${messages.map(m => `${m.role}: ${m.content}`).join('\n')}
@@ -401,7 +486,7 @@ User: ${messageText}${audioUrl ? '\n[User has attached an audio recording of eng
         response_json_schema: {
           type: "object",
           properties: {
-            response: { type: "string", description: "Detailed diagnostic response — NEVER generic. Always reference specific truck, symptoms, and likely causes." },
+            response: { type: "string", description: "Detailed diagnostic response \u2014 NEVER generic. Always reference specific truck, symptoms, and likely causes." },
             insufficient_info: { type: "boolean", description: "Set to true when the user's message lacks critical details needed for accurate diagnosis (no truck model, vague symptoms, etc.)" },
             missing_details: { type: "array", items: { type: "string" }, description: "List of specific missing pieces of information (e.g. 'Truck make and model', 'Specific symptoms', 'Error codes')" },
             preliminary_suggestions: {
@@ -608,7 +693,7 @@ User: ${messageText}${audioUrl ? '\n[User has attached an audio recording of eng
       let dspSection = '';
       if (analysisResults) {
         const results = Array.isArray(analysisResults) ? analysisResults : [analysisResults];
-        dspSection = '\n\n📊 DSP AUDIO ANALYSIS (client-side frequency analysis of the recording):\n';
+        dspSection = '\n\n\uD83D\uDCCA DSP AUDIO ANALYSIS (client-side frequency analysis of the recording):\n';
         results.forEach((r, i) => {
           dspSection += `\nComponent ${i + 1}: ${(r.component || 'unknown').toUpperCase()}`;
           dspSection += `\n  Failure type: ${r.failure_type || 'N/A'}`;
@@ -616,7 +701,7 @@ User: ${messageText}${audioUrl ? '\n[User has attached an audio recording of eng
           dspSection += `\n  Anomaly score: ${((r.anomaly_score || 0) * 100).toFixed(0)}%`;
           dspSection += `\n  Severity: ${r.severity || 'unknown'}`;
           if (r.frequency_patterns) {
-            dspSection += `\n  Frequency patterns: Low=${r.frequency_patterns.low_freq?.toFixed(0) || '—'}Hz, Mid=${r.frequency_patterns.mid_freq?.toFixed(0) || '—'}Hz, High=${r.frequency_patterns.high_freq?.toFixed(0) || '—'}Hz`;
+            dspSection += `\n  Frequency patterns: Low=${r.frequency_patterns.low_freq?.toFixed(0) || '\u2014'}Hz, Mid=${r.frequency_patterns.mid_freq?.toFixed(0) || '\u2014'}Hz, High=${r.frequency_patterns.high_freq?.toFixed(0) || '\u2014'}Hz`;
           }
         });
       }
@@ -644,7 +729,7 @@ User: ${messageText}${audioUrl ? '\n[User has attached an audio recording of eng
 
     setIsGeneratingReport(true);
     try {
-      // Compute normalized payload — vin_status and dtc_status are deterministic
+      // Compute normalized payload \u2014 vin_status and dtc_status are deterministic
       const normalized = buildNormalizedPayload({
         truck,
         roadsideContext,
@@ -666,7 +751,7 @@ CRITICAL RULES:
 - The "sources" field must ALWAYS be an empty array.
 - The "estimated_costs" field must ALWAYS be null.
 
-CONTEXT (PRE-COMPUTED — do NOT re-derive these values):
+CONTEXT (PRE-COMPUTED \u2014 do NOT re-derive these values):
 ${JSON.stringify(normalized, null, 2)}
 
 CONVERSATION HISTORY:
@@ -677,7 +762,7 @@ Focus on:
 1. What verified facts exist
 2. Most likely hypotheses ranked by probability
 3. Actionable conclusions with clear next steps
-4. Severity triage — can the driver continue or should they stop?
+4. Severity triage \u2014 can the driver continue or should they stop?
 5. What to tell a mechanic if they need to hand off`,
         response_json_schema: {
           type: "object",
@@ -901,7 +986,7 @@ Focus on:
                   </div>
                 </div>
 
-                {/* ── Tool cards grid ── */}
+                {/* \u2500\u2500 Tool cards grid \u2500\u2500 */}
                 {(() => {
                   const toolDisabled = !truck;
                   const handleDisabled = () => {
@@ -946,7 +1031,7 @@ Focus on:
                   );
                 })()}
 
-                {/* ── Chat History (subtle) ── */}
+                {/* \u2500\u2500 Chat History (subtle) \u2500\u2500 */}
                 <button
                   onClick={() => setShowChatHistory(true)}
                   className="flex items-center gap-1.5 mx-auto mt-2 px-3 py-1 rounded-lg text-white/30 hover:text-white/60 text-[11px] transition-colors"
