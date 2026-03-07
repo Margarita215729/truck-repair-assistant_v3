@@ -341,14 +341,9 @@ export default function Diagnostics() {
   const [showProviderPicker, setShowProviderPicker] = useState(false);
 
   const handleInlineScan = async () => {
-    if (!truck?.details?.id) {
-      toast.info(t('diagnostics.selectTruckFirst') || 'Please select your truck first');
-      setShowTruckSelector(true);
-      return;
-    }
     setScanningInline(true);
     try {
-      const result = await getTruckStateSnapshot(truck.details.id);
+      const result = await getTruckStateSnapshot(truck?.details?.id || '_auto');
       if (!result) {
         toast.error('Please log in to scan your truck');
         return;
@@ -1094,7 +1089,6 @@ Focus on:
                               key="scan-truck"
                               vehicleProfileId={truck?.details?.id}
                               onScanComplete={handleScanComplete}
-                              disabled={toolDisabled}
                             />
                           );
                         }
