@@ -1515,7 +1515,7 @@ Focus on:
                   <button
                     key={p.id}
                     disabled={p.disabled}
-                    onClick={p.disabled ? undefined : () => { setShowProviderPicker(false); connectProvider(p.id); }}
+                    onClick={p.disabled ? undefined : async () => { setShowProviderPicker(false); try { await connectProvider(p.id); } catch(e) { toast.error('Authorization failed: ' + e.message); } }}
                     className={`w-full flex items-center gap-4 p-4 rounded-xl border border-white/10 ${p.disabled ? 'opacity-40 cursor-not-allowed' : p.hover} bg-white/5 transition-all`}
                   >
                     <div className={`w-10 h-10 rounded-lg bg-gradient-to-br ${p.gradient} flex items-center justify-center`}>

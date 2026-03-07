@@ -80,7 +80,7 @@ export default async function handler(req, res) {
     });
 
     const authorizationUrl = `${cfg.authUrl}?${params.toString()}`;
-    return res.redirect(302, authorizationUrl);
+    return res.status(200).json({ url: authorizationUrl });
   } catch (err) {
     console.error('OAuth start error:', err);
     return res.status(500).json({ error: 'Internal error' });
