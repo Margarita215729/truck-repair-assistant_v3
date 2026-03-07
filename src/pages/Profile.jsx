@@ -41,6 +41,7 @@ import { connectProvider } from '@/services/telematics/telematicsService';
 import ProfileStats from '@/components/profile/ProfileStats';
 import TruckGarage from '@/components/profile/TruckGarage';
 import SavedShops from '@/components/profile/SavedShops';
+import VehicleMapper from '@/components/profile/VehicleMapper';
 
 export default function Profile() {
   const { t } = useLanguage();
@@ -592,6 +593,14 @@ export default function Profile() {
               <Loader2 className="w-3 h-3 animate-spin" />
               Loading connection status...
             </div>
+          )}
+
+          {/* Vehicle Mapping — shown when at least one provider is connected */}
+          {telematicsConnections?.some(c => c.status === 'active') && (
+            <>
+              <Separator className="bg-white/10 my-4" />
+              <VehicleMapper />
+            </>
           )}
         </Card>
 

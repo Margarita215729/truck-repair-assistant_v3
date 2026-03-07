@@ -101,6 +101,49 @@ export async function disconnectProvider(provider) {
 }
 
 /**
+ * List provider vehicles and truck profiles for mapping.
+ * Returns { providers: [...], truckProfiles: [...] }
+ */
+export async function getProviderVehicles() {
+  const token = await getAuthToken();
+  if (!token) return { providers: [], truckProfiles: [] };
+
+  try {
+    const resp = await fetch(`${API_BASE}/vehicles`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+    return await resp.json();
+  } catch (err) {
+    console.error('getProviderVehicles error:', err);
+    return { providers: [], truckProfiles: [] };
+  }
+}
+
+/**
+ * Map a provider vehicle to a truck profile.
+ */
+export async function mapVehicle(connectionId, providerVehicleId, vehicleProfileId) {
+  const token = await getAuthToken();
+  if (!token) throw new Error('Not authenticated');
+
+  const resp = await fetch(`${API_BASE}/vehicles`, {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${token}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ connectionId, providerVehicleId, vehicleProfileId }),
+  });
+
+  if (!resp.ok) {
+    const err = await resp.json().catch(() => ({}));
+    throw new Error(err.error || `HTTP ${resp.status}`);
+  }
+  return await resp.json();
+}
+
+/**
  * Format the snapshot's status badge for display.
  * Returns { text, color, status }
  */
