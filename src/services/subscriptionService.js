@@ -30,11 +30,11 @@ export const subscriptionService = {
         .eq('user_id', user.id)
         .single();
 
-      if (error || !data) return { plan: 'free', status: 'active', user_id: user.id };
-      return data;
+      if (error || !data) return { plan: 'free', status: 'active', user_id: user.id, _source: 'no_record' };
+      return { ...data, _source: 'confirmed' };
     } catch (err) {
-      console.warn('getCurrentSubscription failed:', err);
-      return { plan: 'free', status: 'active' };
+      console.error('getCurrentSubscription failed:', err);
+      throw err;
     }
   },
 
@@ -53,13 +53,13 @@ export const subscriptionService = {
       const { data, error } = await supabase.rpc('check_ai_limit', { p_user_id: user.id });
       if (error) {
         console.error('Failed to check AI limit:', error);
-        return { allowed: true, plan: 'free', used: 0, limit: 10, remaining: 10 };
+        throw new Error(error.message || 'Failed to check AI limit');
       }
 
-      return data;
+      return { ...data, _source: 'confirmed' };
     } catch (err) {
-      console.warn('checkAiLimit failed:', err);
-      return { allowed: true, plan: 'free', used: 0, limit: 10, remaining: 10 };
+      console.error('checkAiLimit failed:', err);
+      throw err;
     }
   },
 
