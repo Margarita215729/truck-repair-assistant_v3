@@ -201,7 +201,9 @@ export async function interpret(snapshot, truckContext, userLanguage) {
   }
 
   try {
-    return JSON.parse(text);
+    const parsed = JSON.parse(text);
+    parsed._dataSource = 'model_inference';
+    return parsed;
   } catch (parseErr) {
     console.error('Failed to parse Improbability Drive output:', text.substring(0, 500));
     throw new Error('Malformed AI response');
@@ -213,7 +215,7 @@ export async function interpret(snapshot, truckContext, userLanguage) {
  * Used for quick status checks.
  */
 export async function quickAssess(snapshot) {
-  // Simple heuristic fallback if no API key
+  // No API key → rule-based heuristic only (clearly labeled, not AI)
   if (!process.env.GEMINI_API_KEY) {
     const hasCritical = (snapshot.active_faults || []).some(f => f.severity === 'critical');
     const hasRecurring = (snapshot.recurring_faults || []).length > 0;
@@ -225,6 +227,8 @@ export async function quickAssess(snapshot) {
         : hasRecurring
           ? 'Recurring faults detected — monitor closely.'
           : 'No critical issues detected.',
+      _dataSource: 'rule_based_heuristic',
+      _note: 'Assessment based on fault severity flags only (no AI model). Configure GEMINI_API_KEY for full AI analysis.',
     };
   }
 

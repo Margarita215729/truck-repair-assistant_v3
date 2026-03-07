@@ -9,6 +9,16 @@ import SuggestedParts from './SuggestedParts';
 import RepairInstructions from './RepairInstructions.jsx';
 import ClarifyingQuestions from './ClarifyingQuestions.jsx';
 import DiagnosticProgress from './DiagnosticProgress.jsx';
+import { DATA_SOURCE_LABEL, DATA_SOURCE_STYLE } from '@/constants/dataSource';
+
+function SourceBadge({ source }) {
+  if (!source || !DATA_SOURCE_LABEL[source]) return null;
+  return (
+    <span className={`inline-flex items-center text-[10px] px-1.5 py-0.5 rounded border font-medium ${DATA_SOURCE_STYLE[source] || ''}`}>
+      {DATA_SOURCE_LABEL[source]}
+    </span>
+  );
+}
 
 export default function ChatMessage({ message, onPartClick, onAnswerQuestion, onGenerateGuide }) {
   const [copied, setCopied] = useState(false);
@@ -88,6 +98,12 @@ export default function ChatMessage({ message, onPartClick, onAnswerQuestion, on
             <p className="text-sm leading-relaxed whitespace-pre-wrap">{message.content}</p>
           ) : (
             <>
+            {/* Data source badge */}
+            {message._dataSource && (
+              <div className="mb-2 flex items-center gap-1.5">
+                <SourceBadge source={message._dataSource} />
+              </div>
+            )}
             <ReactMarkdown
               className="prose prose-sm prose-invert max-w-none [&>*:first-child]:mt-0 [&>*:last-child]:mb-0"
               components={{
@@ -180,11 +196,11 @@ export default function ChatMessage({ message, onPartClick, onAnswerQuestion, on
           </div>
         )}
 
-        {/* Offline/Fallback Warning */}
-        {message.isFallback && (
-          <div className="mt-2 px-3 py-2 bg-yellow-500/10 border border-yellow-500/20 rounded-xl flex items-center gap-2">
-            <AlertTriangle className="w-4 h-4 text-yellow-400 shrink-0" />
-            <span className="text-xs text-yellow-300/80">Service temporarily unavailable — showing offline diagnosis. Try again in a moment for full analysis.</span>
+        {/* Error State (AI service unavailable) */}
+        {message.isError && (
+          <div className="mt-2 px-3 py-2 bg-red-500/10 border border-red-500/20 rounded-xl flex items-center gap-2">
+            <AlertTriangle className="w-4 h-4 text-red-400 shrink-0" />
+            <span className="text-xs text-red-300/80">AI service error — please try again.</span>
           </div>
         )}
 
@@ -194,6 +210,7 @@ export default function ChatMessage({ message, onPartClick, onAnswerQuestion, on
             <div className="flex items-center gap-2 mb-2">
               <TrendingUp className="w-4 h-4 text-orange-400" />
               <span className="text-xs font-semibold text-orange-400">Forum Trending</span>
+              <SourceBadge source="forum_derived" />
             </div>
             <div className="space-y-2">
               {message.trending_issues.map((issue, i) => (
@@ -220,6 +237,7 @@ export default function ChatMessage({ message, onPartClick, onAnswerQuestion, on
             <div className="flex items-center gap-2 mb-2">
               <CheckCircle className="w-4 h-4 text-green-400" />
               <span className="text-xs font-semibold text-green-400">Community Consensus</span>
+              <SourceBadge source="forum_derived" />
             </div>
             <div className="text-xs text-white/80 space-y-1">
               <div>
@@ -335,6 +353,7 @@ export default function ChatMessage({ message, onPartClick, onAnswerQuestion, on
                   <span className="text-xs font-semibold text-blue-400">
                     {message.community_matches.count} Community Solutions Match Your Issue
                   </span>
+                  <SourceBadge source="community_solution" />
                 </div>
                 <p className="text-xs text-white/70">{message.community_matches.preview}</p>
               </div>
@@ -346,6 +365,7 @@ export default function ChatMessage({ message, onPartClick, onAnswerQuestion, on
             <div className="flex items-center gap-2 mb-2">
               <AlertTriangle className="w-5 h-5 text-red-400" />
               <h3 className="font-semibold text-white">Diagnostic Trouble Codes</h3>
+              <SourceBadge source={message._sources?.dtc_analysis || 'model_inference'} />
             </div>
             {message.dtc_analysis.map((dtc, i) => (
               <div key={i} className="p-3 rounded-lg bg-white/5 space-y-2">

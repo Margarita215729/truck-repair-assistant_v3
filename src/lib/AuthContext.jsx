@@ -123,7 +123,8 @@ export const AuthProvider = ({ children }) => {
       setSubscription(sub);
       setAiUsage(usage);
     } catch (err) {
-      console.warn('Failed to load subscription:', err);
+      console.warn('Failed to load subscription, keeping cached/default:', err);
+      // Keep whatever was cached — do not overwrite with mock free-tier
     }
   }, []);
 
