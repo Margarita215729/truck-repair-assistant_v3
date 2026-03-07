@@ -1073,7 +1073,7 @@ Focus on:
                     setShowTruckSelector(true);
                   };
                   const cards = [
-                    { icon: Mic,            label: t('diagnostics.sound') || 'Sound',    desc: t('diagnostics.soundDesc') || 'Record engine / brake sounds',    color: 'orange', onClick: () => setShowAudioRecorder(true) },
+                    // { icon: Mic,            label: t('diagnostics.sound') || 'Sound',    desc: t('diagnostics.soundDesc') || 'Record engine / brake sounds',    color: 'orange', onClick: () => setShowAudioRecorder(true) },
                     { icon: AlertCircle,     label: t('diagnostics.codes') || 'Codes',    desc: t('diagnostics.codesDesc') || 'Enter DTC / fault codes',         color: 'red',    onClick: () => setShowErrorCodeInput(true) },
                     { icon: AlertTriangle,   label: t('diagnostics.symptoms') || 'Symptoms', desc: t('diagnostics.symptomsDesc') || 'Describe what you notice', color: 'yellow', onClick: () => setShowSymptomPicker(true) },
                     { icon: Eye,             label: t('diagnostics.visual') || 'Visual',  desc: t('diagnostics.visualDesc') || 'Photo / video of the issue',     color: 'emerald', onClick: () => setShowVisualDiagnostics(true) },
@@ -1086,7 +1086,7 @@ Focus on:
                     emerald: { bg: 'from-emerald-500/10 to-emerald-400/5', border: 'border-emerald-500/20 hover:border-emerald-500/40', icon: 'text-emerald-400', text: 'text-emerald-300/90' },
                   };
                   return (
-                    <div className="grid grid-cols-2 lg:grid-cols-5 gap-3">
+                    <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
                       {cards.map((card) => {
                         if (card.isScanButton) {
                           return (
