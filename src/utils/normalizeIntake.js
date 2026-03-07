@@ -48,6 +48,7 @@ export function buildNormalizedPayload({ truck, roadsideContext, messages, error
       mileage_reported: truck?.details?.mileage ? `${truck.details.mileage.toLocaleString()} miles` : null,
       vin: vinValue,
       vin_status: computeVinStatus(truck, ctx),
+      _dataSource: 'user_reported',
     },
 
     fault_codes: {
@@ -67,6 +68,7 @@ export function buildNormalizedPayload({ truck, roadsideContext, messages, error
         notes: null,
       })),
       notes: ctx.noCodesAvailable ? 'Driver reports no active fault codes available at time of intake.' : null,
+      _dataSource: 'user_reported',
     },
 
     evidence: {
@@ -81,6 +83,7 @@ export function buildNormalizedPayload({ truck, roadsideContext, messages, error
         photos: false,
         audio: messages?.some(m => m.audio_url) || false,
       },
+      _dataSource: 'user_reported',
     },
 
     mode: ctx.mode || 'roadside',

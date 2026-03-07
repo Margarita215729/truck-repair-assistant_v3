@@ -12,6 +12,7 @@ import UserNotRegisteredError from '@/components/UserNotRegisteredError';
 import LoginPage from '@/pages/LoginPage';
 import AuthCallbackPage from '@/pages/AuthCallbackPage';
 import PricingPage from '@/pages/PricingPage';
+import PoliciesPage from '@/pages/PoliciesPage';
 
 const { Pages, Layout, mainPage } = pagesConfig;
 const mainPageKey = mainPage ?? Object.keys(Pages)[0];
@@ -55,22 +56,21 @@ const AuthenticatedApp = () => {
           <MainPage />
         </LayoutWrapper>
       } />
-      <Route path="/Pricing" element={
-        <LayoutWrapper currentPageName="Pricing">
-          <PricingPage />
-        </LayoutWrapper>
-      } />
-      {Object.entries(Pages).map(([path, Page]) => (
-        <Route
-          key={path}
-          path={`/${path}`}
-          element={
-            <LayoutWrapper currentPageName={path}>
-              <Page />
-            </LayoutWrapper>
-          }
-        />
-      ))}
+      {Object.entries(Pages).map(([path, Page]) => {
+        // Pricing and Policies are public routes — skip them here
+        if (path === 'Policies') return null;
+        return (
+          <Route
+            key={path}
+            path={`/${path}`}
+            element={
+              <LayoutWrapper currentPageName={path}>
+                <Page />
+              </LayoutWrapper>
+            }
+          />
+        );
+      })}
       <Route path="*" element={<PageNotFound />} />
     </Routes>
   );
@@ -86,6 +86,17 @@ function App() {
             <Routes>
               {/* Auth callback — outside authenticated route to handle unauthenticated redirects */}
               <Route path="/auth/confirm" element={<AuthCallbackPage />} />
+              {/* Public pages — accessible without authentication */}
+              <Route path="/Pricing" element={
+                <LayoutWrapper currentPageName="Pricing">
+                  <PricingPage />
+                </LayoutWrapper>
+              } />
+              <Route path="/Policies" element={
+                <LayoutWrapper currentPageName="Policies">
+                  <PoliciesPage />
+                </LayoutWrapper>
+              } />
               <Route path="/*" element={<AuthenticatedApp />} />
             </Routes>
           </Router>
