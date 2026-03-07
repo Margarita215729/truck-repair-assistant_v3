@@ -70,11 +70,11 @@ export default function DiagnosticTools({
 
   return (
     <div className="flex flex-nowrap gap-1.5 overflow-x-auto scrollbar-hide py-0.5">
-      <ToolButton
+      {/* <ToolButton
         icon={Mic}
         label="Sound"
         onClick={onAudioClick}
-      />
+      /> */}
       <ToolButton
         icon={AlertCircle}
         label={errorCodes.length > 0 ? `${errorCodes.length} code${errorCodes.length > 1 ? 's' : ''}` : 'Codes'}
