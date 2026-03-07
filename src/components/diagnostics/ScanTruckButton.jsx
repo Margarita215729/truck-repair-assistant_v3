@@ -24,14 +24,9 @@ export default function ScanTruckButton({ vehicleProfileId, onScanComplete, disa
   const [showProviderPicker, setShowProviderPicker] = useState(false);
 
   const handleScan = useCallback(async () => {
-    if (!vehicleProfileId) {
-      toast.info('Select a truck first');
-      return;
-    }
-
     setScanning(true);
     try {
-      const result = await getTruckStateSnapshot(vehicleProfileId);
+      const result = await getTruckStateSnapshot(vehicleProfileId || '_auto');
 
       if (!result) {
         // Not authenticated at all
