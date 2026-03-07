@@ -389,7 +389,8 @@ export default function Diagnostics() {
       role: 'user',
       content: messageText,
       timestamp: new Date().toISOString(),
-      audio_url: audioUrl
+      audio_url: audioUrl,
+      _dataSource: 'user_reported',
     };
     
     setMessages(prev => [...prev, userMessage]);
@@ -697,10 +698,20 @@ User: ${messageText}${audioUrl ? '\n[User has attached an audio recording of eng
         repair_instructions: response.repair_instructions || [],
         diagnostic_progress: response.diagnostic_progress || null,
         community_matches: response.community_matches || null,
-        isFallback: response._isFallback || false,
         insufficient_info: response.insufficient_info || false,
         missing_details: response.missing_details || [],
         preliminary_suggestions: response.preliminary_suggestions || [],
+        _dataSource: 'model_inference',
+        // Per-section source tags for trust-level badges
+        _sources: {
+          response: 'model_inference',
+          dtc_analysis: 'model_inference',
+          repair_instructions: 'model_inference',
+          suggested_parts: 'model_inference',
+          community_matches: communitySolutions.length > 0 ? 'community_solution' : null,
+          forum: forumSearchResult?.results?.length > 0 ? 'forum_derived' : null,
+          truckState: truckStateResult?.snapshot ? 'confirmed_telemetry' : null,
+        },
       };
 
       // Save conversation using functional state to avoid stale closure
@@ -752,6 +763,16 @@ User: ${messageText}${audioUrl ? '\n[User has attached an audio recording of eng
 
     } catch (error) {
       console.error('Error:', error);
+      const errorMessage = {
+        role: 'assistant',
+        content: error.code === 'NO_AI_SERVICE'
+          ? t('diagnostics.aiUnavailable') || 'AI service is currently unavailable. Please check your configuration and try again.'
+          : t('diagnostics.responseFailed') || 'Failed to get a response. Please try again.',
+        timestamp: new Date().toISOString(),
+        _dataSource: 'system_error',
+        isError: true,
+      };
+      setMessages(prev => [...prev, errorMessage]);
       toast.error(t('diagnostics.responseFailed'));
     } finally {
       setIsLoading(false);
