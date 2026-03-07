@@ -32,6 +32,7 @@ import { buildNormalizedPayload } from '@/utils/normalizeIntake';
 import { saveAIPartRecommendations } from '@/services/partsService';
 import { searchForums, formatForumContext } from '@/services/forumSearchService';
 import { getTruckStateSnapshot } from '@/services/telematics/telematicsService';
+import TruckStatePanel from '@/components/diagnostics/TruckStatePanel';
 
 export default function Diagnostics() {
   const { t } = useLanguage();
@@ -1043,6 +1044,10 @@ Focus on:
             </motion.div>
           ) : (
             <div className="space-y-6 pb-4">
+              {/* Live Truck Computer State Panel */}
+              {truck?.details?.id && (
+                <TruckStatePanel vehicleProfileId={truck.details.id} className="mb-2" />
+              )}
               <AnimatePresence>
                 {messages.map((message, index) => (
                   <ChatMessage 

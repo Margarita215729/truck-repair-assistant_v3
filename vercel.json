@@ -30,6 +30,18 @@
     },
     "api/webhooks/motive.js": {
       "maxDuration": 30
+    },
+    "api/telematics/token-refresh.js": {
+      "maxDuration": 30
+    },
+    "api/telematics/vehicles.js": {
+      "maxDuration": 15
     }
-  }
+  },
+  "crons": [
+    {
+      "path": "/api/telematics/token-refresh",
+      "schedule": "0 * * * *"
+    }
+  ]
 }
