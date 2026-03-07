@@ -542,7 +542,7 @@ export default function Profile() {
                       size="sm"
                       variant="outline"
                       className="border-blue-500/30 text-blue-400 hover:bg-blue-500/10"
-                      onClick={() => connectProvider('samsara')}
+                      onClick={async () => { try { await connectProvider('samsara'); } catch(e) { toast.error('Authorization failed: ' + e.message); } }}
                     >
                       <Link className="w-3.5 h-3.5 mr-1.5" />
                       Connect
@@ -578,7 +578,7 @@ export default function Profile() {
                       size="sm"
                       variant="outline"
                       className="border-emerald-500/30 text-emerald-400 hover:bg-emerald-500/10"
-                      onClick={() => connectProvider('motive')}
+                      onClick={async () => { try { await connectProvider('motive'); } catch(e) { toast.error('Authorization failed: ' + e.message); } }}
                     >
                       <Link className="w-3.5 h-3.5 mr-1.5" />
                       Connect

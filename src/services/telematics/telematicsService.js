@@ -29,13 +29,23 @@ async function getAuthToken() {
 
 /**
  * Redirect to OAuth start for the given provider.
- * This navigates the browser to the backend OAuth endpoint.
+ * Fetches the OAuth URL from the backend (with auth), then navigates the browser.
  */
-export function connectProvider(provider) {
-  // We need the token as a query param since this is a redirect flow
-  // The backend reads from Authorization header, so we use a different approach:
-  // Open the OAuth URL in the same tab (backend handles auth via session)
-  window.location.href = `${API_BASE}/oauth-start?provider=${encodeURIComponent(provider)}`;
+export async function connectProvider(provider) {
+  const token = await getAuthToken();
+  if (!token) throw new Error('Not authenticated');
+
+  const resp = await fetch(`${API_BASE}/oauth-start?provider=${encodeURIComponent(provider)}`, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+
+  if (!resp.ok) {
+    const err = await resp.json().catch(() => ({}));
+    throw new Error(err.error || `HTTP ${resp.status}`);
+  }
+
+  const { url } = await resp.json();
+  window.location.href = url;
 }
 
 /**

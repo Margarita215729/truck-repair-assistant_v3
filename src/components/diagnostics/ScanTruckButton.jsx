@@ -69,11 +69,14 @@ export default function ScanTruckButton({ vehicleProfileId, onScanComplete, disa
     }
   }, [vehicleProfileId, onScanComplete]);
 
-  const handleConnect = (provider) => {
+  const handleConnect = async (provider) => {
     setShowProviderPicker(false);
-    // connectProvider redirects the browser to OAuth — tokens are stored server-side,
-    // so the user only needs to authorize once.
-    connectProvider(provider);
+    try {
+      await connectProvider(provider);
+    } catch (err) {
+      console.error('OAuth connect failed:', err);
+      toast.error('Failed to start authorization: ' + (err.message || 'Unknown error'));
+    }
   };
 
   return (
