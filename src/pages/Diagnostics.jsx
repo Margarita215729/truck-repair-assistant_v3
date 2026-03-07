@@ -3,7 +3,7 @@ import { entities } from '@/services/entityService';
 import { invokeLLM, uploadFile } from '@/services/aiService';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
-import { Loader2, FileText, Wrench, MessageSquarePlus, AlertTriangle, AlertCircle, Mic, Lock, History, Info, Eye } from 'lucide-react';
+import { Loader2, FileText, Wrench, MessageSquarePlus, AlertTriangle, AlertCircle, Mic, Lock, History, Info, Eye, Radio, X } from 'lucide-react';
 import { toast } from 'sonner';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useQueryClient } from '@tanstack/react-query';
@@ -31,8 +31,9 @@ import { useTruck } from '@/lib/TruckContext';
 import { buildNormalizedPayload } from '@/utils/normalizeIntake';
 import { saveAIPartRecommendations } from '@/services/partsService';
 import { searchForums, formatForumContext } from '@/services/forumSearchService';
-import { getTruckStateSnapshot } from '@/services/telematics/telematicsService';
+import { getTruckStateSnapshot, connectProvider } from '@/services/telematics/telematicsService';
 import TruckStatePanel from '@/components/diagnostics/TruckStatePanel';
+import ScanTruckButton from '@/components/diagnostics/ScanTruckButton';
 
 export default function Diagnostics() {
   const { t } = useLanguage();
@@ -290,6 +291,83 @@ export default function Diagnostics() {
   const handleGenerateGuide = (problem) => {
     setRepairGuideProblem(problem);
     setShowRepairGuide(true);
+  };
+
+  /** SCAN TRUCK — fetch live telematics data and inject into chat */
+  const handleScanComplete = ({ snapshot, interpretation }) => {
+    setTruckStateSnapshot(snapshot);
+    setTruckStateInterpretation(interpretation);
+
+    // Build a user-facing summary message
+    const status = snapshot?.summary_status || 'unknown';
+    const faults = snapshot?.stats?.total_active_faults || 0;
+    const signals = snapshot?.stats?.total_signals || 0;
+
+    let summaryLines = [`🖥️ **TRUCK COMPUTER SCAN COMPLETE**`];
+    summaryLines.push(`Status: **${status.toUpperCase()}** | Active faults: **${faults}** | Signals: **${signals}**`);
+
+    if (snapshot?.faults?.length > 0) {
+      summaryLines.push('\nFault codes detected:');
+      snapshot.faults.forEach(f => {
+        summaryLines.push(`- ${f.code_type || 'DTC'} ${f.dtc || f.code || 'N/A'}: ${f.description || 'Unknown'} [${f.severity || '?'}]`);
+      });
+    }
+
+    // Add key live signals
+    const snap = snapshot?.current_signals || {};
+    const keySignals = ['engine_rpm', 'coolant_temp_c', 'oil_pressure_kpa', 'fuel_level_pct', 'battery_voltage'];
+    const signalLines = keySignals
+      .filter(k => snap[k])
+      .map(k => `- ${k.replace(/_/g, ' ')}: ${snap[k].value} ${snap[k].unit || ''}`);
+    if (signalLines.length > 0) {
+      summaryLines.push('\nKey live readings:');
+      summaryLines.push(...signalLines);
+    }
+
+    if (interpretation?.overall_assessment?.summary) {
+      summaryLines.push(`\n🤖 AI Assessment: ${interpretation.overall_assessment.summary}`);
+      if (interpretation.overall_assessment.safe_to_drive === false) {
+        summaryLines.push('⚠️ **NOT SAFE TO DRIVE** — see immediate actions below.');
+      }
+    }
+
+    summaryLines.push('\nAnalyze the scan data above and advise on any issues found.');
+
+    const scanText = summaryLines.join('\n');
+    sendMessage(scanText);
+  };
+
+  const [scanningInline, setScanningInline] = useState(false);
+  const [showProviderPicker, setShowProviderPicker] = useState(false);
+
+  const handleInlineScan = async () => {
+    if (!truck?.details?.id) {
+      toast.info(t('diagnostics.selectTruckFirst') || 'Please select your truck first');
+      setShowTruckSelector(true);
+      return;
+    }
+    setScanningInline(true);
+    try {
+      const result = await getTruckStateSnapshot(truck.details.id);
+      if (!result) {
+        toast.error('Please log in to scan your truck');
+        return;
+      }
+      if (result.meta?.connected === false) {
+        setShowProviderPicker(true);
+        return;
+      }
+      if (!result.snapshot) {
+        toast.info('Telematics connected but no data yet. Make sure your vehicle is mapped in Profile.');
+        return;
+      }
+      handleScanComplete({ snapshot: result.snapshot, interpretation: result.interpretation });
+    } catch (err) {
+      console.error('Inline scan failed:', err);
+      toast.error('Scan failed: ' + (err.message || 'Unknown error'));
+    } finally {
+      setScanningInline(false);
+    }
   };
 
   const sendMessage = async (messageText, audioUrl = null) => {
@@ -999,6 +1077,7 @@ Focus on:
                     { icon: AlertCircle,     label: t('diagnostics.codes') || 'Codes',    desc: t('diagnostics.codesDesc') || 'Enter DTC / fault codes',         color: 'red',    onClick: () => setShowErrorCodeInput(true) },
                     { icon: AlertTriangle,   label: t('diagnostics.symptoms') || 'Symptoms', desc: t('diagnostics.symptomsDesc') || 'Describe what you notice', color: 'yellow', onClick: () => setShowSymptomPicker(true) },
                     { icon: Eye,             label: t('diagnostics.visual') || 'Visual',  desc: t('diagnostics.visualDesc') || 'Photo / video of the issue',     color: 'emerald', onClick: () => setShowVisualDiagnostics(true) },
+                    { icon: null, isScanButton: true },
                   ];
                   const colorMap = {
                     orange:  { bg: 'from-orange-500/10 to-orange-400/5',  border: 'border-orange-500/20 hover:border-orange-500/40',  icon: 'text-orange-400',  text: 'text-orange-300/90' },
@@ -1007,8 +1086,19 @@ Focus on:
                     emerald: { bg: 'from-emerald-500/10 to-emerald-400/5', border: 'border-emerald-500/20 hover:border-emerald-500/40', icon: 'text-emerald-400', text: 'text-emerald-300/90' },
                   };
                   return (
-                    <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-                      {cards.map(({ icon: Icon, label, desc, color, onClick }) => {
+                    <div className="grid grid-cols-2 lg:grid-cols-5 gap-3">
+                      {cards.map((card) => {
+                        if (card.isScanButton) {
+                          return (
+                            <ScanTruckButton
+                              key="scan-truck"
+                              vehicleProfileId={truck?.details?.id}
+                              onScanComplete={handleScanComplete}
+                              disabled={toolDisabled}
+                            />
+                          );
+                        }
+                        const { icon: Icon, label, desc, color, onClick } = card;
                         const c = colorMap[color];
                         return (
                           <motion.button
@@ -1139,6 +1229,21 @@ Focus on:
                     }}
                   />
                 </div>
+
+                {/* Compact SCAN TRUCK button in active-conversation toolbar */}
+                <motion.button
+                  whileTap={{ scale: 0.95 }}
+                  onClick={handleInlineScan}
+                  disabled={scanningInline}
+                  className="shrink-0 flex items-center gap-1.5 px-2.5 py-2 rounded-xl border border-cyan-500/20 bg-cyan-500/10 hover:bg-cyan-500/20 text-cyan-400 hover:text-cyan-300 text-xs font-medium transition-colors disabled:opacity-50"
+                >
+                  {scanningInline ? (
+                    <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                  ) : (
+                    <Radio className="w-3.5 h-3.5" />
+                  )}
+                  <span>{scanningInline ? 'Scanning...' : 'SCAN'}</span>
+                </motion.button>
 
                 <div className="flex items-center gap-1.5 ml-auto shrink-0">
                   <button
@@ -1375,6 +1480,66 @@ Focus on:
         onClose={() => setShowVisualDiagnostics(false)}
         onDiagnosisComplete={handleVisualDiagnosisComplete}
       />
+
+      {/* Provider picker overlay for inline scan */}
+      <AnimatePresence>
+        {showProviderPicker && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm"
+            onClick={() => setShowProviderPicker(false)}
+          >
+            <motion.div
+              initial={{ scale: 0.9, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.9, opacity: 0 }}
+              onClick={(e) => e.stopPropagation()}
+              className="w-full max-w-sm mx-4 rounded-2xl bg-[#141a1e] border border-white/10 p-6 space-y-5"
+            >
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <AlertTriangle className="w-5 h-5 text-yellow-400" />
+                  <h3 className="text-lg font-semibold text-white">Connect Telematics</h3>
+                </div>
+                <button
+                  onClick={() => setShowProviderPicker(false)}
+                  className="p-1 rounded-lg hover:bg-white/10 text-white/40 hover:text-white/80 transition-colors"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+              <p className="text-sm text-white/50">
+                Connect your ELD / telematics provider to read live data. You only need to authorize once.
+              </p>
+              <div className="space-y-3">
+                {[
+                  { id: 'motive', name: 'Motive (KeepTruckin)', desc: 'ELD, GPS, fault codes, engine data', gradient: 'from-blue-600 to-blue-800', hover: 'hover:border-cyan-500/40 hover:bg-cyan-500/10' },
+                  { id: 'samsara', name: 'Samsara', desc: 'ELD, GPS, fault codes, engine data', gradient: 'from-green-600 to-green-800', hover: 'hover:border-green-500/40 hover:bg-green-500/10' },
+                ].map(p => (
+                  <button
+                    key={p.id}
+                    onClick={() => { setShowProviderPicker(false); connectProvider(p.id); }}
+                    className={`w-full flex items-center gap-4 p-4 rounded-xl border border-white/10 ${p.hover} bg-white/5 transition-all`}
+                  >
+                    <div className={`w-10 h-10 rounded-lg bg-gradient-to-br ${p.gradient} flex items-center justify-center`}>
+                      <Radio className="w-5 h-5 text-white" />
+                    </div>
+                    <div className="text-left">
+                      <div className="font-medium text-white">{p.name}</div>
+                      <div className="text-xs text-white/40">{p.desc}</div>
+                    </div>
+                  </button>
+                ))}
+              </div>
+              <p className="text-[11px] text-white/30 text-center">
+                Your credentials are encrypted and stored securely. You won't need to log in again.
+              </p>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }
