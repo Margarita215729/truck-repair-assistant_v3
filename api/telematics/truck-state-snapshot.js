@@ -36,10 +36,8 @@ export default async function handler(req, res) {
     const { data: { user }, error: authErr } = await sb.auth.getUser(token);
     if (authErr || !user) return res.status(401).json({ error: 'Invalid token' });
 
-    const vehicleProfileId = req.query.vehicleProfileId;
-    if (!vehicleProfileId) {
-      return res.status(400).json({ error: 'vehicleProfileId is required' });
-    }
+    let vehicleProfileId = req.query.vehicleProfileId;
+    if (vehicleProfileId === '_auto') vehicleProfileId = null;
 
     // Load active connection
     const { data: connection } = await sb
@@ -49,6 +47,18 @@ export default async function handler(req, res) {
       .eq('status', 'active')
       .limit(1)
       .maybeSingle();
+
+    // Auto-resolve vehicleProfileId from mapped vehicle if not provided
+    if (!vehicleProfileId && connection?.provider_vehicle_id) {
+      const { data: mapped } = await sb
+        .from('vehicle_profiles')
+        .select('id')
+        .eq('user_id', user.id)
+        .eq('telematics_vehicle_id', connection.provider_vehicle_id)
+        .limit(1)
+        .maybeSingle();
+      if (mapped) vehicleProfileId = mapped.id;
+    }
 
     if (!connection) {
       return res.status(200).json({
