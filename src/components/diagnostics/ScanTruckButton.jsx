@@ -168,15 +168,15 @@ export default function ScanTruckButton({ vehicleProfileId, onScanComplete, disa
                 </button>
 
                 <button
-                  onClick={() => handleConnect('samsara')}
-                  className="w-full flex items-center gap-4 p-4 rounded-xl border border-white/10 hover:border-green-500/40 bg-white/5 hover:bg-green-500/10 transition-all"
+                  disabled
+                  className="w-full flex items-center gap-4 p-4 rounded-xl border border-white/10 bg-white/5 opacity-40 cursor-not-allowed transition-all"
                 >
                   <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-green-600 to-green-800 flex items-center justify-center">
                     <Wifi className="w-5 h-5 text-white" />
                   </div>
                   <div className="text-left">
                     <div className="font-medium text-white">Samsara</div>
-                    <div className="text-xs text-white/40">ELD, GPS, fault codes, engine data</div>
+                    <div className="text-xs text-white/40">Coming soon</div>
                   </div>
                 </button>
               </div>
