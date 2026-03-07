@@ -1516,12 +1516,13 @@ Focus on:
               <div className="space-y-3">
                 {[
                   { id: 'motive', name: 'Motive (KeepTruckin)', desc: 'ELD, GPS, fault codes, engine data', gradient: 'from-blue-600 to-blue-800', hover: 'hover:border-cyan-500/40 hover:bg-cyan-500/10' },
-                  { id: 'samsara', name: 'Samsara', desc: 'ELD, GPS, fault codes, engine data', gradient: 'from-green-600 to-green-800', hover: 'hover:border-green-500/40 hover:bg-green-500/10' },
+                  { id: 'samsara', name: 'Samsara', desc: 'Coming soon', gradient: 'from-green-600 to-green-800', hover: '', disabled: true },
                 ].map(p => (
                   <button
                     key={p.id}
-                    onClick={() => { setShowProviderPicker(false); connectProvider(p.id); }}
-                    className={`w-full flex items-center gap-4 p-4 rounded-xl border border-white/10 ${p.hover} bg-white/5 transition-all`}
+                    disabled={p.disabled}
+                    onClick={p.disabled ? undefined : () => { setShowProviderPicker(false); connectProvider(p.id); }}
+                    className={`w-full flex items-center gap-4 p-4 rounded-xl border border-white/10 ${p.disabled ? 'opacity-40 cursor-not-allowed' : p.hover} bg-white/5 transition-all`}
                   >
                     <div className={`w-10 h-10 rounded-lg bg-gradient-to-br ${p.gradient} flex items-center justify-center`}>
                       <Radio className="w-5 h-5 text-white" />
