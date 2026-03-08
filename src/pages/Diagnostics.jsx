@@ -500,8 +500,15 @@ ${forumContext}
 ${truckStateContext}
 
 COMMUNICATION RULES:
-- Keep initial responses SHORT (2-3 sentences) but ALWAYS informative
-- On FIRST message: ask 2-3 targeted clarifying questions AND simultaneously provide your PRELIMINARY diagnosis based on what you already know. Include at least a basic repair_instructions entry with probable steps.
+- Keep ALL responses CONCISE — short paragraphs, bullet points, clear headers
+- On FIRST message with ERROR CODES ONLY (no symptoms text): provide a CONCISE DTC quick-decode:
+  1. **Code meaning** — one sentence per code
+  2. **Can you drive?** — YES/NO with brief explanation
+  3. **What to do RIGHT NOW** — 1-3 immediate action bullets
+  4. **Risks if you keep driving** — brief consequences (or "none expected" if safe)
+  5. **What's next?** — suggest 2-3 short next steps (e.g. "Ask me to run full diagnostics", "Describe any symptoms you notice", "Upload a photo of the dashboard")
+  Keep the entire first response under 200 words. Do NOT ask clarifying questions on a DTC-only first message — decode first.
+- On FIRST message with symptoms or free text: ask 2-3 targeted clarifying questions AND simultaneously provide your PRELIMINARY diagnosis based on what you already know. Include at least a basic repair_instructions entry with probable steps.
 - MAXIMUM 2 rounds of clarifying questions for maximum diagnostic accuracy, then PROVIDE FULL SOLUTION
 - Current question round: ${questionRounds + 1}/2
 ${questionRounds >= 1 ? '- You have gathered initial info. Dig DEEPER \u2014 ask follow-up questions about specific components, sounds, conditions. Provide progressively more detailed repair_instructions with each round.' : ''}
@@ -1382,11 +1389,15 @@ Focus on:
                   messageToSend = `I have a ${truck.year} ${truck.make} ${truck.model} with these symptoms: ${symptoms.join(', ')}. ${errorCodes.length > 0 ? `Error codes: ${errorCodes.join(', ')}. ` : ''}Please help me diagnose the issue.`;
                 }
 
+                if (!messageToSend && truck && errorCodes.length > 0) {
+                  messageToSend = `I have a ${truck.year} ${truck.make} ${truck.model} with error codes: ${errorCodes.join(', ')}. Please decode these codes and advise.`;
+                }
+
                 if (messageToSend) {
                   sendMessage(messageToSend);
                 }
               }}
-              disabled={(!truck && isFirstMessage) || (!input.trim() && !(truck && symptoms.length > 0) && pendingAnswers.length === 0) || isLoading}
+              disabled={(!truck && isFirstMessage) || (!input.trim() && !(truck && (symptoms.length > 0 || errorCodes.length > 0)) && pendingAnswers.length === 0) || isLoading}
               className="w-full mt-2 py-3 rounded-xl bg-gradient-to-r from-brand-orange to-brand-orange-light hover:from-[#e8851f] hover:to-[#d67a18] disabled:opacity-50 disabled:cursor-not-allowed shadow-lg shadow-brand-orange/20 text-white font-semibold text-sm tracking-wide"
             >
               {isLoading ? (
