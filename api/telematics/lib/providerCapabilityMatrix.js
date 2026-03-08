@@ -47,6 +47,73 @@ export const PROVIDER_CAPABILITIES = {
     engineSummary: true,     // Via /performance_events
     ifta: true,              // Via /ifta/trips
   },
+  geotab: {
+    oauth: false,             // Uses session-based credential auth
+    authType: 'credentials',  // username + password + database
+    webhooks: false,          // No push webhooks — uses GetFeed polling
+    registerWebhooks: false,
+    polling: true,            // GetFeed incremental polling (cron every 15 min)
+    faultCodes: true,
+    tellTales: true,          // Derived from FaultData lamp states
+    signals: true,            // Via StatusData + diagnostic mapping
+    location: true,           // Via LogRecord
+    engineHours: true,
+    fuel: true,
+    fuelRate: true,
+    def: true,
+    aftertreatment: true,     // DPF soot/ash, SCR temps, DEF consumption
+    transmission: true,       // Gear, oil temp, oil pressure, output shaft speed
+    brakes: true,             // Primary/secondary air pressure, parking brake
+    gatewayEvents: false,
+    inspectionDefects: true,  // Via DVIRLog
+    tirePressure: false,      // Not natively available; requires Add-In
+    oilLife: false,
+    engineSummary: false,
+  },
+  verizonconnect: {
+    oauth: false,             // Uses client_credentials grant (API key + secret)
+    authType: 'credentials',
+    apiAccess: 'partner',     // Developer portal is partner-gated
+    webhooks: 'partial',      // Webhook support depends on partnership tier
+    registerWebhooks: false,
+    faultCodes: true,
+    tellTales: 'partial',
+    signals: true,
+    location: true,
+    engineHours: true,
+    fuel: true,
+    fuelRate: 'partial',
+    def: 'partial',
+    aftertreatment: 'partial',
+    transmission: 'partial',
+    brakes: 'partial',
+    gatewayEvents: false,
+    inspectionDefects: 'partial',
+    tirePressure: false,
+    oilLife: false,
+  },
+  omnitracs: {
+    oauth: false,             // Uses client_credentials grant (API key + secret)
+    authType: 'credentials',
+    apiAccess: 'partner',     // Developer portal unavailable (404)
+    webhooks: 'partial',      // Webhook support depends on partnership tier
+    registerWebhooks: false,
+    faultCodes: true,
+    tellTales: 'partial',
+    signals: true,
+    location: true,
+    engineHours: true,
+    fuel: true,
+    fuelRate: 'partial',
+    def: 'partial',
+    aftertreatment: 'partial',
+    transmission: 'partial',
+    brakes: 'partial',
+    gatewayEvents: false,
+    inspectionDefects: 'partial',
+    tirePressure: false,
+    oilLife: false,
+  },
 };
 
 /**

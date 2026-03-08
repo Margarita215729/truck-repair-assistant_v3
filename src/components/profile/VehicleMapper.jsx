@@ -23,6 +23,9 @@ import { getProviderVehicles, mapVehicle } from '@/services/telematics/telematic
 const PROVIDER_LABELS = {
   motive: { name: 'Motive (KeepTruckin)', color: 'text-blue-400', bg: 'bg-blue-500/20' },
   samsara: { name: 'Samsara', color: 'text-green-400', bg: 'bg-green-500/20' },
+  geotab: { name: 'Geotab', color: 'text-orange-400', bg: 'bg-orange-500/20' },
+  verizonconnect: { name: 'Verizon Connect', color: 'text-red-400', bg: 'bg-red-500/20' },
+  omnitracs: { name: 'Omnitracs', color: 'text-purple-400', bg: 'bg-purple-500/20' },
 };
 
 export default function VehicleMapper({ onMappingComplete }) {

@@ -4,23 +4,42 @@
  * GET /api/telematics/oauth-start?provider=samsara|motive
  *
  * Requires authenticated Supabase user (JWT in Authorization header).
- * Creates an oauth_sessions row and redirects to the provider’s OAuth URL.
+ * Creates an oauth_sessions row and redirects to the provider's OAuth URL.
  */
 import { createClient } from '@supabase/supabase-js';
 import crypto from 'node:crypto';
 
 const PROVIDERS = {
   samsara: {
+    authType: 'oauth',
     authUrl: 'https://api.samsara.com/oauth2/authorize',
     clientId: () => process.env.SAMSARA_CLIENT_ID,
     redirectUri: () => process.env.SAMSARA_REDIRECT_URI,
     scopes: 'vehicles:read fleet:read',
   },
   motive: {
+    authType: 'oauth',
     authUrl: 'https://api.gomotive.com/oauth/authorize',
     clientId: () => process.env.MOTIVE_CLIENT_ID,
     redirectUri: () => process.env.MOTIVE_REDIRECT_URI,
     scopes: 'vehicles.read faults.read locations.read dvirs.read',
+  },
+  // Credential-based providers — these use /api/telematics/credential-connect instead
+  geotab: {
+    authType: 'credentials',
+    requiredFields: ['database', 'userName', 'password'],
+    optionalFields: ['server'],
+    connectEndpoint: '/api/telematics/credential-connect',
+  },
+  verizonconnect: {
+    authType: 'credentials',
+    requiredFields: ['apiKey', 'apiSecret'],
+    connectEndpoint: '/api/telematics/credential-connect',
+  },
+  omnitracs: {
+    authType: 'credentials',
+    requiredFields: ['apiKey', 'apiSecret'],
+    connectEndpoint: '/api/telematics/credential-connect',
   },
 };
 
@@ -47,6 +66,17 @@ export default async function handler(req, res) {
     const provider = req.query.provider;
     const cfg = PROVIDERS[provider];
     if (!cfg) return res.status(400).json({ error: `Unsupported provider: ${provider}` });
+
+    // Credential-based providers — return connection info instead of OAuth URL
+    if (cfg.authType === 'credentials') {
+      return res.status(200).json({
+        authType: 'credentials',
+        provider,
+        requiredFields: cfg.requiredFields || [],
+        optionalFields: cfg.optionalFields || [],
+        connectEndpoint: cfg.connectEndpoint,
+      });
+    }
 
     const clientId = cfg.clientId();
     const redirectUri = cfg.redirectUri();

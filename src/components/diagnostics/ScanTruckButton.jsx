@@ -1,9 +1,10 @@
 import React, { useState, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Wifi, WifiOff, Loader2, CheckCircle2, AlertTriangle, Radio, X } from 'lucide-react';
+import { Wifi, WifiOff, Loader2, CheckCircle2, AlertTriangle, Radio, X, KeyRound } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
 import { getTruckStateSnapshot, connectProvider } from '@/services/telematics/telematicsService';
+import CredentialConnectDialog from './CredentialConnectDialog';
 
 /**
  * ScanTruckButton
@@ -22,6 +23,8 @@ import { getTruckStateSnapshot, connectProvider } from '@/services/telematics/te
 export default function ScanTruckButton({ vehicleProfileId, onScanComplete, disabled, className }) {
   const [scanning, setScanning] = useState(false);
   const [showProviderPicker, setShowProviderPicker] = useState(false);
+  const [credentialMeta, setCredentialMeta] = useState(null);
+  const [showCredentialDialog, setShowCredentialDialog] = useState(false);
 
   const handleScan = useCallback(async () => {
     setScanning(true);
@@ -72,9 +75,15 @@ export default function ScanTruckButton({ vehicleProfileId, onScanComplete, disa
   const handleConnect = async (provider) => {
     setShowProviderPicker(false);
     try {
-      await connectProvider(provider);
+      const result = await connectProvider(provider);
+      // Credential-based provider — show credential dialog
+      if (result?.authType === 'credentials') {
+        setCredentialMeta(result);
+        setShowCredentialDialog(true);
+      }
+      // OAuth providers redirect automatically (no return value used)
     } catch (err) {
-      console.error('OAuth connect failed:', err);
+      console.error('Connect failed:', err);
       toast.error('Failed to start authorization: ' + (err.message || 'Unknown error'));
     }
   };
@@ -166,15 +175,54 @@ export default function ScanTruckButton({ vehicleProfileId, onScanComplete, disa
                 </button>
 
                 <button
-                  disabled
-                  className="w-full flex items-center gap-4 p-4 rounded-xl border border-white/10 bg-white/5 opacity-40 cursor-not-allowed transition-all"
+                  onClick={() => handleConnect('samsara')}
+                  className="w-full flex items-center gap-4 p-4 rounded-xl border border-white/10 hover:border-cyan-500/40 bg-white/5 hover:bg-cyan-500/10 transition-all"
                 >
                   <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-green-600 to-green-800 flex items-center justify-center">
                     <Wifi className="w-5 h-5 text-white" />
                   </div>
                   <div className="text-left">
                     <div className="font-medium text-white">Samsara</div>
-                    <div className="text-xs text-white/40">Coming soon</div>
+                    <div className="text-xs text-white/40">ELD, GPS, fault codes, engine data</div>
+                  </div>
+                </button>
+
+                <button
+                  onClick={() => handleConnect('geotab')}
+                  className="w-full flex items-center gap-4 p-4 rounded-xl border border-white/10 hover:border-orange-500/40 bg-white/5 hover:bg-orange-500/10 transition-all"
+                >
+                  <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-orange-500 to-orange-700 flex items-center justify-center">
+                    <KeyRound className="w-5 h-5 text-white" />
+                  </div>
+                  <div className="text-left">
+                    <div className="font-medium text-white">Geotab</div>
+                    <div className="text-xs text-white/40">ELD, GPS, fault codes, engine data</div>
+                  </div>
+                </button>
+
+                <button
+                  onClick={() => handleConnect('verizonconnect')}
+                  className="w-full flex items-center gap-4 p-4 rounded-xl border border-white/10 hover:border-red-500/40 bg-white/5 hover:bg-red-500/10 transition-all"
+                >
+                  <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-red-600 to-red-800 flex items-center justify-center">
+                    <KeyRound className="w-5 h-5 text-white" />
+                  </div>
+                  <div className="text-left">
+                    <div className="font-medium text-white">Verizon Connect</div>
+                    <div className="text-xs text-white/40">GPS, fleet tracking, engine data</div>
+                  </div>
+                </button>
+
+                <button
+                  onClick={() => handleConnect('omnitracs')}
+                  className="w-full flex items-center gap-4 p-4 rounded-xl border border-white/10 hover:border-purple-500/40 bg-white/5 hover:bg-purple-500/10 transition-all"
+                >
+                  <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-purple-600 to-purple-800 flex items-center justify-center">
+                    <KeyRound className="w-5 h-5 text-white" />
+                  </div>
+                  <div className="text-left">
+                    <div className="font-medium text-white">Omnitracs</div>
+                    <div className="text-xs text-white/40">ELD, GPS, fleet management</div>
                   </div>
                 </button>
               </div>
@@ -186,6 +234,15 @@ export default function ScanTruckButton({ vehicleProfileId, onScanComplete, disa
           </motion.div>
         )}
       </AnimatePresence>
+
+      <CredentialConnectDialog
+        open={showCredentialDialog}
+        onOpenChange={setShowCredentialDialog}
+        providerMeta={credentialMeta}
+        onSuccess={() => {
+          toast.success('Provider connected! Try scanning again.');
+        }}
+      />
     </>
   );
 }

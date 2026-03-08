@@ -28,8 +28,11 @@ async function getAuthToken() {
 }
 
 /**
- * Redirect to OAuth start for the given provider.
- * Fetches the OAuth URL from the backend (with auth), then navigates the browser.
+ * Start provider connection.
+ * For OAuth providers (samsara, motive): fetches the OAuth URL and redirects.
+ * For credential providers (geotab, verizonconnect, omnitracs): returns
+ * { authType: 'credentials', requiredFields, optionalFields, connectEndpoint }
+ * so the UI can show a credential form.
  */
 export async function connectProvider(provider) {
   const token = await getAuthToken();
@@ -44,8 +47,43 @@ export async function connectProvider(provider) {
     throw new Error(err.error || `HTTP ${resp.status}`);
   }
 
-  const { url } = await resp.json();
-  window.location.href = url;
+  const data = await resp.json();
+
+  // Credential-based provider — return metadata for the UI to render a form
+  if (data.authType === 'credentials') {
+    return data;
+  }
+
+  // OAuth provider — redirect to authorization URL
+  window.location.href = data.url;
+}
+
+/**
+ * Submit credentials for a credential-based provider (geotab, verizonconnect, omnitracs).
+ *
+ * @param {string} provider - Provider name
+ * @param {Record<string, string>} credentials - e.g. { database, userName, password, server }
+ * @returns {{ ok, provider, vehicles_found, auto_mapped }}
+ */
+export async function connectProviderWithCredentials(provider, credentials) {
+  const token = await getAuthToken();
+  if (!token) throw new Error('Not authenticated');
+
+  const resp = await fetch(`${API_BASE}/credential-connect`, {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${token}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ provider, ...credentials }),
+  });
+
+  if (!resp.ok) {
+    const err = await resp.json().catch(() => ({}));
+    throw new Error(err.error || `HTTP ${resp.status}`);
+  }
+
+  return await resp.json();
 }
 
 /**

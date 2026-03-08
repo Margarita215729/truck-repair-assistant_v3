@@ -31,8 +31,23 @@
     "api/webhooks/motive.js": {
       "maxDuration": 30
     },
+    "api/webhooks/geotab.js": {
+      "maxDuration": 30
+    },
+    "api/webhooks/verizonconnect.js": {
+      "maxDuration": 30
+    },
+    "api/webhooks/omnitracs.js": {
+      "maxDuration": 30
+    },
     "api/telematics/token-refresh.js": {
       "maxDuration": 30
+    },
+    "api/telematics/credential-connect.js": {
+      "maxDuration": 30
+    },
+    "api/telematics/geotab-feed.js": {
+      "maxDuration": 60
     },
     "api/telematics/vehicles.js": {
       "maxDuration": 15
@@ -42,6 +57,10 @@
     {
       "path": "/api/telematics/token-refresh",
       "schedule": "0 * * * *"
+    },
+    {
+      "path": "/api/telematics/geotab-feed",
+      "schedule": "*/15 * * * *"
     }
   ]
 }
