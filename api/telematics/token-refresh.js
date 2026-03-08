@@ -20,11 +20,56 @@ const PROVIDERS = {
     tokenUrl: 'https://api.samsara.com/oauth2/token',
     clientId: () => process.env.SAMSARA_CLIENT_ID,
     clientSecret: () => process.env.SAMSARA_CLIENT_SECRET,
+    authType: 'oauth',
   },
   motive: {
     tokenUrl: 'https://api.gomotive.com/oauth/token',
     clientId: () => process.env.MOTIVE_CLIENT_ID,
     clientSecret: () => process.env.MOTIVE_CLIENT_SECRET,
+    authType: 'oauth',
+  },
+  geotab: {
+    authType: 'credentials',
+    refresh: async (currentTokens) => {
+      // Geotab uses session re-authentication instead of refresh tokens
+      const { authenticate } = await import('./lib/providers/geotab.js');
+      const result = await authenticate(
+        currentTokens.database,
+        currentTokens.userName,
+        currentTokens.password,
+        currentTokens.server
+      );
+      return {
+        ...currentTokens,
+        server: result.server,
+        sessionId: result.credentials.sessionId,
+        expires_at: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString(),
+      };
+    },
+  },
+  verizonconnect: {
+    authType: 'credentials',
+    refresh: async (currentTokens) => {
+      const { authenticate } = await import('./lib/providers/verizonconnect.js');
+      const result = await authenticate(currentTokens.apiKey, currentTokens.apiSecret);
+      return {
+        ...currentTokens,
+        access_token: result.access_token,
+        expires_at: result.expires_at,
+      };
+    },
+  },
+  omnitracs: {
+    authType: 'credentials',
+    refresh: async (currentTokens) => {
+      const { authenticate } = await import('./lib/providers/omnitracs.js');
+      const result = await authenticate(currentTokens.apiKey, currentTokens.apiSecret);
+      return {
+        ...currentTokens,
+        access_token: result.access_token,
+        expires_at: result.expires_at,
+      };
+    },
   },
 };
 
@@ -112,6 +157,31 @@ export default async function handler(req, res) {
       try {
         // Load current tokens
         const currentTokens = await loadTokens(conn.token_ref);
+
+        // Credential-based providers use their own refresh logic
+        if (cfg.authType === 'credentials') {
+          if (!cfg.refresh) {
+            results.push({ id: conn.id, provider: conn.provider, status: 'skipped', reason: 'no refresh handler' });
+            continue;
+          }
+
+          const newTokens = await cfg.refresh(currentTokens);
+          await updateTokens(conn.token_ref, newTokens);
+
+          await sb
+            .from('telematics_connections')
+            .update({
+              access_expires_at: newTokens.expires_at,
+              status: 'active',
+              updated_at: new Date().toISOString(),
+            })
+            .eq('id', conn.id);
+
+          results.push({ id: conn.id, provider: conn.provider, status: 'refreshed' });
+          continue;
+        }
+
+        // OAuth providers use refresh_token grant
         if (!currentTokens?.refresh_token) {
           // No refresh token — mark as needs_reauth
           await sb
