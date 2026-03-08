@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { motion } from 'framer-motion';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Package, ExternalLink, Search, Loader2, Globe } from 'lucide-react';
+import { Package, ExternalLink, Search, Loader2, Globe, AlertTriangle, Car } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { searchVendorsForPart, getSearchUrls, aggregateListings, VENDOR_INFO } from '@/services/vendorService';
 
@@ -20,7 +20,7 @@ export default function SuggestedParts({ parts, onPartClick }) {
       setVendorResults(prev => ({ ...prev, [idx]: results }));
     } catch {
       const urls = getSearchUrls(part.oem_part_number || '', part.name);
-      setVendorResults(prev => ({ ...prev, [idx]: { fleetpride: [], truckpro: [], searchUrls: urls } }));
+      setVendorResults(prev => ({ ...prev, [idx]: { listings: [], searchUrls: urls } }));
     }
     setLoadingIdx(null);
   };
@@ -42,11 +42,11 @@ export default function SuggestedParts({ parts, onPartClick }) {
         <Button
           size="sm"
           variant="ghost"
-          onClick={() => navigate('/parts')}
+          onClick={() => navigate('/PartsCatalog')}
           className="text-orange-400 hover:text-orange-300 hover:bg-orange-500/10 text-xs h-7 gap-1"
         >
           <ExternalLink className="w-3 h-3" />
-          Recommendations
+          Repair Parts
         </Button>
       </div>
 
@@ -87,6 +87,31 @@ export default function SuggestedParts({ parts, onPartClick }) {
                     )}
                     
                     <div className="flex flex-wrap gap-2">
+                      {part.urgency && (
+                        <Badge
+                          variant="outline"
+                          className={`text-xs ${
+                            part.urgency === 'critical' ? 'border-red-500/30 text-red-400'
+                              : part.urgency === 'high' ? 'border-orange-500/30 text-orange-400'
+                              : part.urgency === 'medium' ? 'border-yellow-500/30 text-yellow-400'
+                              : 'border-green-500/30 text-green-400'
+                          }`}
+                        >
+                          {part.urgency === 'critical' && <AlertTriangle className="w-3 h-3 mr-1" />}
+                          {part.urgency}
+                        </Badge>
+                      )}
+                      {part.driveability && (
+                        <Badge variant="outline" className="border-blue-500/30 text-blue-400 text-xs">
+                          <Car className="w-3 h-3 mr-1" />
+                          {part.driveability.replace(/_/g, ' ')}
+                        </Badge>
+                      )}
+                      {part.action_type && (
+                        <Badge variant="outline" className="border-purple-500/30 text-purple-400 text-xs">
+                          {part.action_type.replace(/_/g, ' ')}
+                        </Badge>
+                      )}
                       {part.installation_difficulty && (
                         <Badge variant="outline" className="border-white/20 text-white/70 text-xs">
                           {part.installation_difficulty} install

@@ -18,18 +18,34 @@ const CATEGORIES = [
 ];
 
 const IMPORTANCE = [
-  { value: 'all', label: 'Any Source' },
-  { value: 'oem', label: 'OEM / Dealer New' },
-  { value: 'aftermarket', label: 'Aftermarket New' },
-  { value: 'used', label: 'Used Parts' }
+  { value: 'all', label: 'Any Importance' },
+  { value: 'required', label: 'Required' },
+  { value: 'recommended', label: 'Recommended' },
+  { value: 'optional', label: 'Optional' },
 ];
 
-const DIFFICULTIES = [
-  { value: 'all', label: 'Any Difficulty' },
-  { value: 'easy', label: 'Easy — basic tools' },
-  { value: 'moderate', label: 'Moderate — some experience' },
-  { value: 'difficult', label: 'Difficult — advanced skills' },
-  { value: 'professional', label: 'Professional only' }
+const URGENCY = [
+  { value: 'all', label: 'Any Urgency' },
+  { value: 'critical', label: 'Critical' },
+  { value: 'high', label: 'High' },
+  { value: 'medium', label: 'Medium' },
+  { value: 'low', label: 'Low' },
+];
+
+const DRIVEABILITY = [
+  { value: 'all', label: 'Any Driveability' },
+  { value: 'do_not_drive', label: 'Do Not Drive' },
+  { value: 'limp_mode', label: 'Limp Mode' },
+  { value: 'reduced_performance', label: 'Reduced Performance' },
+  { value: 'safe_to_drive', label: 'Safe to Drive' },
+];
+
+const ACTION_TYPES = [
+  { value: 'all', label: 'Any Action' },
+  { value: 'replace_now', label: 'Replace Now' },
+  { value: 'inspect_first', label: 'Inspect First' },
+  { value: 'order_ahead', label: 'Order Ahead' },
+  { value: 'monitor', label: 'Monitor' },
 ];
 
 const CONDITIONS = [
@@ -39,16 +55,34 @@ const CONDITIONS = [
   { value: 'refurbished', label: 'Refurbished' }
 ];
 
+const SOURCE_TYPES = [
+  { value: 'all', label: 'All Sources' },
+  { value: 'manufacturer', label: 'Manufacturer (OEM)' },
+  { value: 'authorized_dealer', label: 'Authorized Dealer' },
+  { value: 'specialist_vendor', label: 'Specialist Vendor' },
+  { value: 'aftermarket_vendor', label: 'Aftermarket' },
+  { value: 'marketplace', label: 'Marketplace' },
+];
+
+const SOURCE_TIERS = [
+  { value: 'all', label: 'All Tiers' },
+  { value: '1', label: 'Tier 1 — OEM / Manufacturer' },
+  { value: '2', label: 'Tier 2 — Authorized / Specialist' },
+  { value: '3', label: 'Tier 3 — Aftermarket' },
+  { value: '4', label: 'Tier 4 — Marketplace' },
+];
+
 const SORT_OPTIONS = [
   { value: 'relevance', label: 'Most Relevant' },
+  { value: 'trust', label: 'Trust (Tier)' },
   { value: 'price_asc', label: 'Price: Low → High' },
   { value: 'price_desc', label: 'Price: High → Low' }
 ];
 
 /**
  * Dual-mode filter component.
- * mode="recommended" — filters for AI-recommended parts (category, importance, difficulty)
- * mode="search" — filters for live vendor search results (condition, sort)
+ * mode="recommended" — filters for AI-recommended parts (category, urgency, driveability, action_type, importance)
+ * mode="search" — filters for live vendor search (condition, sourceType, sourceTier, sort)
  */
 export default function PartFilters({ filters, onFiltersChange, mode = 'recommended' }) {
   const updateFilter = (key, value) => {
@@ -58,7 +92,7 @@ export default function PartFilters({ filters, onFiltersChange, mode = 'recommen
   if (mode === 'search') {
     return (
       <div className="p-4 rounded-xl bg-white/5 border border-white/10">
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
           <div>
             <label className="text-xs text-white/60 mb-2 block">Condition</label>
             <Select value={filters.condition || 'all'} onValueChange={(v) => updateFilter('condition', v)}>
@@ -68,6 +102,34 @@ export default function PartFilters({ filters, onFiltersChange, mode = 'recommen
               <SelectContent>
                 {CONDITIONS.map(c => (
                   <SelectItem key={c.value} value={c.value}>{c.label}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div>
+            <label className="text-xs text-white/60 mb-2 block">Source Type</label>
+            <Select value={filters.sourceType || 'all'} onValueChange={(v) => updateFilter('sourceType', v)}>
+              <SelectTrigger className="bg-white/5 border-white/10 text-white">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {SOURCE_TYPES.map(s => (
+                  <SelectItem key={s.value} value={s.value}>{s.label}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div>
+            <label className="text-xs text-white/60 mb-2 block">Trust Tier</label>
+            <Select value={filters.sourceTier || 'all'} onValueChange={(v) => updateFilter('sourceTier', v)}>
+              <SelectTrigger className="bg-white/5 border-white/10 text-white">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {SOURCE_TIERS.map(s => (
+                  <SelectItem key={s.value} value={s.value}>{s.label}</SelectItem>
                 ))}
               </SelectContent>
             </Select>
@@ -94,7 +156,7 @@ export default function PartFilters({ filters, onFiltersChange, mode = 'recommen
   // mode === 'recommended'
   return (
     <div className="p-4 rounded-xl bg-white/5 border border-white/10">
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+      <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
         <div>
           <label className="text-xs text-white/60 mb-2 block">Category</label>
           <Select value={filters.category || 'all'} onValueChange={(v) => updateFilter('category', v)}>
@@ -110,7 +172,49 @@ export default function PartFilters({ filters, onFiltersChange, mode = 'recommen
         </div>
 
         <div>
-          <label className="text-xs text-white/60 mb-2 block">Part Source</label>
+          <label className="text-xs text-white/60 mb-2 block">Urgency</label>
+          <Select value={filters.urgency || 'all'} onValueChange={(v) => updateFilter('urgency', v)}>
+            <SelectTrigger className="bg-white/5 border-white/10 text-white">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {URGENCY.map(u => (
+                <SelectItem key={u.value} value={u.value}>{u.label}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+
+        <div>
+          <label className="text-xs text-white/60 mb-2 block">Driveability</label>
+          <Select value={filters.driveability || 'all'} onValueChange={(v) => updateFilter('driveability', v)}>
+            <SelectTrigger className="bg-white/5 border-white/10 text-white">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {DRIVEABILITY.map(d => (
+                <SelectItem key={d.value} value={d.value}>{d.label}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+
+        <div>
+          <label className="text-xs text-white/60 mb-2 block">Action</label>
+          <Select value={filters.action_type || 'all'} onValueChange={(v) => updateFilter('action_type', v)}>
+            <SelectTrigger className="bg-white/5 border-white/10 text-white">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {ACTION_TYPES.map(a => (
+                <SelectItem key={a.value} value={a.value}>{a.label}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+
+        <div>
+          <label className="text-xs text-white/60 mb-2 block">Importance</label>
           <Select value={filters.importance || 'all'} onValueChange={(v) => updateFilter('importance', v)}>
             <SelectTrigger className="bg-white/5 border-white/10 text-white">
               <SelectValue />

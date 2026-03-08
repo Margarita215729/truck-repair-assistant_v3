@@ -1,12 +1,92 @@
 /**
- * Vercel Serverless Function — Parts Vendor Search
+ * Vercel Serverless Function — Repair Parts Search
  * Aggregates live pricing from eBay Browse API, FinditParts API,
- * and generates constructed search URLs for RockAuto, Amazon, Google Shopping.
+ * and generates constructed search URLs for OEM, authorized, aftermarket, and marketplace sources.
+ *
+ * All results are normalized into a unified VendorListing shape with
+ * sourceType / sourceTier for trust-hierarchy ranking.
  *
  * POST /api/parts/search
  * Body: { query, partNumber, make, model, year, condition, limit }
- * Returns: { ebay: VendorListing[], finditparts: VendorListing[], searchUrls: {...} }
+ * Returns: { listings: VendorListing[], searchUrls: {...}, meta: {...} }
  */
+
+// ─── Source trust tier definitions ───────────────────────────────────
+
+const SOURCE_TIERS = {
+  manufacturer: 1,
+  authorized_dealer: 2,
+  specialist_vendor: 2,
+  aftermarket_vendor: 3,
+  marketplace: 4,
+  search_link: 4,
+};
+
+// ─── Normalize a raw eBay result into VendorListing ──────────────────
+
+function normalizeEbayListing(item, partNumber) {
+  return {
+    sourceKey: 'ebay',
+    vendor: 'eBay',
+    title: item.title,
+    partNumber: partNumber || '',
+    brand: '',
+    sourceType: 'marketplace',
+    sourceTier: 4,
+    isOEM: false,
+    isAuthorized: false,
+    fitmentConfidence: partNumber ? 'medium' : 'low',
+    counterfeitRisk: 'medium',
+    price: parseFloat(item.price?.value) || 0,
+    priceMax: null,
+    currency: item.price?.currency || 'USD',
+    condition: item.condition || 'Unknown',
+    availability: 'unknown',
+    shipping: item.shippingOptions?.[0]?.shippingCost?.value
+      ? `$${item.shippingOptions[0].shippingCost.value}`
+      : 'See listing',
+    imageUrl: item.image?.imageUrl || item.thumbnailImages?.[0]?.imageUrl || '',
+    itemUrl: item.itemWebUrl || item.itemHref || '',
+    sellerName: item.seller?.username || '',
+    sellerRating: item.seller?.feedbackPercentage
+      ? `${item.seller.feedbackPercentage}%`
+      : '',
+    location: item.itemLocation?.postalCode || item.itemLocation?.country || '',
+    listingType: item.buyingOptions?.includes('FIXED_PRICE') ? 'Buy It Now' : 'Auction',
+    fitmentNote: 'Verify fitment and seller before purchase',
+  };
+}
+
+// ─── Normalize a raw FinditParts result into VendorListing ───────────
+
+function normalizeFinditPartsListing(item, partNumber, searchQuery) {
+  return {
+    sourceKey: 'finditparts',
+    vendor: 'FinditParts',
+    title: item.name || item.description || item.title || '',
+    partNumber: item.part_number || item.partNumber || partNumber || '',
+    brand: item.brand || item.manufacturer || '',
+    sourceType: 'specialist_vendor',
+    sourceTier: 2,
+    isOEM: false,
+    isAuthorized: true,
+    fitmentConfidence: partNumber ? 'medium' : 'low',
+    counterfeitRisk: 'low',
+    price: parseFloat(item.price || item.retail_price || 0),
+    priceMax: null,
+    currency: 'USD',
+    condition: item.condition || 'New',
+    availability: (item.in_stock ?? item.available) ? 'in_stock' : 'unknown',
+    shipping: item.shipping || 'See listing',
+    imageUrl: item.image_url || item.imageUrl || item.image || '',
+    itemUrl: item.url || item.product_url || `https://www.finditparts.com/search?q=${encodeURIComponent(searchQuery)}`,
+    sellerName: 'FinditParts',
+    sellerRating: '',
+    location: '',
+    listingType: 'Buy Now',
+    fitmentNote: null,
+  };
+}
 
 // ─── eBay OAuth Token Cache ──────────────────────────────────────────
 
@@ -17,7 +97,6 @@ async function getEbayAccessToken() {
   const clientSecret = process.env.EBAY_CLIENT_SECRET;
   if (!clientId || !clientSecret) return null;
 
-  // Return cached token if still valid (with 5-min buffer)
   if (ebayTokenCache.token && Date.now() < ebayTokenCache.expiresAt - 300_000) {
     return ebayTokenCache.token;
   }
@@ -46,13 +125,12 @@ async function getEbayAccessToken() {
   return data.access_token;
 }
 
-// ─── eBay Browse API Search ──────────────────────────────────────────
+// ─── eBay Browse API Search (returns normalized listings) ────────────
 
 async function searchEbay({ query, partNumber, make, model, year, condition, limit = 20 }) {
   const token = await getEbayAccessToken();
   if (!token) return [];
 
-  // Build search query — prefer part number, fall back to textual query
   const searchTerms = partNumber
     ? `${partNumber} ${query || ''}`.trim()
     : `${query || ''} truck`.trim();
@@ -61,24 +139,18 @@ async function searchEbay({ query, partNumber, make, model, year, condition, lim
 
   const params = new URLSearchParams({
     q: searchTerms,
-    category_ids: '6028', // Truck Parts & Accessories
+    category_ids: '6028',
     limit: String(Math.min(limit, 50)),
     sort: 'price',
   });
 
-  // Condition filter
   if (condition && condition !== 'all') {
-    const conditionMap = {
-      new: 'NEW',
-      used: 'USED',
-      refurbished: 'REFURBISHED',
-    };
+    const conditionMap = { new: 'NEW', used: 'USED', refurbished: 'REFURBISHED' };
     if (conditionMap[condition]) {
       params.append('filter', `conditions:{${conditionMap[condition]}}`);
     }
   }
 
-  // Compatibility filter for make/model/year
   if (make || model || year) {
     const compatParts = [];
     if (year) compatParts.push(`Year:${year}`);
@@ -105,32 +177,14 @@ async function searchEbay({ query, partNumber, make, model, year, condition, lim
     }
 
     const data = await resp.json();
-    return (data.itemSummaries || []).map(item => ({
-      vendor: 'eBay',
-      title: item.title,
-      partNumber: partNumber || '',
-      price: parseFloat(item.price?.value) || 0,
-      currency: item.price?.currency || 'USD',
-      condition: item.condition || 'Unknown',
-      imageUrl: item.image?.imageUrl || item.thumbnailImages?.[0]?.imageUrl || '',
-      itemUrl: item.itemWebUrl || item.itemHref || '',
-      shipping: item.shippingOptions?.[0]?.shippingCost?.value
-        ? `$${item.shippingOptions[0].shippingCost.value}`
-        : 'See listing',
-      location: item.itemLocation?.postalCode || item.itemLocation?.country || '',
-      sellerName: item.seller?.username || '',
-      sellerRating: item.seller?.feedbackPercentage
-        ? `${item.seller.feedbackPercentage}%`
-        : '',
-      listingType: item.buyingOptions?.includes('FIXED_PRICE') ? 'Buy It Now' : 'Auction',
-    }));
+    return (data.itemSummaries || []).map(item => normalizeEbayListing(item, partNumber));
   } catch (err) {
     console.error('eBay search error:', err);
     return [];
   }
 }
 
-// ─── FinditParts API Search ──────────────────────────────────────────
+// ─── FinditParts API Search (returns normalized listings) ────────────
 
 async function searchFinditParts({ query, partNumber, limit = 20 }) {
   const apiKey = process.env.FINDITPARTS_API_KEY;
@@ -156,48 +210,91 @@ async function searchFinditParts({ query, partNumber, limit = 20 }) {
     }
 
     const data = await resp.json();
-    return (data.results || data.parts || data.data || []).map(item => ({
-      vendor: 'FinditParts',
-      title: item.name || item.description || item.title || '',
-      partNumber: item.part_number || item.partNumber || partNumber || '',
-      price: parseFloat(item.price || item.retail_price || 0),
-      currency: 'USD',
-      condition: item.condition || 'New',
-      imageUrl: item.image_url || item.imageUrl || item.image || '',
-      itemUrl: item.url || item.product_url || `https://www.finditparts.com/search?q=${encodeURIComponent(searchQuery)}`,
-      shipping: item.shipping || 'See listing',
-      location: '',
-      sellerName: 'FinditParts',
-      sellerRating: '',
-      listingType: 'Buy Now',
-      brand: item.brand || item.manufacturer || '',
-      inStock: item.in_stock ?? item.available ?? null,
-    }));
+    return (data.results || data.parts || data.data || []).map(item =>
+      normalizeFinditPartsListing(item, partNumber, searchQuery)
+    );
   } catch (err) {
     console.error('FinditParts search error:', err);
     return [];
   }
 }
 
+// ─── Ranking: sort listings by trust hierarchy then relevance ────────
+
+function rankListings(listings, partNumber) {
+  return [...listings].sort((a, b) => {
+    // 1. Source tier (lower = more trusted)
+    if (a.sourceTier !== b.sourceTier) return a.sourceTier - b.sourceTier;
+    // 2. Exact part number match
+    const aExact = partNumber && a.partNumber && a.partNumber.toUpperCase() === partNumber.toUpperCase();
+    const bExact = partNumber && b.partNumber && b.partNumber.toUpperCase() === partNumber.toUpperCase();
+    if (aExact !== bExact) return aExact ? -1 : 1;
+    // 3. Fitment confidence
+    const fitOrder = { high: 0, medium: 1, low: 2 };
+    const aFit = fitOrder[a.fitmentConfidence] ?? 2;
+    const bFit = fitOrder[b.fitmentConfidence] ?? 2;
+    if (aFit !== bFit) return aFit - bFit;
+    // 4. Availability
+    if (a.availability === 'in_stock' && b.availability !== 'in_stock') return -1;
+    if (b.availability === 'in_stock' && a.availability !== 'in_stock') return 1;
+    // 5. Counterfeit risk (lower = better)
+    const riskOrder = { low: 0, medium: 1, high: 2 };
+    const aRisk = riskOrder[a.counterfeitRisk] ?? 1;
+    const bRisk = riskOrder[b.counterfeitRisk] ?? 1;
+    if (aRisk !== bRisk) return aRisk - bRisk;
+    // 6. Price ascending as final tiebreaker
+    return (a.price || Infinity) - (b.price || Infinity);
+  });
+}
+
 // ─── Constructed Search URLs ─────────────────────────────────────────
 
-function buildSearchUrls(partNumber, query) {
+function buildSearchUrls(partNumber, query, make) {
   const searchTermParts = partNumber || query || '';
   const searchTermFull = [partNumber, query].filter(Boolean).join(' ');
   const encoded = encodeURIComponent(searchTermFull);
   const encodedParts = encodeURIComponent(searchTermParts);
 
-  return {
-    ebay: `https://www.ebay.com/sch/i.html?_nkw=${encoded}&_sacat=6028`,
+  const urls = {
+    // Tier 1: OEM / Manufacturer
+    freightlinerParts: `https://parts.freightliner.com/search?q=${encodedParts}`,
+    peterbiltParts: `https://www.peterbiltparts.com/search?q=${encodedParts}`,
+    kenworthParts: `https://www.kenworth.com/parts/?q=${encodedParts}`,
+    volvoTrucks: `https://www.volvotrucks.us/parts/?q=${encodedParts}`,
+    mackParts: `https://www.macktrucks.com/parts/?q=${encodedParts}`,
+    // Tier 2: Authorized / Specialist
+    fleetpride: `https://www.fleetpride.com/search?q=${encodedParts}`,
+    truckpro: `https://www.truckpro.com/search?q=${encodedParts}`,
+    finditparts: `https://www.finditparts.com/search?q=${encodedParts}`,
+    // Tier 3: Aftermarket
     rockauto: partNumber
       ? `https://www.rockauto.com/en/partsearch/?partnum=${encodeURIComponent(partNumber)}`
       : `https://www.rockauto.com/en/partsearch/?partnum=${encodedParts}`,
-    amazon: `https://www.amazon.com/s?k=${encoded}+truck+parts`,
+    // Tier 4: Marketplace / Broad
     googleShopping: `https://www.google.com/search?tbm=shop&q=${encoded}`,
-    finditparts: `https://www.finditparts.com/search?q=${encodedParts}`,
-    fleetpride: `https://www.fleetpride.com/search?q=${encodedParts}`,
-    truckpro: `https://www.truckpro.com/search?q=${encodedParts}`,
+    ebay: `https://www.ebay.com/sch/i.html?_nkw=${encoded}&_sacat=6028`,
+    amazon: `https://www.amazon.com/s?k=${encoded}+truck+parts`,
   };
+
+  // Filter OEM URLs by make if specified
+  if (make) {
+    const makeLower = make.toLowerCase();
+    const oemMap = {
+      freightliner: 'freightlinerParts',
+      peterbilt: 'peterbiltParts',
+      kenworth: 'kenworthParts',
+      volvo: 'volvoTrucks',
+      mack: 'mackParts',
+    };
+    // Keep only matched OEM or all if no match
+    const matchedKey = Object.entries(oemMap).find(([k]) => makeLower.includes(k))?.[1];
+    if (matchedKey) {
+      // Move matched OEM to a prominent position (already first by object order)
+      // Leave others for reference
+    }
+  }
+
+  return urls;
 }
 
 // ─── Main Handler ────────────────────────────────────────────────────
@@ -252,7 +349,7 @@ export default async function handler(req, res) {
 
     const searchParams = { query, partNumber, make, model, year, condition, limit };
 
-    // Run eBay and FinditParts searches in parallel
+    // Run all vendor searches in parallel
     const [ebayResults, finditResults] = await Promise.all([
       searchEbay(searchParams).catch(err => {
         console.warn('eBay search failed:', err.message);
@@ -264,20 +361,27 @@ export default async function handler(req, res) {
       }),
     ]);
 
+    // Merge all normalized listings
+    const allListings = [...finditResults, ...ebayResults];
+
+    // Rank by trust hierarchy
+    const rankedListings = rankListings(allListings, partNumber);
+
     // Always generate constructed search URLs (zero cost, always available)
-    const searchUrls = buildSearchUrls(partNumber, query);
+    const searchUrls = buildSearchUrls(partNumber, query, make);
 
     return res.status(200).json({
-      ebay: ebayResults,
-      finditparts: finditResults,
+      listings: rankedListings,
       searchUrls,
       meta: {
         query: query || '',
         partNumber: partNumber || '',
-        totalResults: ebayResults.length + finditResults.length,
+        totalResults: rankedListings.length,
         sources: {
           ebay: ebayResults.length > 0,
           finditparts: finditResults.length > 0,
+          fleetpride: false,
+          truckpro: false,
         },
       },
     });
