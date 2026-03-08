@@ -13,6 +13,7 @@ import LoginPage from '@/pages/LoginPage';
 import AuthCallbackPage from '@/pages/AuthCallbackPage';
 import PricingPage from '@/pages/PricingPage';
 import PoliciesPage from '@/pages/PoliciesPage';
+import ProtectedRoute from '@/lib/ProtectedRoute';
 
 const { Pages, Layout, mainPage } = pagesConfig;
 const mainPageKey = mainPage ?? Object.keys(Pages)[0];
@@ -22,8 +23,14 @@ const LayoutWrapper = ({ children, currentPageName }) => Layout ?
   <Layout currentPageName={currentPageName}>{children}</Layout>
   : <>{children}</>;
 
-const AuthenticatedApp = () => {
-  const { isLoadingAuth, isAuthenticated, authError, login } = useAuth();
+/** Pages accessible without login (guest mode) */
+const PUBLIC_PAGE_KEYS = new Set(['Diagnostics', 'Policies']);
+
+/** Pages that require authentication */
+const PROTECTED_PAGE_KEYS = new Set(['Reports', 'Profile', 'Community', 'PartsCatalog', 'ServiceFinder']);
+
+const AppRoutes = () => {
+  const { isLoadingAuth, authError, login } = useAuth();
   const { t } = useLanguage();
 
   if (isLoadingAuth) {
@@ -44,33 +51,51 @@ const AuthenticatedApp = () => {
     }
   }
 
-  // Not authenticated — show login page
-  if (!isAuthenticated) {
-    return <LoginPage onLogin={login} />;
-  }
-
   return (
     <Routes>
+      {/* Auth callback */}
+      <Route path="/auth/confirm" element={<AuthCallbackPage />} />
+
+      {/* Login page — accessible directly */}
+      <Route path="/Login" element={<LoginPage onLogin={login} />} />
+
+      {/* Public pages */}
+      <Route path="/Pricing" element={
+        <LayoutWrapper currentPageName="Pricing">
+          <PricingPage />
+        </LayoutWrapper>
+      } />
+      <Route path="/Policies" element={
+        <LayoutWrapper currentPageName="Policies">
+          <PoliciesPage />
+        </LayoutWrapper>
+      } />
+
+      {/* Default route — Diagnostics (public, guest-accessible) */}
       <Route path="/" element={
         <LayoutWrapper currentPageName={mainPageKey}>
           <MainPage />
         </LayoutWrapper>
       } />
+
+      {/* Per-page routes with appropriate gating */}
       {Object.entries(Pages).map(([path, Page]) => {
-        // Pricing and Policies are public routes — skip them here
-        if (path === 'Policies') return null;
+        if (path === 'Policies') return null; // handled above
+        const isProtected = PROTECTED_PAGE_KEYS.has(path);
+        const element = (
+          <LayoutWrapper currentPageName={path}>
+            <Page />
+          </LayoutWrapper>
+        );
         return (
           <Route
             key={path}
             path={`/${path}`}
-            element={
-              <LayoutWrapper currentPageName={path}>
-                <Page />
-              </LayoutWrapper>
-            }
+            element={isProtected ? <ProtectedRoute>{element}</ProtectedRoute> : element}
           />
         );
       })}
+
       <Route path="*" element={<PageNotFound />} />
     </Routes>
   );
@@ -83,22 +108,7 @@ function App() {
         <TruckProvider>
         <QueryClientProvider client={queryClientInstance}>
           <Router>
-            <Routes>
-              {/* Auth callback — outside authenticated route to handle unauthenticated redirects */}
-              <Route path="/auth/confirm" element={<AuthCallbackPage />} />
-              {/* Public pages — accessible without authentication */}
-              <Route path="/Pricing" element={
-                <LayoutWrapper currentPageName="Pricing">
-                  <PricingPage />
-                </LayoutWrapper>
-              } />
-              <Route path="/Policies" element={
-                <LayoutWrapper currentPageName="Policies">
-                  <PoliciesPage />
-                </LayoutWrapper>
-              } />
-              <Route path="/*" element={<AuthenticatedApp />} />
-            </Routes>
+            <AppRoutes />
           </Router>
           <Toaster />
           <SonnerToaster richColors position="top-right" />

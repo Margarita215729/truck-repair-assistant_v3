@@ -17,7 +17,7 @@ const MAX_VIDEO_DURATION = 15; // seconds — for live recording
 const MAX_UPLOADED_VIDEO_DURATION = 120; // seconds — for pre-recorded uploads
 const MAX_FILE_SIZE = 20 * 1024 * 1024; // 20 MB — files go to Supabase Storage, not in HTTP body
 
-export default function VisualDiagnostics({ open, onClose, onDiagnosisComplete }) {
+export default function VisualDiagnostics({ open, onClose, onDiagnosisComplete, isGuest = false }) {
   const { t } = useLanguage();
   const { truck } = useTruck();
 
@@ -92,6 +92,10 @@ export default function VisualDiagnostics({ open, onClose, onDiagnosisComplete }
 
     // Validate video duration — use relaxed limit for uploaded files
     if (isVideo) {
+      if (isGuest) {
+        toast.error('Video diagnostics require an account. Photos are available in guest mode.');
+        return;
+      }
       const ok = await validateVideoDuration(file, MAX_UPLOADED_VIDEO_DURATION);
       if (!ok) {
         toast.error(
@@ -277,7 +281,9 @@ export default function VisualDiagnostics({ open, onClose, onDiagnosisComplete }
               <div className="border-2 border-dashed border-white/20 rounded-xl p-8 text-center hover:border-emerald-500/50 transition-colors">
                 <Camera className="w-10 h-10 text-white/40 mx-auto mb-3" />
                 <p className="text-white/70 mb-1 text-sm">
-                  {t('visualDiagnostics.uploadHint') || 'Upload photo or video of the issue'}
+                  {isGuest
+                    ? (t('visualDiagnostics.uploadHintGuest') || 'Upload a photo of the issue (video requires account)')
+                    : (t('visualDiagnostics.uploadHint') || 'Upload photo or video of the issue')}
                 </p>
                 <p className="text-xs text-white/40 mb-4">
                   {t('visualDiagnostics.examples') || 'Dashboard lights, leaks, smoke, damage, wear, VIN plates'}
@@ -291,19 +297,21 @@ export default function VisualDiagnostics({ open, onClose, onDiagnosisComplete }
                     <input
                       id="visual-file"
                       type="file"
-                      accept="image/*,video/*"
+                      accept={isGuest ? 'image/*' : 'image/*,video/*'}
                       onChange={handleFileSelect}
                       className="hidden"
                     />
                   </label>
-                  <Button
-                    variant="outline"
-                    onClick={startRecording}
-                    className="border-emerald-500/30 text-emerald-400 hover:bg-emerald-500/10"
-                  >
-                    <Video className="w-4 h-4 mr-2" />
-                    {t('visualDiagnostics.recordVideo') || 'Record Video'}
-                  </Button>
+                  {!isGuest && (
+                    <Button
+                      variant="outline"
+                      onClick={startRecording}
+                      className="border-emerald-500/30 text-emerald-400 hover:bg-emerald-500/10"
+                    >
+                      <Video className="w-4 h-4 mr-2" />
+                      {t('visualDiagnostics.recordVideo') || 'Record Video'}
+                    </Button>
+                  )}
                 </div>
               </div>
               <p className="text-[11px] text-white/30 text-center">
