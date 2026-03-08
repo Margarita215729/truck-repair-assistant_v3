@@ -34,6 +34,7 @@ import { searchForums, formatForumContext } from '@/services/forumSearchService'
 import { getTruckStateSnapshot, connectProvider } from '@/services/telematics/telematicsService';
 import TruckStatePanel from '@/components/diagnostics/TruckStatePanel';
 import ScanTruckButton from '@/components/diagnostics/ScanTruckButton';
+import CredentialConnectDialog from '@/components/diagnostics/CredentialConnectDialog';
 
 export default function Diagnostics() {
   const { t } = useLanguage();
@@ -303,7 +304,7 @@ export default function Diagnostics() {
     const faults = snapshot?.stats?.total_active_faults || 0;
     const signals = snapshot?.stats?.total_signals || 0;
 
-    let summaryLines = [`🖥️ **TRUCK COMPUTER SCAN COMPLETE**`];
+    let summaryLines = [`\uD83D\uDDA5\uFE0F **TRUCK COMPUTER SCAN COMPLETE**`];
     summaryLines.push(`Status: **${status.toUpperCase()}** | Active faults: **${faults}** | Signals: **${signals}**`);
 
     if (snapshot?.faults?.length > 0) {
@@ -325,9 +326,9 @@ export default function Diagnostics() {
     }
 
     if (interpretation?.overall_assessment?.summary) {
-      summaryLines.push(`\n🤖 AI Assessment: ${interpretation.overall_assessment.summary}`);
+      summaryLines.push(`\n\uD83E\uDD16 AI Assessment: ${interpretation.overall_assessment.summary}`);
       if (interpretation.overall_assessment.safe_to_drive === false) {
-        summaryLines.push('⚠️ **NOT SAFE TO DRIVE** — see immediate actions below.');
+        summaryLines.push('\u26A0\uFE0F **NOT SAFE TO DRIVE** — see immediate actions below.');
       }
     }
 
@@ -339,6 +340,8 @@ export default function Diagnostics() {
 
   const [scanningInline, setScanningInline] = useState(false);
   const [showProviderPicker, setShowProviderPicker] = useState(false);
+  const [credentialMeta, setCredentialMeta] = useState(null);
+  const [showCredentialDialog, setShowCredentialDialog] = useState(false);
 
   const handleInlineScan = async () => {
     setScanningInline(true);
@@ -1531,13 +1534,15 @@ Focus on:
               <div className="space-y-3">
                 {[
                   { id: 'motive', name: 'Motive (KeepTruckin)', desc: 'ELD, GPS, fault codes, engine data', gradient: 'from-blue-600 to-blue-800', hover: 'hover:border-cyan-500/40 hover:bg-cyan-500/10' },
-                  { id: 'samsara', name: 'Samsara', desc: 'Coming soon', gradient: 'from-green-600 to-green-800', hover: '', disabled: true },
+                  { id: 'samsara', name: 'Samsara', desc: 'ELD, GPS, fault codes, engine data', gradient: 'from-green-600 to-green-800', hover: 'hover:border-green-500/40 hover:bg-green-500/10' },
+                  { id: 'geotab', name: 'Geotab', desc: 'ELD, GPS, fault codes, engine data', gradient: 'from-orange-500 to-orange-700', hover: 'hover:border-orange-500/40 hover:bg-orange-500/10' },
+                  { id: 'verizonconnect', name: 'Verizon Connect', desc: 'GPS, fleet tracking, engine data', gradient: 'from-red-600 to-red-800', hover: 'hover:border-red-500/40 hover:bg-red-500/10' },
+                  { id: 'omnitracs', name: 'Omnitracs', desc: 'ELD, GPS, fleet management', gradient: 'from-purple-600 to-purple-800', hover: 'hover:border-purple-500/40 hover:bg-purple-500/10' },
                 ].map(p => (
                   <button
                     key={p.id}
-                    disabled={p.disabled}
-                    onClick={p.disabled ? undefined : async () => { setShowProviderPicker(false); try { await connectProvider(p.id); } catch(e) { toast.error('Authorization failed: ' + e.message); } }}
-                    className={`w-full flex items-center gap-4 p-4 rounded-xl border border-white/10 ${p.disabled ? 'opacity-40 cursor-not-allowed' : p.hover} bg-white/5 transition-all`}
+                    onClick={async () => { setShowProviderPicker(false); try { const res = await connectProvider(p.id); if (res?.authType === 'credentials') { setCredentialMeta(res); setShowCredentialDialog(true); } } catch(e) { toast.error('Authorization failed: ' + e.message); } }}
+                    className={`w-full flex items-center gap-4 p-4 rounded-xl border border-white/10 ${p.hover} bg-white/5 transition-all`}
                   >
                     <div className={`w-10 h-10 rounded-lg bg-gradient-to-br ${p.gradient} flex items-center justify-center`}>
                       <Radio className="w-5 h-5 text-white" />
@@ -1556,6 +1561,13 @@ Focus on:
           </motion.div>
         )}
       </AnimatePresence>
+
+      <CredentialConnectDialog
+        open={showCredentialDialog}
+        onOpenChange={setShowCredentialDialog}
+        providerMeta={credentialMeta}
+        onSuccess={() => { toast.success('Provider connected! Try scanning again.'); }}
+      />
     </div>
   );
 }
