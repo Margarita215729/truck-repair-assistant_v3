@@ -3,13 +3,22 @@ import { Mail, Lock, User, Eye, EyeOff, AlertCircle, Loader2, Globe, ArrowLeft, 
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { useNavigate } from 'react-router-dom';
 import { useLanguage } from '@/lib/LanguageContext';
 import { authService } from '@/services/authService';
 import { useAuth } from '@/lib/AuthContext';
 
 export default function LoginPage({ onLogin }) {
+  const navigate = useNavigate();
   const { t, language, setLanguage, languages } = useLanguage();
-  const { supabaseReachable } = useAuth();
+  const { isAuthenticated, supabaseReachable } = useAuth();
+
+  // If already authenticated (or just logged in), redirect to home
+  React.useEffect(() => {
+    if (isAuthenticated) {
+      navigate('/', { replace: true });
+    }
+  }, [isAuthenticated, navigate]);
   const [mode, setMode] = useState('signin'); // 'signin' | 'signup' | 'forgot' | 'check-email'
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -55,6 +64,8 @@ export default function LoginPage({ onLogin }) {
         }
       } else {
         await onLogin('signin', { email, password });
+        // Navigate after successful sign-in
+        navigate('/', { replace: true });
       }
     } catch (err) {
       const msg = err.message || '';
