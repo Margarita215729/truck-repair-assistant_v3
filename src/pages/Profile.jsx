@@ -27,7 +27,8 @@ import {
   Zap,
   Link,
   Unlink,
-  Radio
+  Radio,
+  KeyRound
 } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { toast } from 'sonner';
@@ -37,6 +38,7 @@ import { subscriptionService } from '@/services/subscriptionService';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { supabase } from '@/api/supabaseClient';
 import { connectProvider } from '@/services/telematics/telematicsService';
+import CredentialConnectDialog from '@/components/diagnostics/CredentialConnectDialog';
 
 import ProfileStats from '@/components/profile/ProfileStats';
 import TruckGarage from '@/components/profile/TruckGarage';
@@ -64,6 +66,8 @@ export default function Profile() {
   // Telematics state
   const [telematicsConnections, setTelematicsConnections] = useState([]);
   const [telematicsLoading, setTelematicsLoading] = useState(false);
+  const [credentialMeta, setCredentialMeta] = useState(null);
+  const [showCredentialDialog, setShowCredentialDialog] = useState(false);
 
   const queryClient = useQueryClient();
 
@@ -516,18 +520,23 @@ export default function Profile() {
             Connect your fleet telematics provider to get live truck data, fault codes, and signals directly in diagnostics.
           </p>
           <div className="space-y-3">
-            {/* Samsara */}
-            {(() => {
-              const conn = getConnectionForProvider('samsara');
+            {[
+              { id: 'samsara', name: 'Samsara', iconColor: 'text-blue-400', iconBg: 'bg-blue-500/20', btnBorder: 'border-blue-500/30', btnText: 'text-blue-400', btnHover: 'hover:bg-blue-500/10' },
+              { id: 'motive', name: 'Motive (KeepTruckin)', iconColor: 'text-emerald-400', iconBg: 'bg-emerald-500/20', btnBorder: 'border-emerald-500/30', btnText: 'text-emerald-400', btnHover: 'hover:bg-emerald-500/10' },
+              { id: 'geotab', name: 'Geotab', iconColor: 'text-orange-400', iconBg: 'bg-orange-500/20', btnBorder: 'border-orange-500/30', btnText: 'text-orange-400', btnHover: 'hover:bg-orange-500/10', credential: true },
+              { id: 'verizonconnect', name: 'Verizon Connect', iconColor: 'text-red-400', iconBg: 'bg-red-500/20', btnBorder: 'border-red-500/30', btnText: 'text-red-400', btnHover: 'hover:bg-red-500/10', credential: true },
+              { id: 'omnitracs', name: 'Omnitracs', iconColor: 'text-purple-400', iconBg: 'bg-purple-500/20', btnBorder: 'border-purple-500/30', btnText: 'text-purple-400', btnHover: 'hover:bg-purple-500/10', credential: true },
+            ].map(prov => {
+              const conn = getConnectionForProvider(prov.id);
               const isConnected = conn?.status === 'active';
               return (
-                <div className="flex items-center justify-between p-3 rounded-xl bg-white/[0.03] border border-white/5">
+                <div key={prov.id} className="flex items-center justify-between p-3 rounded-xl bg-white/[0.03] border border-white/5">
                   <div className="flex items-center gap-3">
-                    <div className="w-8 h-8 rounded-lg bg-blue-500/20 flex items-center justify-center">
-                      <Link className="w-4 h-4 text-blue-400" />
+                    <div className={`w-8 h-8 rounded-lg ${prov.iconBg} flex items-center justify-center`}>
+                      {prov.credential ? <KeyRound className={`w-4 h-4 ${prov.iconColor}`} /> : <Link className={`w-4 h-4 ${prov.iconColor}`} />}
                     </div>
                     <div>
-                      <p className="text-sm font-medium text-white">Samsara</p>
+                      <p className="text-sm font-medium text-white">{prov.name}</p>
                       <p className="text-xs text-white/40">
                         {isConnected
                           ? `Connected${conn.last_sync_at ? ` — last sync ${new Date(conn.last_sync_at).toLocaleString()}` : ''}`
@@ -541,52 +550,16 @@ export default function Profile() {
                     <Button
                       size="sm"
                       variant="outline"
-                      className="border-blue-500/30 text-blue-400 hover:bg-blue-500/10"
-                      onClick={async () => { try { await connectProvider('samsara'); } catch(e) { toast.error('Authorization failed: ' + e.message); } }}
+                      className={`${prov.btnBorder} ${prov.btnText} ${prov.btnHover}`}
+                      onClick={async () => { try { const res = await connectProvider(prov.id); if (res?.authType === 'credentials') { setCredentialMeta(res); setShowCredentialDialog(true); } } catch(e) { toast.error('Authorization failed: ' + e.message); } }}
                     >
-                      <Link className="w-3.5 h-3.5 mr-1.5" />
+                      {prov.credential ? <KeyRound className="w-3.5 h-3.5 mr-1.5" /> : <Link className="w-3.5 h-3.5 mr-1.5" />}
                       Connect
                     </Button>
                   )}
                 </div>
               );
-            })()}
-
-            {/* Motive */}
-            {(() => {
-              const conn = getConnectionForProvider('motive');
-              const isConnected = conn?.status === 'active';
-              return (
-                <div className="flex items-center justify-between p-3 rounded-xl bg-white/[0.03] border border-white/5">
-                  <div className="flex items-center gap-3">
-                    <div className="w-8 h-8 rounded-lg bg-emerald-500/20 flex items-center justify-center">
-                      <Link className="w-4 h-4 text-emerald-400" />
-                    </div>
-                    <div>
-                      <p className="text-sm font-medium text-white">Motive (KeepTruckin)</p>
-                      <p className="text-xs text-white/40">
-                        {isConnected
-                          ? `Connected${conn.last_sync_at ? ` — last sync ${new Date(conn.last_sync_at).toLocaleString()}` : ''}`
-                          : 'Not connected'}
-                      </p>
-                    </div>
-                  </div>
-                  {isConnected ? (
-                    <Badge className="bg-green-500/20 text-green-400 border-green-500/30">Connected</Badge>
-                  ) : (
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      className="border-emerald-500/30 text-emerald-400 hover:bg-emerald-500/10"
-                      onClick={async () => { try { await connectProvider('motive'); } catch(e) { toast.error('Authorization failed: ' + e.message); } }}
-                    >
-                      <Link className="w-3.5 h-3.5 mr-1.5" />
-                      Connect
-                    </Button>
-                  )}
-                </div>
-              );
-            })()}
+            })}
           </div>
           {telematicsLoading && (
             <div className="flex items-center gap-2 mt-3 text-white/40 text-xs">
@@ -610,6 +583,13 @@ export default function Profile() {
         {/* Saved Shops */}
         <SavedShops />
       </motion.div>
+
+      <CredentialConnectDialog
+        open={showCredentialDialog}
+        onOpenChange={setShowCredentialDialog}
+        providerMeta={credentialMeta}
+        onSuccess={() => { toast.success('Provider connected!'); }}
+      />
     </div>
   );
 }
