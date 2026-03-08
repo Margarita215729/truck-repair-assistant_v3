@@ -20,13 +20,17 @@ import CredentialConnectDialog from './CredentialConnectDialog';
  *   disabled – external disable flag (e.g. no truck selected)
  *   className – optional wrapper class
  */
-export default function ScanTruckButton({ vehicleProfileId, onScanComplete, disabled, className }) {
+export default function ScanTruckButton({ vehicleProfileId, onScanComplete, disabled, className, isGuest, onGuestBlocked }) {
   const [scanning, setScanning] = useState(false);
   const [showProviderPicker, setShowProviderPicker] = useState(false);
   const [credentialMeta, setCredentialMeta] = useState(null);
   const [showCredentialDialog, setShowCredentialDialog] = useState(false);
 
   const handleScan = useCallback(async () => {
+    if (isGuest) {
+      onGuestBlocked?.();
+      return;
+    }
     setScanning(true);
     try {
       const result = await getTruckStateSnapshot(vehicleProfileId || '_auto');
@@ -70,7 +74,7 @@ export default function ScanTruckButton({ vehicleProfileId, onScanComplete, disa
     } finally {
       setScanning(false);
     }
-  }, [vehicleProfileId, onScanComplete]);
+  }, [vehicleProfileId, onScanComplete, isGuest, onGuestBlocked]);
 
   const handleConnect = async (provider) => {
     setShowProviderPicker(false);

@@ -35,14 +35,18 @@ import { getTruckStateSnapshot, connectProvider } from '@/services/telematics/te
 import TruckStatePanel from '@/components/diagnostics/TruckStatePanel';
 import ScanTruckButton from '@/components/diagnostics/ScanTruckButton';
 import CredentialConnectDialog from '@/components/diagnostics/CredentialConnectDialog';
+import { GUEST_CHAT_MESSAGE_LIMIT, canGuestUseVideo, canGuestUseTelematicsScan } from '@/lib/guestAccess';
+import { useNavigate } from 'react-router-dom';
 
 export default function Diagnostics() {
   const { t } = useLanguage();
-  const { isProUser } = useAuth();
-  const { canUse, checkAndIncrement, isLimitReached, dismissLimit, usage } = useAiLimit();
+  const { isProUser, isAuthenticated } = useAuth();
+  const navigate = useNavigate();
+  const isGuest = !isAuthenticated;
+  const [messages, setMessages] = useState([]);
+  const { canUse, checkAndIncrement, isLimitReached, dismissLimit, usage, guestLimitReached, guestMessageLimit } = useAiLimit({ messageCount: messages.length });
   const queryClient = useQueryClient();
   const { truck, setTruck, showTruckSelector, setShowTruckSelector } = useTruck();
-  const [messages, setMessages] = useState([]);
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [conversation, setConversation] = useState(null);
@@ -344,6 +348,10 @@ export default function Diagnostics() {
   const [showCredentialDialog, setShowCredentialDialog] = useState(false);
 
   const handleInlineScan = async () => {
+    if (isGuest) {
+      toast.error('Truck computer scan requires an account. Sign up to connect Motive or Samsara.');
+      return;
+    }
     setScanningInline(true);
     try {
       const result = await getTruckStateSnapshot(truck?.details?.id || '_auto');
@@ -370,6 +378,12 @@ export default function Diagnostics() {
 
   const sendMessage = async (messageText, audioUrl = null) => {
     if (!messageText.trim() && !audioUrl) return;
+
+    // Guest mode: hard-block if message limit reached
+    if (isGuest && messages.length >= GUEST_CHAT_MESSAGE_LIMIT) {
+      toast.error('Guest preview limit reached. Create a free account to continue this diagnosis.');
+      return;
+    }
 
     // Roadside mode: show gentle nudge if no truck selected (never block)
     if (!truck && messages.length === 0) {
@@ -738,36 +752,39 @@ User: ${messageText}${audioUrl ? '\n[User has attached an audio recording of eng
       setMessages(prev => {
         // Use prev (latest state) for the save, not the stale outer `messages`
         const latestAll = [...prev, assistantMessage];
-        // Fire save asynchronously using latest messages
-        (async () => {
-          try {
-            if (conversation) {
-              await entities.Conversation.update(conversation.id, {
-                messages: latestAll,
-                truck_make: truck?.make,
-                truck_model: truck?.model,
-                truck_year: truck?.year,
-                error_codes: errorCodes,
-                symptoms: symptoms
-              });
-            } else {
-              const newConversation = await entities.Conversation.create({
-                title: messageText.substring(0, 50) + (messageText.length > 50 ? '...' : ''),
-                messages: latestAll,
-                truck_make: truck?.make,
-                truck_model: truck?.model,
-                truck_year: truck?.year,
-                error_codes: errorCodes,
-                symptoms: symptoms,
-                status: 'active'
-              });
-              setConversation(newConversation);
+        // Guest users: skip persistent conversation save
+        if (!isGuest) {
+          // Fire save asynchronously using latest messages
+          (async () => {
+            try {
+              if (conversation) {
+                await entities.Conversation.update(conversation.id, {
+                  messages: latestAll,
+                  truck_make: truck?.make,
+                  truck_model: truck?.model,
+                  truck_year: truck?.year,
+                  error_codes: errorCodes,
+                  symptoms: symptoms
+                });
+              } else {
+                const newConversation = await entities.Conversation.create({
+                  title: messageText.substring(0, 50) + (messageText.length > 50 ? '...' : ''),
+                  messages: latestAll,
+                  truck_make: truck?.make,
+                  truck_model: truck?.model,
+                  truck_year: truck?.year,
+                  error_codes: errorCodes,
+                  symptoms: symptoms,
+                  status: 'active'
+                });
+                setConversation(newConversation);
+              }
+              queryClient.invalidateQueries({ queryKey: ['conversations'] });
+            } catch (err) {
+              console.error('Failed to save conversation:', err);
             }
-            queryClient.invalidateQueries({ queryKey: ['conversations'] });
-          } catch (err) {
-            console.error('Failed to save conversation:', err);
-          }
-        })();
+          })();
+        }
         return latestAll;
       });
 
@@ -827,6 +844,10 @@ User: ${messageText}${audioUrl ? '\n[User has attached an audio recording of eng
   };
 
   const generateReport = async () => {
+    if (isGuest) {
+      toast.error('Saving reports requires an account. Create a free account to export diagnostics.');
+      return;
+    }
     if (messages.length < 2) {
       toast.error('Need more conversation to generate a report');
       return;
@@ -1098,11 +1119,14 @@ Focus on:
                     toast.info(t('diagnostics.selectTruckFirst') || 'Please select your truck first using the truck button in the top menu');
                     setShowTruckSelector(true);
                   };
+                  const handleGuestScanBlocked = () => {
+                    toast.error('Truck computer scan requires an account. Sign up to connect Motive or Samsara.');
+                  };
                   const cards = [
                     // { icon: Mic,            label: t('diagnostics.sound') || 'Sound',    desc: t('diagnostics.soundDesc') || 'Record engine / brake sounds',    color: 'orange', onClick: () => setShowAudioRecorder(true) },
                     { icon: AlertCircle,     label: t('diagnostics.codes') || 'Codes',    desc: t('diagnostics.codesDesc') || 'Enter DTC / fault codes',         color: 'red',    onClick: () => setShowErrorCodeInput(true) },
                     { icon: AlertTriangle,   label: t('diagnostics.symptoms') || 'Symptoms', desc: t('diagnostics.symptomsDesc') || 'Describe what you notice', color: 'yellow', onClick: () => setShowSymptomPicker(true) },
-                    { icon: Eye,             label: t('diagnostics.visual') || 'Visual',  desc: t('diagnostics.visualDesc') || 'Photo / video of the issue',     color: 'emerald', onClick: () => setShowVisualDiagnostics(true) },
+                    { icon: Eye,             label: t('diagnostics.visual') || 'Visual',  desc: isGuest ? (t('diagnostics.visualDescGuest') || 'Photo analysis (video requires account)') : (t('diagnostics.visualDesc') || 'Photo / video of the issue'),     color: 'emerald', onClick: () => setShowVisualDiagnostics(true) },
                     { icon: null, isScanButton: true },
                   ];
                   const colorMap = {
@@ -1120,6 +1144,8 @@ Focus on:
                               key="scan-truck"
                               vehicleProfileId={truck?.details?.id}
                               onScanComplete={handleScanComplete}
+                              isGuest={isGuest}
+                              onGuestBlocked={handleGuestScanBlocked}
                             />
                           );
                         }
@@ -1148,13 +1174,24 @@ Focus on:
                 })()}
 
                 {/* \u2500\u2500 Chat History (subtle) \u2500\u2500 */}
-                <button
-                  onClick={() => setShowChatHistory(true)}
-                  className="flex items-center gap-1.5 mx-auto mt-2 px-3 py-1 rounded-lg text-white/30 hover:text-white/60 text-[11px] transition-colors"
-                >
-                  <History className="w-3 h-3" />
-                  {t('diagnostics.chatHistory') || 'Chat History'}
-                </button>
+                {!isGuest && (
+                  <button
+                    onClick={() => setShowChatHistory(true)}
+                    className="flex items-center gap-1.5 mx-auto mt-2 px-3 py-1 rounded-lg text-white/30 hover:text-white/60 text-[11px] transition-colors"
+                  >
+                    <History className="w-3 h-3" />
+                    {t('diagnostics.chatHistory') || 'Chat History'}
+                  </button>
+                )}
+
+                {/* Guest mode indicator */}
+                {isGuest && (
+                  <div className="flex items-center justify-center gap-2 mt-3 px-3 py-1.5 rounded-lg bg-white/5 text-white/40 text-[11px]">
+                    <span>Guest mode &middot; {GUEST_CHAT_MESSAGE_LIMIT} messages</span>
+                    <span>&middot;</span>
+                    <a href="/Login" className="text-brand-orange hover:text-brand-orange-light underline">Sign up free</a>
+                  </div>
+                )}
               </div>
             </motion.div>
           ) : (
@@ -1256,29 +1293,33 @@ Focus on:
                 </div>
 
                 {/* Compact SCAN TRUCK button in active-conversation toolbar */}
-                <motion.button
-                  whileTap={{ scale: 0.95 }}
-                  onClick={handleInlineScan}
-                  disabled={scanningInline}
-                  className="shrink-0 flex items-center gap-1.5 px-2.5 py-2 rounded-xl border border-cyan-500/20 bg-cyan-500/10 hover:bg-cyan-500/20 text-cyan-400 hover:text-cyan-300 text-xs font-medium transition-colors disabled:opacity-50"
-                >
-                  {scanningInline ? (
-                    <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                  ) : (
-                    <Radio className="w-3.5 h-3.5" />
-                  )}
-                  <span>{scanningInline ? 'Scanning...' : 'SCAN'}</span>
-                </motion.button>
+                {!isGuest && (
+                  <motion.button
+                    whileTap={{ scale: 0.95 }}
+                    onClick={handleInlineScan}
+                    disabled={scanningInline}
+                    className="shrink-0 flex items-center gap-1.5 px-2.5 py-2 rounded-xl border border-cyan-500/20 bg-cyan-500/10 hover:bg-cyan-500/20 text-cyan-400 hover:text-cyan-300 text-xs font-medium transition-colors disabled:opacity-50"
+                  >
+                    {scanningInline ? (
+                      <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                    ) : (
+                      <Radio className="w-3.5 h-3.5" />
+                    )}
+                    <span>{scanningInline ? 'Scanning...' : 'SCAN'}</span>
+                  </motion.button>
+                )}
 
                 <div className="flex items-center gap-1.5 ml-auto shrink-0">
-                  <button
-                    onClick={() => setShowChatHistory(true)}
-                    className="flex items-center gap-1.5 px-2.5 py-2 rounded-xl border border-white/10 bg-white/5 hover:bg-white/10 text-white/60 hover:text-white/90 text-xs transition-colors"
-                    title={t('diagnostics.chatHistory') || 'Chat History'}
-                  >
-                    <History className="w-3.5 h-3.5" />
-                    <span className="hidden md:inline">History</span>
-                  </button>
+                  {!isGuest && (
+                    <button
+                      onClick={() => setShowChatHistory(true)}
+                      className="flex items-center gap-1.5 px-2.5 py-2 rounded-xl border border-white/10 bg-white/5 hover:bg-white/10 text-white/60 hover:text-white/90 text-xs transition-colors"
+                      title={t('diagnostics.chatHistory') || 'Chat History'}
+                    >
+                      <History className="w-3.5 h-3.5" />
+                      <span className="hidden md:inline">History</span>
+                    </button>
+                  )}
                   {messages.length > 0 && (
                     <button
                       onClick={handleNewChat}
@@ -1366,14 +1407,25 @@ Focus on:
               )}
             </AnimatePresence>
 
+            {isGuest && guestLimitReached && (
+              <div className="mb-3 p-4 rounded-xl bg-gradient-to-r from-brand-orange/10 to-brand-orange-light/10 border border-brand-orange/30 text-center space-y-2">
+                <p className="text-sm text-white/80">You’ve used all {GUEST_CHAT_MESSAGE_LIMIT} guest messages.</p>
+                <a
+                  href="/Login"
+                  className="inline-block px-5 py-2 rounded-xl bg-gradient-to-r from-brand-orange to-brand-orange-light text-white font-semibold text-sm shadow-lg shadow-brand-orange/20 hover:from-[#e8851f] hover:to-[#d67a18] transition-all"
+                >
+                  Create Free Account
+                </a>
+              </div>
+            )}
             <Textarea
               ref={textareaRef}
               value={input}
               onChange={(e) => setInput(e.target.value)}
               onKeyDown={handleKeyDown}
-              placeholder={t('diagnostics.inputPlaceholder')}
+              placeholder={isGuest && guestLimitReached ? 'Sign up to continue chatting...' : t('diagnostics.inputPlaceholder')}
               className="w-full min-h-[60px] max-h-[200px] resize-none bg-white/5 border-brand-dark/30 text-white placeholder:text-white/40 rounded-2xl py-4 px-4 focus:ring-2 focus:ring-brand-orange/50 focus:border-brand-orange/50"
-              disabled={isLoading}
+              disabled={isLoading || (isGuest && guestLimitReached)}
             />
             <Button
               onClick={() => {
@@ -1491,7 +1543,7 @@ Focus on:
       />
 
       <ChatHistory
-        open={showChatHistory}
+        open={isGuest ? false : showChatHistory}
         onClose={() => setShowChatHistory(false)}
         onSelectChat={(conv) => {
           handleLoadChat(conv);
@@ -1508,6 +1560,7 @@ Focus on:
         open={showVisualDiagnostics}
         onClose={() => setShowVisualDiagnostics(false)}
         onDiagnosisComplete={handleVisualDiagnosisComplete}
+        isGuest={isGuest}
       />
 
       {/* Provider picker overlay for inline scan */}
