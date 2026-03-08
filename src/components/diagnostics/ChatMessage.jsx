@@ -25,6 +25,11 @@ export default function ChatMessage({ message, onPartClick, onAnswerQuestion, on
   const [sourcesExpanded, setSourcesExpanded] = useState(false);
   const [playingAudio, setPlayingAudio] = useState(false);
   const [contentExpanded, setContentExpanded] = useState(false);
+  const [dtcExpanded, setDtcExpanded] = useState(false);
+  const [repairExpanded, setRepairExpanded] = useState(false);
+  const [partsExpanded, setPartsExpanded] = useState(false);
+  const [progressExpanded, setProgressExpanded] = useState(false);
+  const [communityExpanded, setCommunityExpanded] = useState(false);
   const audioRef = useRef(null);
 
   // Cleanup audio on unmount
@@ -41,7 +46,7 @@ export default function ChatMessage({ message, onPartClick, onAnswerQuestion, on
   
   // Show full content if there are clarifying questions (diagnostic flow)
   const hasQuestions = message.clarifying_questions && message.clarifying_questions.length > 0;
-  const shouldCollapse = !isUser && !hasQuestions && message.content && message.content.length > 300;
+  const shouldCollapse = !isUser && !hasQuestions && message.content && message.content.length > 200;
 
   const handleCopy = () => {
     navigator.clipboard.writeText(message.content);
@@ -141,7 +146,7 @@ export default function ChatMessage({ message, onPartClick, onAnswerQuestion, on
                 }}
               >
                 {shouldCollapse && !contentExpanded 
-                  ? message.content.substring(0, 300) + '...'
+                  ? message.content.substring(0, 200) + '...'
                   : message.content
                 }
               </ReactMarkdown>
@@ -340,33 +345,79 @@ export default function ChatMessage({ message, onPartClick, onAnswerQuestion, on
         {/* Collapsible Details - Only show if content is expanded or no questions */}
         {(contentExpanded || !hasQuestions) && (
           <>
-            {/* Diagnostic Progress */}
+            {/* Diagnostic Progress — collapsible */}
             {message.diagnostic_progress && (
-              <DiagnosticProgress progress={message.diagnostic_progress} />
-            )}
-
-            {/* Community Matches Preview */}
-            {message.community_matches && message.community_matches.count > 0 && (
-              <div className="mt-3 p-3 bg-blue-500/10 border border-blue-500/20 rounded-xl">
-                <div className="flex items-center gap-2 mb-2">
-                  <Users className="w-4 h-4 text-blue-400" />
-                  <span className="text-xs font-semibold text-blue-400">
-                    {message.community_matches.count} Community Solutions Match Your Issue
+              <div className="mt-3 rounded-xl border border-white/10 bg-white/5">
+                <button
+                  onClick={() => setProgressExpanded(!progressExpanded)}
+                  className="w-full flex items-center justify-between p-3 text-left"
+                >
+                  <span className="text-sm font-semibold text-white flex items-center gap-2">
+                    📊 Diagnostic Progress
+                    {message.diagnostic_progress.stage && (
+                      <span className="text-xs text-white/40 font-normal">— {message.diagnostic_progress.stage}</span>
+                    )}
                   </span>
-                  <SourceBadge source="community_solution" />
-                </div>
-                <p className="text-xs text-white/70">{message.community_matches.preview}</p>
+                  {progressExpanded ? <ChevronUp className="w-4 h-4 text-white/40" /> : <ChevronDown className="w-4 h-4 text-white/40" />}
+                </button>
+                {progressExpanded && <DiagnosticProgress progress={message.diagnostic_progress} />}
               </div>
             )}
 
-            {/* DTC Analysis */}
+            {/* Community Matches — collapsible */}
+            {message.community_matches && message.community_matches.count > 0 && (
+              <div className="mt-3 rounded-xl border border-blue-500/20 bg-blue-500/10">
+                <button
+                  onClick={() => setCommunityExpanded(!communityExpanded)}
+                  className="w-full flex items-center justify-between p-3 text-left"
+                >
+                  <div className="flex items-center gap-2">
+                    <Users className="w-4 h-4 text-blue-400" />
+                    <span className="text-xs font-semibold text-blue-400">
+                      {message.community_matches.count} Community Solutions Match Your Issue
+                    </span>
+                    <SourceBadge source="community_solution" />
+                  </div>
+                  {communityExpanded ? <ChevronUp className="w-4 h-4 text-white/40" /> : <ChevronDown className="w-4 h-4 text-white/40" />}
+                </button>
+                {communityExpanded && (
+                  <div className="px-3 pb-3">
+                    <p className="text-xs text-white/70">{message.community_matches.preview}</p>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* DTC Analysis — collapsible */}
             {message.dtc_analysis && message.dtc_analysis.length > 0 && (
-          <div className="mt-3 p-4 rounded-xl bg-red-500/10 border border-red-500/30 space-y-3">
-            <div className="flex items-center gap-2 mb-2">
-              <AlertTriangle className="w-5 h-5 text-red-400" />
-              <h3 className="font-semibold text-white">Diagnostic Trouble Codes</h3>
-              <SourceBadge source={message._sources?.dtc_analysis || 'model_inference'} />
-            </div>
+          <div className="mt-3 rounded-xl bg-red-500/10 border border-red-500/30">
+            <button
+              onClick={() => setDtcExpanded(!dtcExpanded)}
+              className="w-full flex items-center justify-between p-4 text-left"
+            >
+              <div className="flex items-center gap-2">
+                <AlertTriangle className="w-5 h-5 text-red-400" />
+                <h3 className="font-semibold text-white">Diagnostic Trouble Codes ({message.dtc_analysis.length})</h3>
+                <SourceBadge source={message._sources?.dtc_analysis || 'model_inference'} />
+              </div>
+              {dtcExpanded ? <ChevronUp className="w-4 h-4 text-white/40" /> : <ChevronDown className="w-4 h-4 text-white/40" />}
+            </button>
+            {/* Always show first code summary */}
+            {!dtcExpanded && (
+              <div className="px-4 pb-3 text-xs text-white/70">
+                {message.dtc_analysis.slice(0, 2).map((dtc, i) => (
+                  <span key={i}>
+                    <code className="text-red-400 font-mono">{dtc.code}</code>
+                    {' — '}{dtc.description?.substring(0, 60)}{dtc.description?.length > 60 ? '…' : ''}
+                    {dtc.can_drive === false && <span className="text-red-400 ml-1">⚠ Do not drive</span>}
+                    {i < Math.min(message.dtc_analysis.length, 2) - 1 && <br />}
+                  </span>
+                ))}
+                {message.dtc_analysis.length > 2 && <span className="text-white/40"> +{message.dtc_analysis.length - 2} more</span>}
+              </div>
+            )}
+            {dtcExpanded && (
+              <div className="px-4 pb-4 space-y-3">
             {message.dtc_analysis.map((dtc, i) => (
               <div key={i} className="p-3 rounded-lg bg-white/5 space-y-2">
                 <div className="flex items-center justify-between">
@@ -401,17 +452,53 @@ export default function ChatMessage({ message, onPartClick, onAnswerQuestion, on
                 )}
               </div>
             ))}
+              </div>
+            )}
             </div>
             )}
 
-            {/* Repair Instructions */}
+            {/* Repair Instructions — collapsible */}
             {message.repair_instructions && message.repair_instructions.length > 0 && (
-              <RepairInstructions instructions={message.repair_instructions} />
+              <div className="mt-3 rounded-xl border border-white/10 bg-white/5">
+                <button
+                  onClick={() => setRepairExpanded(!repairExpanded)}
+                  className="w-full flex items-center justify-between p-3 text-left"
+                >
+                  <span className="text-sm font-semibold text-white flex items-center gap-2">
+                    🔧 Repair Instructions ({message.repair_instructions.length})
+                  </span>
+                  {repairExpanded ? <ChevronUp className="w-4 h-4 text-white/40" /> : <ChevronDown className="w-4 h-4 text-white/40" />}
+                </button>
+                {!repairExpanded && (
+                  <div className="px-3 pb-3 text-xs text-white/60">
+                    {message.repair_instructions[0]?.procedure_name}
+                    {message.repair_instructions[0]?.difficulty && ` · ${message.repair_instructions[0].difficulty}`}
+                    {message.repair_instructions.length > 1 && ` +${message.repair_instructions.length - 1} more`}
+                  </div>
+                )}
+                {repairExpanded && <RepairInstructions instructions={message.repair_instructions} />}
+              </div>
             )}
 
-            {/* Suggested Parts */}
+            {/* Suggested Parts — collapsible */}
             {message.suggested_parts && message.suggested_parts.length > 0 && (
-              <SuggestedParts parts={message.suggested_parts} onPartClick={onPartClick} />
+              <div className="mt-3 rounded-xl border border-white/10 bg-white/5">
+                <button
+                  onClick={() => setPartsExpanded(!partsExpanded)}
+                  className="w-full flex items-center justify-between p-3 text-left"
+                >
+                  <span className="text-sm font-semibold text-white flex items-center gap-2">
+                    🛒 Suggested Parts ({message.suggested_parts.length})
+                  </span>
+                  {partsExpanded ? <ChevronUp className="w-4 h-4 text-white/40" /> : <ChevronDown className="w-4 h-4 text-white/40" />}
+                </button>
+                {!partsExpanded && (
+                  <div className="px-3 pb-3 text-xs text-white/60">
+                    {message.suggested_parts.map(p => p.name).join(', ')}
+                  </div>
+                )}
+                {partsExpanded && <SuggestedParts parts={message.suggested_parts} onPartClick={onPartClick} />}
+              </div>
             )}
 
             {/* Generate Interactive Guide */}

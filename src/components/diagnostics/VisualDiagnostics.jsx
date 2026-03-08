@@ -13,7 +13,8 @@ import { toast } from 'sonner';
 import { useLanguage } from '@/lib/LanguageContext';
 import { useTruck } from '@/lib/TruckContext';
 
-const MAX_VIDEO_DURATION = 15; // seconds
+const MAX_VIDEO_DURATION = 15; // seconds — for live recording
+const MAX_UPLOADED_VIDEO_DURATION = 120; // seconds — for pre-recorded uploads
 const MAX_FILE_SIZE = 20 * 1024 * 1024; // 20 MB — files go to Supabase Storage, not in HTTP body
 
 export default function VisualDiagnostics({ open, onClose, onDiagnosisComplete }) {
@@ -57,13 +58,13 @@ export default function VisualDiagnostics({ open, onClose, onDiagnosisComplete }
   }, [recordingTime, isRecording]);
 
   /* ──────── Helpers ──────── */
-  const validateVideoDuration = (file) =>
+  const validateVideoDuration = (file, maxDuration = MAX_VIDEO_DURATION) =>
     new Promise((resolve) => {
       const video = document.createElement('video');
       video.preload = 'metadata';
       video.onloadedmetadata = () => {
         URL.revokeObjectURL(video.src);
-        resolve(video.duration <= MAX_VIDEO_DURATION);
+        resolve(video.duration <= maxDuration);
       };
       video.onerror = () => {
         URL.revokeObjectURL(video.src);
@@ -82,19 +83,19 @@ export default function VisualDiagnostics({ open, onClose, onDiagnosisComplete }
       return;
     }
 
-    const isVideo = file.type.startsWith('video/');
-    const isImage = file.type.startsWith('image/');
+    const isVideo = file.type.startsWith('video/') || /\.(mp4|mov|webm|avi|mkv)$/i.test(file.name);
+    const isImage = file.type.startsWith('image/') || /\.(jpg|jpeg|png|gif|webp|heic)$/i.test(file.name);
     if (!isVideo && !isImage) {
       toast.error(t('visualDiagnostics.unsupportedFormat') || 'Unsupported file format');
       return;
     }
 
-    // Validate video duration for uploaded files
+    // Validate video duration — use relaxed limit for uploaded files
     if (isVideo) {
-      const ok = await validateVideoDuration(file);
+      const ok = await validateVideoDuration(file, MAX_UPLOADED_VIDEO_DURATION);
       if (!ok) {
         toast.error(
-          (t('visualDiagnostics.videoTooLong') || `Video must be ${MAX_VIDEO_DURATION} seconds or shorter`)
+          (t('visualDiagnostics.videoTooLong') || `Video must be ${MAX_UPLOADED_VIDEO_DURATION} seconds or shorter`)
         );
         return;
       }
