@@ -220,12 +220,19 @@ export async function invokeGeminiVision({ media, prompt, truck_context }) {
     throw new Error('At least one image or video is required');
   }
 
+  const guessMimeType = (file) => {
+    if (file.type) return file.type;
+    const ext = file.name?.split('.').pop()?.toLowerCase();
+    const map = { mp4: 'video/mp4', mov: 'video/quicktime', webm: 'video/webm', avi: 'video/mp4', jpg: 'image/jpeg', jpeg: 'image/jpeg', png: 'image/png', gif: 'image/gif', webp: 'image/webp', heic: 'image/heic' };
+    return map[ext] || 'application/octet-stream';
+  };
+
   // Production: upload to Supabase Storage → send refs to proxy (avoids Vercel body size limit)
   // Files are sent at FULL resolution for maximum diagnostic quality
   if (hasSupabaseConfig && supabase) {
     const { data: { session } } = await supabase.auth.getSession();
     if (session?.access_token) {
-      return await analyzeViaStorage(media, prompt, truck_context, session);
+      return await analyzeViaStorage(media, prompt, truck_context, session, guessMimeType);
     }
   }
 
@@ -235,7 +242,7 @@ export async function invokeGeminiVision({ media, prompt, truck_context }) {
     const mediaPayload = await Promise.all(
       media.map(async ({ file }) => {
         const base64 = await fileToBase64(file);
-        return { data: base64, mimeType: file.type || 'image/jpeg' };
+        return { data: base64, mimeType: guessMimeType(file) };
       })
     );
     return await callGeminiDirect(mediaPayload, prompt, truck_context, devKey);
@@ -249,7 +256,7 @@ export async function invokeGeminiVision({ media, prompt, truck_context }) {
  * The proxy downloads full-quality files server-side, sends to Gemini, then deletes them.
  * This avoids Vercel's 4.5MB request body limit while preserving original image quality.
  */
-async function analyzeViaStorage(media, prompt, truckContext, session) {
+async function analyzeViaStorage(media, prompt, truckContext, session, guessMimeType) {
   const storagePaths = [];
 
   try {
@@ -257,17 +264,18 @@ async function analyzeViaStorage(media, prompt, truckContext, session) {
     for (const { file } of media) {
       const ext = file.name?.split('.').pop() || 'bin';
       const path = `${session.user.id}/${Date.now()}_${Math.random().toString(36).slice(2)}.${ext}`;
+      const mime = guessMimeType(file);
 
       const { error } = await supabase.storage
         .from('vision-temp')
-        .upload(path, file, { contentType: file.type, upsert: false });
+        .upload(path, file, { contentType: mime, upsert: false });
 
       if (error) {
         throw new Error(`Failed to upload file for analysis: ${error.message}`);
       }
 
       storagePaths.push(path);
-      mediaRefs.push({ storagePath: path, mimeType: file.type || 'image/jpeg' });
+      mediaRefs.push({ storagePath: path, mimeType: mime });
     }
 
     // Proxy receives tiny JSON payload (~200 bytes per file instead of megabytes)
