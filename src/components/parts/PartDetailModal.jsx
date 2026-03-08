@@ -20,7 +20,7 @@ import {
   Globe,
   Package
 } from 'lucide-react';
-import { searchVendorsForPart, searchVendors, getSearchUrls, aggregateListings, VENDOR_INFO } from '@/services/vendorService';
+import { searchVendorsForPart, searchVendors, getSearchUrls, aggregateListings, VENDOR_INFO, SOURCE_TIER_LABELS } from '@/services/vendorService';
 
 const categoryIcons = {
   engine: '🔧', transmission: '⚙️', brakes: '🛑', electrical: '⚡',
@@ -71,7 +71,7 @@ export default function PartDetailModal({ part, open, onClose }) {
         setVendorResults(results);
       }
     } catch {
-      setVendorResults({ fleetpride: [], truckpro: [], searchUrls });
+      setVendorResults({ listings: [], searchUrls });
     }
     setVendorLoading(false);
   };
@@ -155,6 +155,100 @@ export default function PartDetailModal({ part, open, onClose }) {
                   <p className="text-sm text-white/80">{part.why_needed}</p>
                 </div>
               </div>
+            </div>
+          )}
+
+          {/* ─── Decision Fields: Urgency / Driveability / Action ─── */}
+          {!isVendorListing && (part.urgency || part.driveability || part.action_type) && (
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+              {part.urgency && (
+                <div className={`p-3 rounded-lg border ${part.urgency === 'critical' ? 'border-red-500/30 bg-red-500/5' : part.urgency === 'high' ? 'border-orange-500/30 bg-orange-500/5' : 'border-white/10 bg-white/5'}`}>
+                  <span className="text-xs text-white/50 block mb-1">Urgency</span>
+                  <span className={`text-sm font-semibold capitalize ${part.urgency === 'critical' ? 'text-red-400' : part.urgency === 'high' ? 'text-orange-400' : 'text-white/80'}`}>{part.urgency}</span>
+                </div>
+              )}
+              {part.driveability && (
+                <div className={`p-3 rounded-lg border ${part.driveability === 'do_not_drive' ? 'border-red-600/30 bg-red-600/5' : part.driveability === 'limp_mode' ? 'border-orange-500/30 bg-orange-500/5' : 'border-white/10 bg-white/5'}`}>
+                  <span className="text-xs text-white/50 block mb-1">Can You Drive?</span>
+                  <span className={`text-sm font-semibold ${part.driveability === 'do_not_drive' ? 'text-red-400' : part.driveability === 'limp_mode' ? 'text-orange-400' : 'text-green-400'}`}>{part.driveability.replace(/_/g, ' ')}</span>
+                </div>
+              )}
+              {part.action_type && (
+                <div className="p-3 rounded-lg border border-white/10 bg-white/5">
+                  <span className="text-xs text-white/50 block mb-1">Action</span>
+                  <span className="text-sm font-semibold text-white/80 capitalize">{part.action_type.replace(/_/g, ' ')}</span>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* ─── OEM Part Info ─── */}
+          {!isVendorListing && part.oem_part_number && (
+            <div className="p-4 rounded-lg bg-white/5 border border-white/10">
+              <h3 className="text-sm font-semibold text-white/90 mb-2">OEM Part Information</h3>
+              <div className="space-y-1">
+                <div className="flex items-center gap-2 text-sm">
+                  <span className="text-white/50">OEM Number:</span>
+                  <span className="font-mono text-orange-400">{part.oem_part_number}</span>
+                </div>
+                {part.alt_part_numbers?.length > 0 && (
+                  <div className="flex items-start gap-2 text-sm">
+                    <span className="text-white/50">Alternates:</span>
+                    <div className="flex flex-wrap gap-1">
+                      {part.alt_part_numbers.map((pn, i) => (
+                        <Badge key={i} variant="outline" className="border-white/20 text-white/60 font-mono text-xs">{pn}</Badge>
+                      ))}
+                    </div>
+                  </div>
+                )}
+                {part.fitment_status && (
+                  <div className="flex items-center gap-2 text-sm">
+                    <span className="text-white/50">Fitment:</span>
+                    <span className={`capitalize ${part.fitment_status === 'confirmed' ? 'text-green-400' : part.fitment_status === 'likely' ? 'text-blue-400' : 'text-yellow-400'}`}>{part.fitment_status}</span>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* ─── Inspection Steps ─── */}
+          {!isVendorListing && part.inspection_steps?.length > 0 && (
+            <div className="p-4 rounded-lg bg-yellow-500/5 border border-yellow-500/20">
+              <h3 className="text-sm font-semibold text-yellow-400 mb-2">Inspect Before Buying</h3>
+              <ol className="list-decimal list-inside space-y-1">
+                {part.inspection_steps.map((step, i) => (
+                  <li key={i} className="text-sm text-white/70">{step}</li>
+                ))}
+              </ol>
+            </div>
+          )}
+
+          {/* ─── Paired Parts ─── */}
+          {!isVendorListing && part.pair_with_parts?.length > 0 && (
+            <div className="p-4 rounded-lg bg-white/5 border border-white/10">
+              <h3 className="text-sm font-semibold text-white/90 mb-2">
+                {part.bundle_label || 'Also Replace Together'}
+              </h3>
+              <div className="flex flex-wrap gap-2">
+                {part.pair_with_parts.map((p, i) => (
+                  <Badge key={i} variant="outline" className="border-orange-500/30 text-orange-400">{p}</Badge>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* ─── Service Indicators ─── */}
+          {!isVendorListing && (part.roadside_possible || part.shop_required || part.programming_required) && (
+            <div className="flex flex-wrap gap-3">
+              {part.roadside_possible && (
+                <Badge variant="outline" className="border-green-500/30 text-green-400 text-sm py-1 px-3">Roadside OK</Badge>
+              )}
+              {part.shop_required && (
+                <Badge variant="outline" className="border-yellow-500/30 text-yellow-400 text-sm py-1 px-3">Shop Required</Badge>
+              )}
+              {part.programming_required && (
+                <Badge variant="outline" className="border-purple-500/30 text-purple-400 text-sm py-1 px-3">Needs Programming</Badge>
+              )}
             </div>
           )}
 

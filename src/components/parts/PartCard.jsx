@@ -2,10 +2,10 @@ import React, { useState } from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Package, DollarSign, Wrench, ExternalLink, Search, Loader2, Trash2, ShoppingCart } from 'lucide-react';
+import { Package, DollarSign, Wrench, ExternalLink, Search, Loader2, Trash2, ShoppingCart, ShieldCheck, AlertTriangle, Car, Eye } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { Checkbox } from '@/components/ui/checkbox';
-import { searchVendorsForPart, getSearchUrls, VENDOR_INFO, aggregateListings } from '@/services/vendorService';
+import { searchVendorsForPart, getSearchUrls, VENDOR_INFO, aggregateListings, SOURCE_TIER_LABELS } from '@/services/vendorService';
 
 const categoryIcons = {
   engine: '🔧', transmission: '⚙️', brakes: '🛑', electrical: '⚡',
@@ -26,6 +26,27 @@ const importanceColors = {
   optional: 'bg-white/10 text-white/60 border-white/20',
 };
 
+const urgencyColors = {
+  critical: 'bg-red-500/20 text-red-400 border-red-500/30',
+  high: 'bg-orange-500/20 text-orange-400 border-orange-500/30',
+  medium: 'bg-yellow-500/20 text-yellow-400 border-yellow-500/30',
+  low: 'bg-white/10 text-white/60 border-white/20',
+};
+
+const driveabilityColors = {
+  do_not_drive: 'bg-red-600/20 text-red-400 border-red-600/30',
+  limp_mode: 'bg-orange-500/20 text-orange-400 border-orange-500/30',
+  reduced_performance: 'bg-yellow-500/20 text-yellow-400 border-yellow-500/30',
+  safe_to_drive: 'bg-green-500/20 text-green-400 border-green-500/30',
+};
+
+const tierBadgeColors = {
+  1: 'bg-green-500/20 text-green-400 border-green-500/30',
+  2: 'bg-blue-500/20 text-blue-400 border-blue-500/30',
+  3: 'bg-yellow-500/20 text-yellow-400 border-yellow-500/30',
+  4: 'bg-white/10 text-white/60 border-white/20',
+};
+
 /**
  * PartCard — dual-mode card component.
  * variant="recommended" — shows AI recommendation metadata + "Find Prices" button
@@ -42,7 +63,7 @@ export default function PartCard({ part, variant = 'recommended', onClick, onDel
       const results = await searchVendorsForPart(part);
       setVendorPrices(results);
     } catch {
-      setVendorPrices({ fleetpride: [], truckpro: [], searchUrls: getSearchUrls(part.part_number, part.name) });
+      setVendorPrices({ listings: [], searchUrls: getSearchUrls(part.part_number, part.name) });
     }
     setPriceLoading(false);
   };
@@ -79,11 +100,20 @@ export default function PartCard({ part, variant = 'recommended', onClick, onDel
               </div>
             </div>
 
-            {/* Vendor + Condition */}
+            {/* Vendor + Condition + Trust Tier */}
             <div className="flex flex-wrap gap-2 mb-3">
+              {part.sourceTier && (
+                <Badge variant="outline" className={`text-xs ${tierBadgeColors[part.sourceTier] || tierBadgeColors[4]}`}>
+                  {part.sourceTier === 1 && <ShieldCheck className="w-3 h-3 mr-1" />}
+                  T{part.sourceTier}
+                </Badge>
+              )}
               <Badge variant="outline" className="text-xs border-blue-500/30 text-blue-400">
                 {part.vendor}
               </Badge>
+              {part.isOEM && (
+                <Badge variant="outline" className="text-xs border-green-500/30 text-green-400">OEM</Badge>
+              )}
               {part.condition && part.condition !== 'Unknown' && (
                 <Badge variant="outline" className="text-xs border-white/20 text-white/70">
                   {part.condition}
@@ -95,6 +125,22 @@ export default function PartCard({ part, variant = 'recommended', onClick, onDel
                 </Badge>
               )}
             </div>
+
+            {/* Fitment & counterfeit risk */}
+            {(part.fitmentConfidence || part.counterfeitRisk) && (
+              <div className="flex flex-wrap gap-2 mb-3 text-xs">
+                {part.fitmentConfidence && part.fitmentConfidence !== 'unknown' && (
+                  <span className={`${part.fitmentConfidence === 'exact' ? 'text-green-400' : part.fitmentConfidence === 'high' ? 'text-blue-400' : 'text-yellow-400'}`}>
+                    Fit: {part.fitmentConfidence}
+                  </span>
+                )}
+                {part.counterfeitRisk === 'high' && (
+                  <span className="text-red-400 flex items-center gap-1">
+                    <AlertTriangle className="w-3 h-3" /> Counterfeit risk
+                  </span>
+                )}
+              </div>
+            )}
 
             {/* Shipping & Seller */}
             {(part.shipping || part.sellerRating) && (
@@ -169,7 +215,39 @@ export default function PartCard({ part, variant = 'recommended', onClick, onDel
             <p className="text-sm text-white/70 mb-3 line-clamp-2">{part.description || part.why_needed}</p>
           )}
 
-          {/* Badges */}
+          {/* OEM part number */}
+          {part.oem_part_number && (
+            <div className="text-xs text-white/50 mb-2 font-mono">
+              OEM: {part.oem_part_number}
+              {part.alt_part_numbers?.length > 0 && (
+                <span className="text-white/30"> · Alt: {part.alt_part_numbers.slice(0, 2).join(', ')}</span>
+              )}
+            </div>
+          )}
+
+          {/* Urgency / Driveability / Action Type badges */}
+          <div className="flex flex-wrap gap-2 mb-3">
+            {part.urgency && part.urgency !== 'low' && (
+              <Badge variant="outline" className={`text-xs ${urgencyColors[part.urgency] || ''}`}>
+                {part.urgency === 'critical' && <AlertTriangle className="w-3 h-3 mr-1" />}
+                {part.urgency}
+              </Badge>
+            )}
+            {part.driveability && part.driveability !== 'safe_to_drive' && (
+              <Badge variant="outline" className={`text-xs ${driveabilityColors[part.driveability] || ''}`}>
+                <Car className="w-3 h-3 mr-1" />
+                {part.driveability.replace(/_/g, ' ')}
+              </Badge>
+            )}
+            {part.action_type && (
+              <Badge variant="outline" className="text-xs border-white/20 text-white/60">
+                {part.action_type === 'inspect_first' && <Eye className="w-3 h-3 mr-1" />}
+                {part.action_type.replace(/_/g, ' ')}
+              </Badge>
+            )}
+          </div>
+
+          {/* Difficulty + Importance badges */}
           <div className="flex flex-wrap gap-2 mb-3">
             {part.installation_difficulty && (
               <Badge variant="outline" className={`text-xs ${difficultyColors[part.installation_difficulty] || 'border-white/20 text-white/60'}`}>
@@ -180,6 +258,15 @@ export default function PartCard({ part, variant = 'recommended', onClick, onDel
               <Badge variant="outline" className={`text-xs ${importanceColors[part.importance] || ''}`}>
                 {part.importance}
               </Badge>
+            )}
+            {part.roadside_possible && (
+              <Badge variant="outline" className="text-xs border-green-500/30 text-green-400">Roadside OK</Badge>
+            )}
+            {part.shop_required && (
+              <Badge variant="outline" className="text-xs border-yellow-500/30 text-yellow-400">Shop Required</Badge>
+            )}
+            {part.programming_required && (
+              <Badge variant="outline" className="text-xs border-purple-500/30 text-purple-400">Needs Programming</Badge>
             )}
           </div>
 
@@ -194,6 +281,15 @@ export default function PartCard({ part, variant = 'recommended', onClick, onDel
               {part.related_error_codes.slice(0, 3).map((code, i) => (
                 <Badge key={i} variant="outline" className="border-red-500/30 text-red-400 font-mono text-[10px] h-5">{code}</Badge>
               ))}
+            </div>
+          )}
+
+          {/* Paired parts preview */}
+          {part.pair_with_parts?.length > 0 && (
+            <div className="text-xs text-white/50 mb-3">
+              <span className="text-white/40">Also replace: </span>
+              {part.pair_with_parts.slice(0, 2).join(', ')}
+              {part.bundle_label && <span className="text-orange-400 ml-1">({part.bundle_label})</span>}
             </div>
           )}
 

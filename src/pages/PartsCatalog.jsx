@@ -1,12 +1,12 @@
 import React, { useState, useMemo } from 'react';
 import { getMyRecommendedParts, getRecommendedStats, deleteRecommendation } from '@/services/partsService';
-import { searchVendors, aggregateListings, vendorKeys, aiSearchParts } from '@/services/vendorService';
+import { searchVendors, aggregateListings, vendorKeys, aiSearchParts, groupByTier, hasListings, VENDOR_INFO, SOURCE_TIER_LABELS } from '@/services/vendorService';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Search, Filter, Loader2, Package, Wrench, ArrowRight, ShoppingCart, Globe, Sparkles, Store, ExternalLink, MapPin } from 'lucide-react';
+import { Search, Filter, Loader2, Package, Wrench, ShoppingCart, Globe, Sparkles, Store, ExternalLink, MapPin, AlertTriangle, ShieldCheck, Bookmark, Zap } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { toast } from 'sonner';
 import { useNavigate } from 'react-router-dom';
@@ -16,25 +16,43 @@ import PartDetailModal from '@/components/parts/PartDetailModal';
 import ComparePartsModal from '@/components/parts/ComparePartsModal';
 import { useLanguage } from '@/lib/LanguageContext';
 
+// ─── Search input classifier ────────────────────────────────────────
+function classifySearch(input) {
+  if (!input) return { type: 'free_text', value: input };
+  const trimmed = input.trim();
+  // Part number pattern: alphanumeric with hyphens, 4+ chars, starts with letter/digit
+  if (/^[A-Za-z0-9][\w\-]{3,}$/.test(trimmed) && /\d/.test(trimmed)) {
+    return { type: 'part_number', value: trimmed };
+  }
+  // VIN: 17 alphanumeric chars
+  if (/^[A-HJ-NPR-Z0-9]{17}$/i.test(trimmed)) {
+    return { type: 'vin', value: trimmed };
+  }
+  // Fault/DTC code: starts with P/B/C/U followed by 4 digits, or SPN/FMI pattern
+  if (/^[PBCU]\d{4}$/i.test(trimmed) || /^SPN\s?\d+/i.test(trimmed)) {
+    return { type: 'fault_code', value: trimmed };
+  }
+  return { type: 'free_text', value: trimmed };
+}
+
 export default function PartsCatalog() {
   const { t } = useLanguage();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
 
-  // Tab state
-  const [activeTab, setActiveTab] = useState('recommended');
+  // Tab state — 4 tabs
+  const [activeTab, setActiveTab] = useState('for_issue');
 
-  // Recommended tab state
-  const [recFilters, setRecFilters] = useState({ category: 'all', importance: 'all' });
+  // Recommended / For This Issue filters
+  const [recFilters, setRecFilters] = useState({ category: 'all', importance: 'all', urgency: 'all', driveability: 'all', action_type: 'all' });
 
   // Search tab state
   const [searchQuery, setSearchQuery] = useState('');
   const [searchSubmitted, setSearchSubmitted] = useState('');
-  const [searchFilters, setSearchFilters] = useState({ condition: 'all', vendor: 'all', sort: 'relevance' });
+  const [searchFilters, setSearchFilters] = useState({ condition: 'all', sourceType: 'all', sourceTier: 'all', sort: 'relevance' });
   const [searchMake, setSearchMake] = useState('');
   const [searchModel, setSearchModel] = useState('');
   const [searchYear, setSearchYear] = useState('');
-  const [searchVin, setSearchVin] = useState('');
   const [searchPartNumber, setSearchPartNumber] = useState('');
 
   const [showFilters, setShowFilters] = useState(false);
@@ -43,7 +61,7 @@ export default function PartsCatalog() {
   const [selectedForCompare, setSelectedForCompare] = useState([]);
   const [showCompareModal, setShowCompareModal] = useState(false);
 
-  // ─── Recommended tab: fetch user's AI recommendations ──────────────
+  // ─── For This Issue & Saved: fetch user's AI recommendations ───────
   const { data: recommended = [], isLoading: recLoading, refetch: refetchRec } = useQuery({
     queryKey: ['my-parts', recFilters],
     queryFn: () => getMyRecommendedParts(recFilters),
@@ -58,8 +76,9 @@ export default function PartsCatalog() {
 
   // ─── Search tab: live vendor search ────────────────────────────────
   const { data: vendorResults, isLoading: searchLoading } = useQuery({
-    queryKey: vendorKeys.search(searchSubmitted, { make: searchMake, model: searchModel, year: searchYear, condition: searchFilters.condition }),
+    queryKey: vendorKeys.search(searchSubmitted, { partNumber: searchPartNumber, make: searchMake, model: searchModel, year: searchYear, condition: searchFilters.condition }),
     queryFn: () => searchVendors(searchSubmitted, {
+      partNumber: searchPartNumber,
       make: searchMake,
       model: searchModel,
       year: searchYear,
@@ -71,7 +90,7 @@ export default function PartsCatalog() {
   });
 
   // AI-powered fallback search — activates when vendor results are empty
-  const vendorHasResults = vendorResults && (vendorResults.fleetpride?.length > 0 || vendorResults.truckpro?.length > 0);
+  const vendorHasResults = vendorResults && hasListings(vendorResults);
   const { data: aiResults, isLoading: aiSearchLoading } = useQuery({
     queryKey: vendorKeys.aiSearch(searchSubmitted, { make: searchMake, model: searchModel, year: searchYear }),
     queryFn: () => aiSearchParts(searchSubmitted, { make: searchMake, model: searchModel, year: searchYear }),
@@ -80,27 +99,45 @@ export default function PartsCatalog() {
     keepPreviousData: true,
   });
 
+  // Aggregated and filtered vendor listings
   const vendorListings = useMemo(() => {
     if (!vendorResults) return [];
     let all = aggregateListings(vendorResults);
-    // Filter by vendor source
-    if (searchFilters.vendor && searchFilters.vendor !== 'all') {
-      all = all.filter(l => l.vendor.toLowerCase().includes(searchFilters.vendor.toLowerCase()));
+    // Filter by source type
+    if (searchFilters.sourceType && searchFilters.sourceType !== 'all') {
+      all = all.filter(l => l.sourceType === searchFilters.sourceType);
+    }
+    // Filter by source tier
+    if (searchFilters.sourceTier && searchFilters.sourceTier !== 'all') {
+      all = all.filter(l => String(l.sourceTier) === searchFilters.sourceTier);
     }
     // Sort
     if (searchFilters.sort === 'price_asc') {
       all.sort((a, b) => (a.price || Infinity) - (b.price || Infinity));
     } else if (searchFilters.sort === 'price_desc') {
       all.sort((a, b) => (b.price || 0) - (a.price || 0));
+    } else if (searchFilters.sort === 'trust') {
+      all.sort((a, b) => (a.sourceTier || 4) - (b.sourceTier || 4));
     }
     return all;
   }, [vendorResults, searchFilters]);
 
+  // Buy Fast: group all vendor listings by tier
+  const tieredListings = useMemo(() => {
+    if (!vendorResults) return null;
+    const all = aggregateListings(vendorResults);
+    return groupByTier(all);
+  }, [vendorResults]);
+
   const handleSearch = (e) => {
     e?.preventDefault();
-    if (searchQuery.trim()) {
-      setSearchSubmitted(searchQuery.trim());
+    const q = searchQuery.trim();
+    if (!q) return;
+    const classified = classifySearch(q);
+    if (classified.type === 'part_number') {
+      setSearchPartNumber(classified.value);
     }
+    setSearchSubmitted(q);
   };
 
   const togglePartForCompare = (part) => {
@@ -124,23 +161,18 @@ export default function PartsCatalog() {
   };
 
   const handleDeleteRec = async (id) => {
-    // Snapshot for rollback
     const previous = queryClient.getQueryData(['my-parts', recFilters]);
-
-    // Optimistic removal from UI
     queryClient.setQueryData(['my-parts', recFilters], (old) =>
       old ? old.filter(p => p.id !== id) : []
     );
     try {
       await deleteRecommendation(id);
-      // Also remove from any other cached filter variants
       queryClient.setQueriesData({ queryKey: ['my-parts'] }, (old) =>
         Array.isArray(old) ? old.filter(p => p.id !== id) : old
       );
       queryClient.invalidateQueries({ queryKey: ['parts-stats'] });
       toast.success(t('parts.recommendationRemoved') || 'Recommendation removed');
     } catch {
-      // Rollback to snapshot
       queryClient.setQueryData(['my-parts', recFilters], previous);
       toast.error(t('parts.removeFailed') || 'Failed to remove');
     }
@@ -150,6 +182,134 @@ export default function PartsCatalog() {
     if (!stats?.categories) return [];
     return Object.entries(stats.categories).sort(([, a], [, b]) => b - a).slice(0, 6);
   }, [stats]);
+
+  // ─── Render search URL links ───────────────────────────────────────
+  const renderSearchUrls = (urls) => {
+    if (!urls) return null;
+    return (
+      <div className="mb-6 p-4 rounded-xl bg-white/5 border border-white/10">
+        <div className="flex items-center gap-2 mb-3">
+          <Globe className="w-4 h-4 text-white/60" />
+          <span className="text-sm font-semibold text-white/80">{t('parts.alsoSearchOn') || 'Also search on:'}</span>
+        </div>
+        <div className="flex flex-wrap gap-2">
+          {Object.entries(urls).map(([key, url]) => {
+            const info = VENDOR_INFO[key];
+            return (
+              <a
+                key={key}
+                href={url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white/5 hover:bg-white/10 border border-white/10 hover:border-white/20 text-sm text-white/70 hover:text-white transition-all"
+              >
+                {info?.icon || '🔗'}
+                <span>{info?.name || key}</span>
+                <ExternalLink className="w-3 h-3 opacity-40" />
+              </a>
+            );
+          })}
+        </div>
+      </div>
+    );
+  };
+
+  // ─── Render AI fallback results ────────────────────────────────────
+  const renderAIResults = () => {
+    if (!aiResults?.results?.length) return null;
+    return (
+      <>
+        <div className="mb-4 p-3 rounded-xl bg-gradient-to-r from-purple-500/10 to-orange-500/10 border border-purple-500/20">
+          <div className="flex items-center gap-2 mb-1">
+            <Sparkles className="w-4 h-4 text-purple-400" />
+            <span className="text-sm font-semibold text-white/90">{t('parts.extendedResults') || 'Extended Search Results'}</span>
+          </div>
+          <p className="text-xs text-white/50">No live vendor listings found. Here are parts with purchase options from our extended search.</p>
+        </div>
+        <div className="space-y-4">
+          {aiResults.results.map((part, idx) => (
+            <div key={part._id || idx} className="p-4 rounded-xl bg-white/5 border border-white/10 hover:border-white/20 transition-all">
+              <div className="flex items-start justify-between gap-3 mb-3">
+                <div className="flex-1">
+                  <h3 className="font-semibold text-white mb-1">{part.title}</h3>
+                  {part.partNumber && <p className="text-xs text-orange-400 font-mono mb-1">#{part.partNumber}</p>}
+                  {part.description && <p className="text-sm text-white/60 mb-2">{part.description}</p>}
+                  <div className="flex flex-wrap items-center gap-2 text-xs text-white/50">
+                    {part.brand && <Badge variant="outline" className="border-white/20 text-white/60">{part.brand}</Badge>}
+                    {part.condition && <Badge variant="outline" className="border-white/20 text-white/60">{part.condition}</Badge>}
+                  </div>
+                </div>
+                <div className="text-right shrink-0">
+                  {part.priceRange ? (
+                    <p className="text-lg font-bold text-green-400">{part.priceRange}</p>
+                  ) : part.price ? (
+                    <p className="text-lg font-bold text-green-400">
+                      ${part.price.toFixed(2)}{part.priceMax ? ` — $${part.priceMax.toFixed(2)}` : ''}
+                    </p>
+                  ) : null}
+                </div>
+              </div>
+              {part.onlineStores?.length > 0 && (
+                <div className="mb-3">
+                  <p className="text-xs font-semibold text-white/40 mb-2 flex items-center gap-1">
+                    <Globe className="w-3 h-3" /> ONLINE STORES
+                  </p>
+                  <div className="flex flex-wrap gap-2">
+                    {part.onlineStores.map((store, si) => (
+                      <span key={si} className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white/5 border border-white/10 text-xs text-white/70">
+                        <span className="font-medium">{store.name}</span>
+                        {store.estimatedPrice && <span className="text-green-400">{store.estimatedPrice}</span>}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              )}
+              {part.offlineStores?.length > 0 && (
+                <div>
+                  <p className="text-xs font-semibold text-white/40 mb-2 flex items-center gap-1">
+                    <Store className="w-3 h-3" /> LOCAL STORES
+                  </p>
+                  <div className="flex flex-wrap gap-2">
+                    {part.offlineStores.map((store, si) => (
+                      <a
+                        key={si}
+                        href={`https://www.google.com/maps/search/${encodeURIComponent(store.name + ' near me')}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white/5 hover:bg-white/10 border border-white/10 text-xs text-white/60 hover:text-white transition-all"
+                      >
+                        <MapPin className="w-3 h-3 text-orange-400" />
+                        <span className="font-medium">{store.name}</span>
+                        {store.availability && <span className="text-white/40">· {store.availability}</span>}
+                      </a>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
+      </>
+    );
+  };
+
+  // ─── Compare bar ───────────────────────────────────────────────────
+  const renderCompareBar = () => {
+    if (!compareMode || selectedForCompare.length === 0) return null;
+    return (
+      <div className="flex items-center justify-between p-3 bg-orange-500/10 border border-orange-500/30 rounded-xl mb-4">
+        <span className="text-sm text-white">{selectedForCompare.length} selected</span>
+        <div className="flex gap-2">
+          <Button size="sm" onClick={() => setShowCompareModal(true)} disabled={selectedForCompare.length < 2} className="bg-orange-500 hover:bg-orange-600">
+            Compare
+          </Button>
+          <Button size="sm" variant="outline" onClick={() => setSelectedForCompare([])} className="border-white/20 text-white hover:bg-white/10">
+            Clear
+          </Button>
+        </div>
+      </div>
+    );
+  };
 
   return (
     <div className="min-h-screen p-6">
@@ -164,31 +324,38 @@ export default function PartsCatalog() {
             <div className="hidden md:flex items-center gap-4">
               <div className="text-right">
                 <p className="text-2xl font-bold text-orange-400">{stats.total}</p>
-                <p className="text-xs text-white/50">recommendations</p>
+                <p className="text-xs text-white/50">{t('parts.recommendations') || 'recommendations'}</p>
               </div>
             </div>
           )}
         </div>
 
-        {/* Tabs */}
+        {/* 4-tab layout */}
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-          <TabsList className="bg-white/5 border border-white/10 mb-6">
-            <TabsTrigger value="recommended" className="data-[state=active]:bg-orange-500 data-[state=active]:text-white gap-2">
-              <Package className="w-4 h-4" />
-              Recommended
+          <TabsList className="bg-white/5 border border-white/10 mb-6 flex-wrap">
+            <TabsTrigger value="for_issue" className="data-[state=active]:bg-orange-500 data-[state=active]:text-white gap-2">
+              <AlertTriangle className="w-4 h-4" />
+              {t('parts.tabForIssue') || 'For This Issue'}
               {stats?.total > 0 && (
                 <Badge className="ml-1 bg-orange-600 text-white text-[10px] h-4 px-1.5">{stats.total}</Badge>
               )}
             </TabsTrigger>
             <TabsTrigger value="search" className="data-[state=active]:bg-orange-500 data-[state=active]:text-white gap-2">
-              <ShoppingCart className="w-4 h-4" />
-              Search Vendors
+              <Search className="w-4 h-4" />
+              {t('parts.tabSearch') || 'Search Parts'}
+            </TabsTrigger>
+            <TabsTrigger value="buy_fast" className="data-[state=active]:bg-orange-500 data-[state=active]:text-white gap-2">
+              <Zap className="w-4 h-4" />
+              {t('parts.tabBuyFast') || 'Buy Fast'}
+            </TabsTrigger>
+            <TabsTrigger value="saved" className="data-[state=active]:bg-orange-500 data-[state=active]:text-white gap-2">
+              <Bookmark className="w-4 h-4" />
+              {t('parts.tabSaved') || 'Saved'}
             </TabsTrigger>
           </TabsList>
 
-          {/* ═══ RECOMMENDED TAB ═══ */}
-          <TabsContent value="recommended">
-            {/* Filters */}
+          {/* ═══ TAB 1: FOR THIS ISSUE ═══ */}
+          <TabsContent value="for_issue">
             <div className="mb-6 space-y-4">
               <div className="flex gap-3">
                 <Button
@@ -197,17 +364,16 @@ export default function PartsCatalog() {
                   className="border-white/20 bg-white/5 hover:bg-white/10 text-white"
                 >
                   <Filter className="w-4 h-4 mr-2" />
-                  {t('parts.filters')}
+                  {t('parts.filters') || 'Filters'}
                 </Button>
                 <Button
                   variant={compareMode ? "default" : "outline"}
                   onClick={() => { setCompareMode(!compareMode); if (compareMode) setSelectedForCompare([]); }}
                   className={compareMode ? "bg-orange-500 hover:bg-orange-600" : "border-white/20 bg-white/5 hover:bg-white/10 text-white"}
                 >
-                  {t('parts.compare')}
+                  {t('parts.compare') || 'Compare'}
                 </Button>
               </div>
-
               <AnimatePresence>
                 {showFilters && (
                   <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }}>
@@ -215,20 +381,7 @@ export default function PartsCatalog() {
                   </motion.div>
                 )}
               </AnimatePresence>
-
-              {compareMode && selectedForCompare.length > 0 && (
-                <div className="flex items-center justify-between p-3 bg-orange-500/10 border border-orange-500/30 rounded-xl">
-                  <span className="text-sm text-white">{selectedForCompare.length} selected</span>
-                  <div className="flex gap-2">
-                    <Button size="sm" onClick={() => setShowCompareModal(true)} disabled={selectedForCompare.length < 2} className="bg-orange-500 hover:bg-orange-600">
-                      Compare
-                    </Button>
-                    <Button size="sm" variant="outline" onClick={() => setSelectedForCompare([])} className="border-white/20 text-white hover:bg-white/10">
-                      Clear
-                    </Button>
-                  </div>
-                </div>
-              )}
+              {renderCompareBar()}
             </div>
 
             {/* Category chips */}
@@ -247,7 +400,6 @@ export default function PartsCatalog() {
               </div>
             )}
 
-            {/* Recommended results */}
             {recLoading ? (
               <div className="flex items-center justify-center py-20">
                 <Loader2 className="w-8 h-8 animate-spin text-orange-500" />
@@ -255,23 +407,23 @@ export default function PartsCatalog() {
             ) : recommended.length === 0 ? (
               <div className="text-center py-16 max-w-lg mx-auto">
                 <div className="w-20 h-20 rounded-2xl bg-gradient-to-br from-orange-500/20 to-orange-600/20 flex items-center justify-center mx-auto mb-6">
-                  <Package className="w-10 h-10 text-orange-500" />
+                  <AlertTriangle className="w-10 h-10 text-orange-500" />
                 </div>
-                <h3 className="text-2xl font-bold text-white mb-3">No Recommendations Yet</h3>
+                <h3 className="text-2xl font-bold text-white mb-3">{t('parts.noRecommendations') || 'No Parts for Current Issues'}</h3>
                 <p className="text-white/60 mb-2">
-                  Parts are automatically added here when our diagnostic system recommends them for your truck.
+                  Parts appear here automatically when our diagnostic system identifies parts needed for your truck.
                 </p>
                 <p className="text-white/50 text-sm mb-8">
-                  Start a diagnostic session or search vendors directly for live pricing.
+                  Start a diagnostic session to get part recommendations linked to your issues.
                 </p>
                 <div className="flex gap-3 justify-center">
                   <Button onClick={() => navigate('/Diagnostics')} className="bg-gradient-to-r from-orange-500 to-orange-600 hover:from-orange-600 hover:to-orange-700 h-12 px-6">
                     <Wrench className="w-5 h-5 mr-2" />
-                    Start Diagnostics
+                    {t('parts.startDiagnostics') || 'Start Diagnostics'}
                   </Button>
                   <Button onClick={() => setActiveTab('search')} variant="outline" className="border-white/20 text-white hover:bg-white/10 h-12 px-6">
-                    <ShoppingCart className="w-5 h-5 mr-2" />
-                    Search Vendors
+                    <Search className="w-5 h-5 mr-2" />
+                    {t('parts.tabSearch') || 'Search Parts'}
                   </Button>
                 </div>
               </div>
@@ -297,7 +449,7 @@ export default function PartsCatalog() {
             )}
           </TabsContent>
 
-          {/* ═══ SEARCH VENDORS TAB ═══ */}
+          {/* ═══ TAB 2: SEARCH PARTS ═══ */}
           <TabsContent value="search">
             <form onSubmit={handleSearch} className="mb-6 space-y-4">
               <div className="flex gap-3">
@@ -306,13 +458,13 @@ export default function PartsCatalog() {
                   <Input
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
-                    placeholder="Search by part name, number, or description..."
+                    placeholder={t('parts.searchPlaceholder') || 'Part name, OEM number, fault code, or description...'}
                     className="pl-10 bg-white/5 border-white/10 text-white placeholder:text-white/40"
                   />
                 </div>
                 <Button type="submit" className="bg-orange-500 hover:bg-orange-600 px-6">
                   <Search className="w-4 h-4 mr-2" />
-                  Search
+                  {t('parts.search') || 'Search'}
                 </Button>
                 <Button
                   type="button"
@@ -324,39 +476,12 @@ export default function PartsCatalog() {
                 </Button>
               </div>
 
-              {/* Optional truck context */}
-              <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
-                <Input
-                  value={searchMake}
-                  onChange={(e) => setSearchMake(e.target.value)}
-                  placeholder="Make (e.g., Freightliner)"
-                  className="bg-white/5 border-white/10 text-white placeholder:text-white/40 text-sm"
-                />
-                <Input
-                  value={searchModel}
-                  onChange={(e) => setSearchModel(e.target.value)}
-                  placeholder="Model (e.g., Cascadia)"
-                  className="bg-white/5 border-white/10 text-white placeholder:text-white/40 text-sm"
-                />
-                <Input
-                  value={searchYear}
-                  onChange={(e) => setSearchYear(e.target.value)}
-                  placeholder="Year (e.g., 2019)"
-                  className="bg-white/5 border-white/10 text-white placeholder:text-white/40 text-sm"
-                />
-                <Input
-                  value={searchVin}
-                  onChange={(e) => setSearchVin(e.target.value.slice(0, 6))}
-                  placeholder="VIN last 6 digits"
-                  maxLength={6}
-                  className="bg-white/5 border-white/10 text-white placeholder:text-white/40 text-sm"
-                />
-                <Input
-                  value={searchPartNumber}
-                  onChange={(e) => setSearchPartNumber(e.target.value)}
-                  placeholder="Part Number (OEM)"
-                  className="bg-white/5 border-white/10 text-white placeholder:text-white/40 text-sm"
-                />
+              {/* Truck context inputs */}
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                <Input value={searchMake} onChange={(e) => setSearchMake(e.target.value)} placeholder="Make (e.g., Freightliner)" className="bg-white/5 border-white/10 text-white placeholder:text-white/40 text-sm" />
+                <Input value={searchModel} onChange={(e) => setSearchModel(e.target.value)} placeholder="Model (e.g., Cascadia)" className="bg-white/5 border-white/10 text-white placeholder:text-white/40 text-sm" />
+                <Input value={searchYear} onChange={(e) => setSearchYear(e.target.value)} placeholder="Year (e.g., 2019)" className="bg-white/5 border-white/10 text-white placeholder:text-white/40 text-sm" />
+                <Input value={searchPartNumber} onChange={(e) => setSearchPartNumber(e.target.value)} placeholder="Part Number (OEM)" className="bg-white/5 border-white/10 text-white placeholder:text-white/40 text-sm" />
               </div>
 
               <AnimatePresence>
@@ -368,39 +493,17 @@ export default function PartsCatalog() {
               </AnimatePresence>
             </form>
 
-            {/* Vendor search results */}
+            {/* Search results */}
             {(searchLoading || aiSearchLoading) ? (
               <div className="flex flex-col items-center justify-center py-20 gap-3">
                 <Loader2 className="w-8 h-8 animate-spin text-orange-500" />
                 <p className="text-sm text-white/50">
-                  {aiSearchLoading ? 'Searching for parts and purchase options...' : 'Searching vendors and dealers...'}
+                  {aiSearchLoading ? 'Extended search in progress...' : 'Searching vendors and dealers...'}
                 </p>
               </div>
             ) : searchSubmitted && (vendorResults || aiResults) ? (
               <>
-                {/* Search URLs — always shown */}
-                {(vendorResults?.searchUrls || aiResults?.searchUrls) && (
-                  <div className="mb-6 p-4 rounded-xl bg-white/5 border border-white/10">
-                    <div className="flex items-center gap-2 mb-3">
-                      <Globe className="w-4 h-4 text-white/60" />
-                      <span className="text-sm font-semibold text-white/80">Also search on:</span>
-                    </div>
-                    <div className="flex flex-wrap gap-2">
-                      {Object.entries(vendorResults?.searchUrls || aiResults?.searchUrls || {}).map(([key, url]) => (
-                        <a
-                          key={key}
-                          href={url}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white/5 hover:bg-white/10 border border-white/10 hover:border-white/20 text-sm text-white/70 hover:text-white transition-all"
-                        >
-                          {key === 'googleShopping' ? '🔍' : key === 'fleetpride' ? '🏪' : key === 'truckpro' ? '🔩' : '🚛'}
-                          <span className="capitalize">{key === 'googleShopping' ? 'Google' : key === 'fleetpride' ? 'FleetPride' : key === 'truckpro' ? 'TruckPro' : key === 'freightlinerParts' ? 'Freightliner Parts' : key === 'peterbiltParts' ? 'Peterbilt Parts' : key === 'kenworthParts' ? 'Kenworth Parts' : key === 'volvoTrucks' ? 'Volvo Trucks' : key === 'mackParts' ? 'Mack Parts' : key}</span>
-                        </a>
-                      ))}
-                    </div>
-                  </div>
-                )}
+                {renderSearchUrls(vendorResults?.searchUrls || aiResults?.searchUrls)}
 
                 {vendorListings.length > 0 ? (
                   <>
@@ -408,7 +511,16 @@ export default function PartsCatalog() {
                       <span className="text-sm text-white/60">
                         {vendorListings.length} {vendorListings.length !== 1 ? 'listings' : 'listing'} found
                       </span>
+                      <Button
+                        variant={compareMode ? "default" : "outline"}
+                        size="sm"
+                        onClick={() => { setCompareMode(!compareMode); if (compareMode) setSelectedForCompare([]); }}
+                        className={compareMode ? "bg-orange-500 hover:bg-orange-600 text-xs" : "border-white/20 bg-white/5 hover:bg-white/10 text-white text-xs"}
+                      >
+                        {compareMode ? 'Exit Compare' : 'Compare'}
+                      </Button>
                     </div>
+                    {renderCompareBar()}
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                       {vendorListings.map((listing, idx) => (
                         <PartCard
@@ -422,118 +534,155 @@ export default function PartsCatalog() {
                       ))}
                     </div>
                   </>
-                ) : aiResults?.results?.length > 0 ? (
-                  <>
-                    <div className="mb-4 p-3 rounded-xl bg-gradient-to-r from-purple-500/10 to-orange-500/10 border border-purple-500/20">
-                      <div className="flex items-center gap-2 mb-1">
-                        <Sparkles className="w-4 h-4 text-purple-400" />
-                        <span className="text-sm font-semibold text-white/90">Extended Search Results</span>
-                      </div>
-                      <p className="text-xs text-white/50">No live vendor listings found. Here are parts with purchase options from our extended search.</p>
-                    </div>
-
-                    <div className="space-y-4">
-                      {aiResults.results.map((part, idx) => (
-                        <div key={part._id || idx} className="p-4 rounded-xl bg-white/5 border border-white/10 hover:border-white/20 transition-all">
-                          <div className="flex items-start justify-between gap-3 mb-3">
-                            <div className="flex-1">
-                              <div className="flex items-center gap-2 mb-1">
-                                <h3 className="font-semibold text-white">{part.title}</h3>
-                              </div>
-                              {part.partNumber && (
-                                <p className="text-xs text-orange-400 font-mono mb-1">#{part.partNumber}</p>
-                              )}
-                              {part.description && (
-                                <p className="text-sm text-white/60 mb-2">{part.description}</p>
-                              )}
-                              <div className="flex flex-wrap items-center gap-2 text-xs text-white/50">
-                                {part.brand && <Badge variant="outline" className="border-white/20 text-white/60">{part.brand}</Badge>}
-                                {part.condition && <Badge variant="outline" className="border-white/20 text-white/60">{part.condition}</Badge>}
-                                {part.compatibility && <span>{part.compatibility}</span>}
-                              </div>
-                            </div>
-                            <div className="text-right shrink-0">
-                              {part.priceRange ? (
-                                <p className="text-lg font-bold text-green-400">{part.priceRange}</p>
-                              ) : part.price ? (
-                                <p className="text-lg font-bold text-green-400">
-                                  ${part.price.toFixed(2)}{part.priceMax ? ` — $${part.priceMax.toFixed(2)}` : ''}
-                                </p>
-                              ) : null}
-                            </div>
-                          </div>
-
-                          {/* Online stores */}
-                          {part.onlineStores?.length > 0 && (
-                            <div className="mb-3">
-                              <p className="text-xs font-semibold text-white/40 mb-2 flex items-center gap-1">
-                                <Globe className="w-3 h-3" /> ONLINE STORES
-                              </p>
-                              <div className="flex flex-wrap gap-2">
-                                {part.onlineStores.map((store, si) => (
-                                  <a
-                                    key={si}
-                                    href={store.url && store.url.startsWith('http') ? store.url : '#'}
-                                    target="_blank"
-                                    rel="noopener noreferrer"
-                                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white/5 hover:bg-white/10 border border-white/10 hover:border-white/20 text-xs text-white/70 hover:text-white transition-all"
-                                  >
-                                    <ExternalLink className="w-3 h-3" />
-                                    <span className="font-medium">{store.name}</span>
-                                    {store.estimatedPrice && <span className="text-green-400">{store.estimatedPrice}</span>}
-                                    {store.inStock && <span className="text-white/40">· {store.inStock}</span>}
-                                  </a>
-                                ))}
-                              </div>
-                            </div>
-                          )}
-
-                          {/* Offline stores */}
-                          {part.offlineStores?.length > 0 && (
-                            <div>
-                              <p className="text-xs font-semibold text-white/40 mb-2 flex items-center gap-1">
-                                <Store className="w-3 h-3" /> LOCAL / OFFLINE STORES
-                              </p>
-                              <div className="flex flex-wrap gap-2">
-                                {part.offlineStores.map((store, si) => (
-                                  <a
-                                    key={si}
-                                    href={store.url && store.url.startsWith('http') ? store.url : `https://www.google.com/maps/search/${encodeURIComponent(store.name + ' near me')}`}
-                                    target="_blank"
-                                    rel="noopener noreferrer"
-                                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white/5 hover:bg-white/10 border border-white/10 hover:border-white/20 text-xs text-white/60 hover:text-white transition-all cursor-pointer"
-                                  >
-                                    <MapPin className="w-3 h-3 text-orange-400" />
-                                    <span className="font-medium">{store.name}</span>
-                                    {store.availability && <span className="text-white/40">· {store.availability}</span>}
-                                    {store.notes && <span className="text-white/30">· {store.notes}</span>}
-                                    <ExternalLink className="w-3 h-3 text-white/30" />
-                                  </a>
-                                ))}
-                              </div>
-                            </div>
-                          )}
-                        </div>
-                      ))}
-                    </div>
-                  </>
                 ) : (
-                  <div className="text-center py-16">
-                    <Package className="w-16 h-16 mx-auto mb-4 text-white/20" />
-                    <h3 className="text-xl font-semibold text-white mb-2">No listings found</h3>
-                    <p className="text-white/60 mb-4">Try the search links above to browse vendors directly.</p>
-                  </div>
+                  renderAIResults() || (
+                    <div className="text-center py-16">
+                      <Package className="w-16 h-16 mx-auto mb-4 text-white/20" />
+                      <h3 className="text-xl font-semibold text-white mb-2">{t('parts.noListings') || 'No listings found'}</h3>
+                      <p className="text-white/60 mb-4">Try the search links above to browse vendors directly.</p>
+                    </div>
+                  )
                 )}
               </>
             ) : !searchSubmitted ? (
               <div className="text-center py-20">
-                <ShoppingCart className="w-16 h-16 mx-auto mb-4 text-white/20" />
-                <h3 className="text-xl font-semibold text-white mb-2">Search Vendor Inventory</h3>
+                <Search className="w-16 h-16 mx-auto mb-4 text-white/20" />
+                <h3 className="text-xl font-semibold text-white mb-2">{t('parts.searchTitle') || 'Search Parts'}</h3>
                 <p className="text-white/60">
-                  Enter a part name, OEM number, or description to find live pricing from dealers and vendors.
+                  {t('parts.searchDesc') || 'Enter a part name, OEM number, fault code, or description to find live pricing.'}
                 </p>
               </div>
             ) : null}
+          </TabsContent>
+
+          {/* ═══ TAB 3: BUY FAST ═══ */}
+          <TabsContent value="buy_fast">
+            {!searchSubmitted ? (
+              <div className="text-center py-20">
+                <Zap className="w-16 h-16 mx-auto mb-4 text-white/20" />
+                <h3 className="text-xl font-semibold text-white mb-2">{t('parts.buyFastTitle') || 'Buy Fast — Tiered Results'}</h3>
+                <p className="text-white/60 mb-6">
+                  Search for a part first, then come here to see results grouped by trust level.
+                </p>
+                <Button onClick={() => setActiveTab('search')} className="bg-orange-500 hover:bg-orange-600">
+                  <Search className="w-4 h-4 mr-2" />
+                  {t('parts.tabSearch') || 'Search Parts'}
+                </Button>
+              </div>
+            ) : searchLoading ? (
+              <div className="flex items-center justify-center py-20">
+                <Loader2 className="w-8 h-8 animate-spin text-orange-500" />
+              </div>
+            ) : tieredListings ? (
+              <div className="space-y-8">
+                {renderSearchUrls(vendorResults?.searchUrls)}
+
+                {[1, 2, 3, 4].map(tier => {
+                  const tierItems = tieredListings[tier] || [];
+                  const tierLabel = SOURCE_TIER_LABELS[tier] || `Tier ${tier}`;
+                  const tierColors = {
+                    1: 'border-green-500/30 bg-green-500/5',
+                    2: 'border-blue-500/30 bg-blue-500/5',
+                    3: 'border-yellow-500/30 bg-yellow-500/5',
+                    4: 'border-white/10 bg-white/5',
+                  };
+                  const tierBadgeColors = {
+                    1: 'bg-green-500/20 text-green-400 border-green-500/30',
+                    2: 'bg-blue-500/20 text-blue-400 border-blue-500/30',
+                    3: 'bg-yellow-500/20 text-yellow-400 border-yellow-500/30',
+                    4: 'bg-white/10 text-white/60 border-white/20',
+                  };
+                  return (
+                    <div key={tier}>
+                      <div className="flex items-center gap-3 mb-3">
+                        <Badge className={`${tierBadgeColors[tier]} border text-xs`}>
+                          {tier === 1 && <ShieldCheck className="w-3 h-3 mr-1" />}
+                          Tier {tier}
+                        </Badge>
+                        <span className="text-sm font-semibold text-white/80">{tierLabel}</span>
+                        <span className="text-xs text-white/40">({tierItems.length} {tierItems.length !== 1 ? 'listings' : 'listing'})</span>
+                      </div>
+                      {tierItems.length > 0 ? (
+                        <div className={`grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 p-4 rounded-xl border ${tierColors[tier]}`}>
+                          {tierItems.map((listing, idx) => (
+                            <PartCard
+                              key={listing.itemUrl || `${tier}-${idx}`}
+                              part={listing}
+                              variant="vendor"
+                              onClick={() => handlePartClick(listing)}
+                            />
+                          ))}
+                        </div>
+                      ) : (
+                        <div className={`p-4 rounded-xl border ${tierColors[tier]} text-center`}>
+                          <p className="text-sm text-white/40">No listings in this tier. Check the search links above.</p>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            ) : null}
+          </TabsContent>
+
+          {/* ═══ TAB 4: SAVED ═══ */}
+          <TabsContent value="saved">
+            <div className="mb-6 space-y-4">
+              <div className="flex gap-3">
+                <Button
+                  variant="outline"
+                  onClick={() => setShowFilters(!showFilters)}
+                  className="border-white/20 bg-white/5 hover:bg-white/10 text-white"
+                >
+                  <Filter className="w-4 h-4 mr-2" />
+                  {t('parts.filters') || 'Filters'}
+                </Button>
+              </div>
+              <AnimatePresence>
+                {showFilters && (
+                  <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }}>
+                    <PartFilters mode="recommended" filters={recFilters} onFiltersChange={setRecFilters} />
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            </div>
+
+            {recLoading ? (
+              <div className="flex items-center justify-center py-20">
+                <Loader2 className="w-8 h-8 animate-spin text-orange-500" />
+              </div>
+            ) : recommended.length === 0 ? (
+              <div className="text-center py-16 max-w-lg mx-auto">
+                <div className="w-20 h-20 rounded-2xl bg-gradient-to-br from-orange-500/20 to-orange-600/20 flex items-center justify-center mx-auto mb-6">
+                  <Bookmark className="w-10 h-10 text-orange-500" />
+                </div>
+                <h3 className="text-2xl font-bold text-white mb-3">{t('parts.noSaved') || 'No Saved Parts'}</h3>
+                <p className="text-white/60 mb-8">
+                  Parts recommended by diagnostics are automatically saved here. You can also save parts from search results.
+                </p>
+                <Button onClick={() => navigate('/Diagnostics')} className="bg-gradient-to-r from-orange-500 to-orange-600 hover:from-orange-600 hover:to-orange-700 h-12 px-6">
+                  <Wrench className="w-5 h-5 mr-2" />
+                  {t('parts.startDiagnostics') || 'Start Diagnostics'}
+                </Button>
+              </div>
+            ) : (
+              <>
+                <div className="mb-4 text-sm text-white/60">
+                  {recommended.length} saved {recommended.length !== 1 ? 'parts' : 'part'}
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                  {recommended.map(part => (
+                    <PartCard
+                      key={part.id}
+                      part={part}
+                      variant="recommended"
+                      onClick={() => handlePartClick(part)}
+                      onDelete={() => handleDeleteRec(part.id)}
+                    />
+                  ))}
+                </div>
+              </>
+            )}
           </TabsContent>
         </Tabs>
       </div>

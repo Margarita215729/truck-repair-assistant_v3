@@ -82,6 +82,20 @@ export async function saveAIPartRecommendations(suggestedParts, truckContext = {
         truck_context: truckContext,
         related_error_codes: errorCodes.length > 0 ? errorCodes.slice(0, 10) : [],
         source: 'ai_diagnostic',
+        // Decision fields (new)
+        oem_part_number: (part.oem_part_number || '').trim().toUpperCase() || null,
+        alt_part_numbers: part.alt_part_numbers || [],
+        root_cause_confidence: part.root_cause_confidence || null,
+        urgency: part.urgency || null,
+        driveability: part.driveability || null,
+        action_type: part.action_type || null,
+        roadside_possible: part.roadside_possible ?? null,
+        shop_required: part.shop_required ?? null,
+        programming_required: part.programming_required ?? null,
+        inspection_steps: part.inspection_steps || [],
+        pair_with_parts: part.pair_with_parts || [],
+        bundle_label: part.bundle_label || null,
+        fitment_status: part.fitment_status || null,
       };
 
       const saved = await entities.Part.create(record);
@@ -113,6 +127,15 @@ export async function getMyRecommendedParts(filters = {}) {
     }
     if (filters.difficulty && filters.difficulty !== 'all') {
       results = results.filter(p => p.installation_difficulty === filters.difficulty);
+    }
+    if (filters.urgency && filters.urgency !== 'all') {
+      results = results.filter(p => p.urgency === filters.urgency);
+    }
+    if (filters.driveability && filters.driveability !== 'all') {
+      results = results.filter(p => p.driveability === filters.driveability);
+    }
+    if (filters.action_type && filters.action_type !== 'all') {
+      results = results.filter(p => p.action_type === filters.action_type);
     }
 
     return results;
