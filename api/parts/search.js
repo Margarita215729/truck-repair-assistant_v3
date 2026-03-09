@@ -90,6 +90,8 @@ function normalizeFinditPartsListing(item, partNumber, searchQuery) {
 
 // ─── eBay OAuth Token Cache ──────────────────────────────────────────
 
+// NOTE: In-memory cache is per-instance on serverless (Vercel). Each cold start
+// fetches a new token. For high-traffic, consider an external store (e.g. KV).
 let ebayTokenCache = { token: null, expiresAt: 0 };
 
 async function getEbayAccessToken() {
@@ -276,7 +278,7 @@ function buildSearchUrls(partNumber, query, make) {
     amazon: `https://www.amazon.com/s?k=${encoded}+truck+parts`,
   };
 
-  // Filter OEM URLs by make if specified
+  // Filter OEM URLs by make — promote matched OEM to first position
   if (make) {
     const makeLower = make.toLowerCase();
     const oemMap = {
@@ -286,11 +288,17 @@ function buildSearchUrls(partNumber, query, make) {
       volvo: 'volvoTrucks',
       mack: 'mackParts',
     };
-    // Keep only matched OEM or all if no match
     const matchedKey = Object.entries(oemMap).find(([k]) => makeLower.includes(k))?.[1];
-    if (matchedKey) {
-      // Move matched OEM to a prominent position (already first by object order)
-      // Leave others for reference
+    if (matchedKey && urls[matchedKey]) {
+      // Rebuild urls with the matched OEM vendor first, remove others
+      const matchedUrl = urls[matchedKey];
+      const oemKeys = new Set(Object.values(oemMap));
+      const filtered = {};
+      filtered[matchedKey] = matchedUrl;
+      for (const [k, v] of Object.entries(urls)) {
+        if (!oemKeys.has(k)) filtered[k] = v;
+      }
+      return filtered;
     }
   }
 

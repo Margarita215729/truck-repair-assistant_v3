@@ -13,7 +13,10 @@ import {
   ShoppingCart,
   ExternalLink,
   AlertCircle,
-  Info
+  Info,
+  ShieldCheck,
+  AlertTriangle,
+  Car
 } from 'lucide-react';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { getSearchUrls, VENDOR_INFO } from '@/services/vendorService';
@@ -29,6 +32,13 @@ const importanceColors = {
   required: 'border-red-500/30 text-red-400',
   recommended: 'border-orange-500/30 text-orange-400',
   optional: 'border-white/20 text-white/60'
+};
+
+const tierBadgeColors = {
+  1: 'bg-green-500/20 text-green-400 border-green-500/30',
+  2: 'bg-blue-500/20 text-blue-400 border-blue-500/30',
+  3: 'bg-yellow-500/20 text-yellow-400 border-yellow-500/30',
+  4: 'bg-white/10 text-white/60 border-white/20',
 };
 
 export default function ComparePartsModal({ parts, open, onClose }) {
@@ -80,6 +90,41 @@ export default function ComparePartsModal({ parts, open, onClose }) {
                 </div>
               ))}
             </div>
+
+            {/* ─── VENDOR: Trust Tier & Fitment ─── */}
+            {isVendorCompare && (
+              <div>
+                <h3 className="text-sm font-semibold text-white/90 mb-3 flex items-center gap-2">
+                  <ShieldCheck className="w-4 h-4 text-green-400" />
+                  Trust & Fitment
+                </h3>
+                <div className="grid gap-4" style={{ gridTemplateColumns: `repeat(${parts.length}, 1fr)` }}>
+                  {parts.map((part, idx) => (
+                    <div key={idx} className="p-4 rounded-lg bg-white/5 border border-white/10 text-center space-y-2">
+                      {part.sourceTier && (
+                        <Badge variant="outline" className={`${tierBadgeColors[part.sourceTier] || tierBadgeColors[4]} w-full justify-center`}>
+                          {part.sourceTier === 1 && <ShieldCheck className="w-3 h-3 mr-1" />}
+                          Tier {part.sourceTier}
+                        </Badge>
+                      )}
+                      {part.isOEM && (
+                        <Badge variant="outline" className="border-green-500/30 text-green-400 w-full justify-center">OEM</Badge>
+                      )}
+                      {part.fitmentConfidence && part.fitmentConfidence !== 'unknown' && (
+                        <p className={`text-xs ${part.fitmentConfidence === 'exact' || part.fitmentConfidence === 'high' ? 'text-green-400' : 'text-yellow-400'}`}>
+                          Fitment: {part.fitmentConfidence}
+                        </p>
+                      )}
+                      {part.counterfeitRisk === 'high' && (
+                        <p className="text-xs text-red-400 flex items-center justify-center gap-1">
+                          <AlertTriangle className="w-3 h-3" /> Counterfeit risk
+                        </p>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
 
             {/* ─── VENDOR: Price Comparison ─── */}
             {isVendorCompare && (

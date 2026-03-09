@@ -349,6 +349,16 @@ export default {
     alsoSearchOn: 'Also search on',
     extendedResults: 'Extended results',
     recommendations: 'Recommendations',
+    recommendation: 'recommendation',
+    selected: 'selected',
+    maxCompare: 'Maximum 4 items for comparison',
+    listing: 'listing',
+    listings: 'listings',
+    foundLower: 'found',
+    buyFastDesc: 'Browse vendor links grouped by trust level, or search for a part to see live listings here.',
+    noTierListings: 'No listings in this tier. Check the search links above.',
+    savedParts: 'saved parts',
+    savedPart: 'saved part',
   },
 
   // ─── Service Finder ───

@@ -116,26 +116,25 @@ export async function saveAIPartRecommendations(suggestedParts, truckContext = {
  */
 export async function getMyRecommendedParts(filters = {}) {
   try {
-    // Use entityService which auto-scopes by user_id via RLS
-    let results = await entities.Part.list('-created_at', 100);
+    // Build server-side filter for Supabase to avoid fetching all rows
+    const dbFilter = {};
+    if (filters.category && filters.category !== 'all') dbFilter.category = filters.category;
+    if (filters.importance && filters.importance !== 'all') dbFilter.importance = filters.importance;
+    if (filters.urgency && filters.urgency !== 'all') dbFilter.urgency = filters.urgency;
+    if (filters.driveability && filters.driveability !== 'all') dbFilter.driveability = filters.driveability;
+    if (filters.action_type && filters.action_type !== 'all') dbFilter.action_type = filters.action_type;
 
-    if (filters.category && filters.category !== 'all') {
-      results = results.filter(p => p.category === filters.category);
+    // If we have filters, use filter() to push them to Supabase; otherwise list()
+    let results;
+    if (Object.keys(dbFilter).length > 0) {
+      results = await entities.Part.filter(dbFilter);
+    } else {
+      results = await entities.Part.list('-created_at', 100);
     }
-    if (filters.importance && filters.importance !== 'all') {
-      results = results.filter(p => p.importance === filters.importance);
-    }
+
+    // installation_difficulty isn't indexed; filter client-side only if needed
     if (filters.difficulty && filters.difficulty !== 'all') {
       results = results.filter(p => p.installation_difficulty === filters.difficulty);
-    }
-    if (filters.urgency && filters.urgency !== 'all') {
-      results = results.filter(p => p.urgency === filters.urgency);
-    }
-    if (filters.driveability && filters.driveability !== 'all') {
-      results = results.filter(p => p.driveability === filters.driveability);
-    }
-    if (filters.action_type && filters.action_type !== 'all') {
-      results = results.filter(p => p.action_type === filters.action_type);
     }
 
     return results;
@@ -155,15 +154,17 @@ export async function deleteRecommendation(id) {
 
 export async function getRecommendedStats() {
   try {
-    // Use entityService which auto-scopes by user_id via RLS
-    const data = await entities.Part.list('-created_at', 500);
-    if (!data?.length) return { total: 0, categories: {} };
+    // Get total count server-side instead of fetching all rows
+    const total = await entities.Part.count();
+    if (!total) return { total: 0, categories: {} };
 
+    // Fetch only id + category for aggregation (still needed for breakdown)
+    const data = await entities.Part.list('-created_at', 500);
     const categories = {};
-    for (const part of data) {
+    for (const part of (data || [])) {
       categories[part.category] = (categories[part.category] || 0) + 1;
     }
-    return { total: data.length, categories };
+    return { total, categories };
   } catch {
     return { total: 0, categories: {} };
   }
