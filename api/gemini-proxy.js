@@ -289,7 +289,7 @@ export default async function handler(req, res) {
       console.error('Gemini API error:', response.status, errorText);
 
       // Parse Gemini error for actionable detail
-      let detail = 'Vision service temporarily unavailable';
+      let detail = 'Vision AI service temporarily unavailable';
       try {
         const errObj = JSON.parse(errorText);
         const msg = errObj?.error?.message || '';
