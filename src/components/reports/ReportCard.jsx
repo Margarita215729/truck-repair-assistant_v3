@@ -8,19 +8,26 @@ import {
   Truck, 
   AlertCircle, 
   ChevronRight,
-  Download,
   Trash2
 } from 'lucide-react';
 import { format } from 'date-fns';
 import { motion } from 'framer-motion';
+import {
+  getReportSummary,
+  getVehicleInfo,
+  getReportUrgency,
+  getActiveCodeCount,
+  getSeverityTriage,
+  getReportFormat,
+} from '@/utils/reportAdapters';
 
 export default function ReportCard({ report, onClick, onDelete }) {
-  const rd = report.report_data || {};
-  const isNewFormat = rd.report_type === 'INTAKE_Triage_Roadside';
-  
-  // New format: use severity_triage; old format: use identified_issues
-  const urgency = rd.severity_triage?.overall_urgency;
-  const issueCount = report.identified_issues?.length || rd.conclusions?.length || 0;
+  const summary = getReportSummary(report);
+  const vehicle = getVehicleInfo(report);
+  const urgency = getReportUrgency(report);
+  const activeCount = getActiveCodeCount(report);
+  const triage = getSeverityTriage(report);
+  const fmt = getReportFormat(report);
 
   const urgencyBadge = {
     high: 'bg-red-500/20 text-red-400 border-red-500/30',
@@ -28,15 +35,7 @@ export default function ReportCard({ report, onClick, onDelete }) {
     low: 'bg-blue-500/20 text-blue-400 border-blue-500/30',
   };
 
-  // Card summary text
-  const summaryText = isNewFormat
-    ? (rd.conclusions?.[0]?.statement || rd.verified_facts?.[0] || report.diagnosis_summary || 'Intake & Triage Report')
-    : report.diagnosis_summary;
-
-  const vehicleInfo = isNewFormat
-    ? rd.vehicle_info
-    : report.truck_info;
-
+  const vehicleLabel = [vehicle.year, vehicle.make, vehicle.model].filter(Boolean).join(' ');
   const reportDate = report.created_date || report.created_at || Date.now();
 
   return (
@@ -53,14 +52,19 @@ export default function ReportCard({ report, onClick, onDelete }) {
             
             <div className="min-w-0">
               <h3 className="font-semibold text-white truncate pr-4">
-                {summaryText?.substring(0, 80)}{summaryText?.length > 80 ? '...' : ''}
+                {summary ? `${summary.substring(0, 80)}${summary.length > 80 ? '...' : ''}` : 'Report (no summary)'}
               </h3>
               
               <div className="flex items-center gap-3 mt-2 flex-wrap">
-                {vehicleInfo?.make && (
+                {/* Format badge */}
+                <Badge variant="outline" className={`text-[10px] ${fmt === 'new' ? 'border-green-500/30 text-green-400' : 'border-white/15 text-white/40'}`}>
+                  {fmt === 'new' ? 'New' : 'Legacy'}
+                </Badge>
+
+                {vehicleLabel && (
                   <Badge variant="outline" className="bg-white/5 border-white/20 text-white/70">
                     <Truck className="w-3 h-3 mr-1" />
-                    {vehicleInfo.year_reported || vehicleInfo.year} {vehicleInfo.make} {vehicleInfo.model}
+                    {vehicleLabel}
                   </Badge>
                 )}
 
@@ -70,15 +74,15 @@ export default function ReportCard({ report, onClick, onDelete }) {
                     {urgency.toUpperCase()}
                   </Badge>
                 )}
-                
-                {!urgency && issueCount > 0 && (
-                  <Badge className="bg-yellow-500/20 text-yellow-400 border-yellow-500/30 border">
+
+                {activeCount > 0 && (
+                  <Badge className="bg-red-500/20 text-red-400 border-red-500/30 border text-xs">
                     <AlertCircle className="w-3 h-3 mr-1" />
-                    {issueCount} item{issueCount !== 1 ? 's' : ''}
+                    {activeCount} code{activeCount !== 1 ? 's' : ''}
                   </Badge>
                 )}
 
-                {rd.severity_triage?.tow_recommended && (
+                {triage?.tow_recommended && (
                   <Badge className="bg-red-500/20 text-red-400 border-red-500/30 border text-xs">
                     TOW
                   </Badge>

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { entities } from '@/services/entityService';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Button } from '@/components/ui/button';
@@ -17,11 +17,18 @@ import { createPageUrl } from '@/utils';
 
 import ReportCard from '@/components/reports/ReportCard';
 import ReportDetail from '@/components/reports/ReportDetail';
+import ReportFilters from '@/components/reports/ReportFilters';
 import { useLanguage } from '@/lib/LanguageContext';
+import { matchesReportSearch, matchesReportFilters } from '@/utils/reportSearch';
+import { getVehicleInfo } from '@/utils/reportAdapters';
+
+const PAGE_SIZE = 30;
 
 export default function Reports() {
   const { t } = useLanguage();
   const [searchQuery, setSearchQuery] = useState('');
+  const [filters, setFilters] = useState({});
+  const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
   const [selectedReport, setSelectedReport] = useState(null);
   const [showDetail, setShowDetail] = useState(false);
 
@@ -29,7 +36,7 @@ export default function Reports() {
 
   const { data: reports = [], isLoading } = useQuery({
     queryKey: ['diagnostic-reports'],
-    queryFn: () => entities.DiagnosticReport.list('-created_at', 50),
+    queryFn: () => entities.DiagnosticReport.list('-created_at', 200),
   });
 
   const deleteMutation = useMutation({
@@ -43,15 +50,23 @@ export default function Reports() {
     }
   });
 
-  const filteredReports = reports.filter(report => {
-    if (!searchQuery) return true;
-    const query = searchQuery.toLowerCase();
-    return (
-      report.diagnosis_summary?.toLowerCase().includes(query) ||
-      report.truck_info?.make?.toLowerCase().includes(query) ||
-      report.truck_info?.model?.toLowerCase().includes(query)
+  const uniqueMakes = useMemo(() => {
+    const makes = new Set();
+    reports.forEach(r => {
+      const v = getVehicleInfo(r);
+      if (v.make) makes.add(v.make);
+    });
+    return [...makes].sort();
+  }, [reports]);
+
+  const filteredReports = useMemo(() => {
+    return reports.filter(r =>
+      matchesReportSearch(r, searchQuery) && matchesReportFilters(r, filters)
     );
-  });
+  }, [reports, searchQuery, filters]);
+
+  const visibleReports = filteredReports.slice(0, visibleCount);
+  const hasMore = visibleCount < filteredReports.length;
 
   const handleViewReport = (report) => {
     setSelectedReport(report);
@@ -73,7 +88,9 @@ export default function Reports() {
             <div>
               <h1 className="text-2xl font-bold text-white">{t('reports.title')}</h1>
               <p className="text-white/60 text-sm mt-1">
-                {reports.length} {reports.length !== 1 ? t('reports.reports_plural') : t('reports.report')}
+                {filteredReports.length === reports.length
+                  ? `${reports.length} ${reports.length !== 1 ? t('reports.reports_plural') : t('reports.report')}`
+                  : `${filteredReports.length} of ${reports.length} ${t('reports.reports_plural')}`}
               </p>
             </div>
             
@@ -91,11 +108,16 @@ export default function Reports() {
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-white/40" />
               <Input
                 value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
+                onChange={(e) => { setSearchQuery(e.target.value); setVisibleCount(PAGE_SIZE); }}
                 placeholder={t('reports.searchPlaceholder')}
                 className="pl-10 h-11 bg-white/5 border-white/10 text-white placeholder:text-white/40"
               />
             </div>
+            <ReportFilters
+              filters={filters}
+              onChange={(f) => { setFilters(f); setVisibleCount(PAGE_SIZE); }}
+              makes={uniqueMakes}
+            />
           </div>
         </div>
       </div>
@@ -133,7 +155,7 @@ export default function Reports() {
         ) : (
           <div className="space-y-4">
             <AnimatePresence>
-              {filteredReports.map((report, index) => (
+              {visibleReports.map((report, index) => (
                 <motion.div
                   key={report.id}
                   initial={{ opacity: 0, y: 10 }}
@@ -148,6 +170,17 @@ export default function Reports() {
                 </motion.div>
               ))}
             </AnimatePresence>
+            {hasMore && (
+              <div className="flex justify-center pt-4">
+                <Button
+                  variant="outline"
+                  className="border-white/20 hover:bg-white/10 text-white/70"
+                  onClick={() => setVisibleCount(prev => prev + PAGE_SIZE)}
+                >
+                  Load more ({filteredReports.length - visibleCount} remaining)
+                </Button>
+              </div>
+            )}
           </div>
         )}
       </div>

@@ -933,13 +933,13 @@ Focus on:
                 transmission: { type: ["string", "null"] },
                 mileage_reported: { type: ["string", "null"] },
                 vin: { type: ["string", "null"] },
-                vin_status: { type: "string", enum: ["provided", "unavailable", "unknown"] }
+                vin_status: { type: "string", enum: ["provided", "invalid", "unavailable", "unknown"] }
               }
             },
             fault_codes: {
               type: "object",
               properties: {
-                dtc_status: { type: "string", enum: ["active_reported", "history_only", "none_reported", "unknown"] },
+                dtc_status: { type: "string", enum: ["active_present", "active_reported", "history_only", "none_reported", "unavailable", "unknown"] },
                 active_codes: {
                   type: "array",
                   items: {
@@ -1077,6 +1077,20 @@ Focus on:
         recommendations: (response.conclusions || []).map(c => c.recommended_action_now),
         estimated_costs: null,
         sources: [],
+        metadata: {
+          schema_version: '1.0',
+          normalization_version: '1.0',
+          model_version: 'gpt-4o-roadside-triage',
+          generation_timestamp: new Date().toISOString(),
+          raw_input_snapshot: { message_count: messages.length, has_truck: !!truck },
+          normalized_input_snapshot: normalized,
+          generation_context: {
+            mode: roadsideContext?.mode || 'roadside',
+            conversation_length: messages.length,
+            has_truck_profile: !!truck,
+            has_roadside_context: !!roadsideContext,
+          },
+        },
       });
 
       toast.success(t('diagnostics.reportGenerated'));
