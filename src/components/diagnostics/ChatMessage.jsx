@@ -201,11 +201,11 @@ export default function ChatMessage({ message, onPartClick, onAnswerQuestion, on
           </div>
         )}
 
-        {/* Error State (AI service unavailable) */}
+        {/* Error State (service unavailable) */}
         {message.isError && (
           <div className="mt-2 px-3 py-2 bg-red-500/10 border border-red-500/20 rounded-xl flex items-center gap-2">
             <AlertTriangle className="w-4 h-4 text-red-400 shrink-0" />
-            <span className="text-xs text-red-300/80">AI service error — please try again.</span>
+            <span className="text-xs text-red-300/80">Service temporarily unavailable — please try again.</span>
           </div>
         )}
 
