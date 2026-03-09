@@ -6,6 +6,7 @@ import { Package, DollarSign, Wrench, ExternalLink, Search, Loader2, Trash2, Sho
 import { motion } from 'framer-motion';
 import { Checkbox } from '@/components/ui/checkbox';
 import { searchVendorsForPart, getSearchUrls, VENDOR_INFO, aggregateListings, SOURCE_TIER_LABELS } from '@/services/vendorService';
+import { isConstructedUrl } from '@/services/researchService';
 
 const categoryIcons = {
   engine: '🔧', transmission: '⚙️', brakes: '🛑', electrical: '⚡',
@@ -346,7 +347,8 @@ export default function PartCard({ part, variant = 'recommended', onClick, onDel
                         target="_blank"
                         rel="noopener noreferrer"
                         onClick={(e) => e.stopPropagation()}
-                        className="text-[10px] text-white/40 hover:text-white/70 underline capitalize"
+                        className={`text-[10px] hover:text-white/70 underline capitalize ${isConstructedUrl(url) ? 'text-yellow-400/40' : 'text-white/40'}`}
+                        title={isConstructedUrl(url) ? 'Link may not lead to a valid search page' : undefined}
                       >
                         {key === 'googleShopping' ? 'Google' : key}
                       </a>

@@ -21,6 +21,7 @@ import {
   Package
 } from 'lucide-react';
 import { searchVendorsForPart, searchVendors, getSearchUrls, aggregateListings, VENDOR_INFO, SOURCE_TIER_LABELS } from '@/services/vendorService';
+import { isConstructedUrl, resolveOEMLinks, getTrustedVendorLinks, TRUST_TIERS } from '@/services/researchService';
 
 const categoryIcons = {
   engine: '🔧', transmission: '⚙️', brakes: '🛑', electrical: '⚡',
@@ -41,9 +42,22 @@ const importanceConfig = {
   optional: { color: 'text-white/60', border: 'border-white/20', label: 'Optional' }
 };
 
+import { useTruck } from '@/lib/TruckContext';
+
 export default function PartDetailModal({ part, open, onClose }) {
   const [vendorResults, setVendorResults] = useState(null);
   const [vendorLoading, setVendorLoading] = useState(false);
+  const { truck } = useTruck();
+
+  const make = truck?.make || part?.truck_make || '';
+
+  // Get verified OEM links for the truck make (zero-cost, synchronous)
+  const oemLinks = make ? resolveOEMLinks(make) : [];
+  // Get verified vendor links (only vendors with known working search endpoints)
+  const trustedVendorLinks = getTrustedVendorLinks(
+    part?.part_number || part?.partNumber || '',
+    part?.name || part?.title || ''
+  );
 
   if (!part) return null;
 
@@ -375,6 +389,58 @@ export default function PartDetailModal({ part, open, onClose }) {
             )}
           </div>
 
+          {/* ─── VERIFIED OEM RESOURCES (when make is known) ─── */}
+          {oemLinks.length > 0 && (
+            <div className="pt-4 border-t border-white/10">
+              <div className="flex items-center gap-2 mb-3">
+                <Truck className="w-4 h-4 text-green-400" />
+                <span className="text-sm font-semibold text-green-400/90">Verified {make} Resources</span>
+                <Badge variant="outline" className="text-[10px] border-green-500/30 text-green-400">Tier 1 — Official</Badge>
+              </div>
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                {oemLinks.map((link) => (
+                  <a
+                    key={link.url}
+                    href={link.url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex items-center gap-2 p-3 rounded-lg bg-green-500/10 hover:bg-green-500/15 border border-green-500/20 hover:border-green-500/30 transition-all"
+                  >
+                    <span className="text-lg">🔗</span>
+                    <span className="text-sm font-medium text-green-400 truncate">{link.label}</span>
+                    <ExternalLink className="w-3 h-3 text-green-400/30 ml-auto flex-shrink-0" />
+                  </a>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* ─── TRUSTED VENDOR LINKS (verified search endpoints) ─── */}
+          {trustedVendorLinks.length > 0 && (
+            <div className="pt-4 border-t border-white/10">
+              <div className="flex items-center gap-2 mb-3">
+                <Package className="w-4 h-4 text-blue-400" />
+                <span className="text-sm font-semibold text-white/80">Verified Vendor Links</span>
+                <Badge variant="outline" className="text-[10px] border-blue-500/30 text-blue-400">Working Endpoints</Badge>
+              </div>
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                {trustedVendorLinks.map((link) => (
+                  <a
+                    key={link.url}
+                    href={link.url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex items-center gap-2 p-3 rounded-lg bg-blue-500/10 hover:bg-blue-500/15 border border-blue-500/20 hover:border-blue-500/30 transition-all"
+                  >
+                    <span className="text-lg">🔧</span>
+                    <span className="text-sm font-medium text-blue-400 truncate">{link.label}</span>
+                    <ExternalLink className="w-3 h-3 text-blue-400/30 ml-auto flex-shrink-0" />
+                  </a>
+                ))}
+              </div>
+            </div>
+          )}
+
           {/* ─── ALSO SEARCH ON (always visible) ─── */}
           <div className="pt-4 border-t border-white/10">
             <div className="flex items-center gap-2 mb-3">
@@ -384,6 +450,7 @@ export default function PartDetailModal({ part, open, onClose }) {
             <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
               {Object.entries(searchUrls).map(([key, url]) => {
                 const info = VENDOR_INFO[key] || { name: key, icon: '🔗', color: 'text-white/70', bgColor: 'bg-white/5' };
+                const constructed = isConstructedUrl(url);
                 return (
                   <a
                     key={key}
@@ -394,7 +461,10 @@ export default function PartDetailModal({ part, open, onClose }) {
                   >
                     <span className="text-lg">{info.icon}</span>
                     <span className={`text-sm font-medium ${info.color}`}>{info.name}</span>
-                    <ExternalLink className="w-3 h-3 text-white/30 ml-auto" />
+                    {constructed && (
+                      <span title="URL may not lead to a valid search page" className="text-[10px] text-yellow-400/60">⚠</span>
+                    )}
+                    <ExternalLink className="w-3 h-3 text-white/30 ml-auto flex-shrink-0" />
                   </a>
                 );
               })}

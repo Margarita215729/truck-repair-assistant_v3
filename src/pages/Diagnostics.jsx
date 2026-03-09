@@ -31,6 +31,7 @@ import { useTruck } from '@/lib/TruckContext';
 import { buildNormalizedPayload } from '@/utils/normalizeIntake';
 import { saveAIPartRecommendations } from '@/services/partsService';
 import { searchForums, formatForumContext } from '@/services/forumSearchService';
+import { resolveOfficialLinks } from '@/services/researchService';
 import { getTruckStateSnapshot, connectProvider } from '@/services/telematics/telematicsService';
 import TruckStatePanel from '@/components/diagnostics/TruckStatePanel';
 import ScanTruckButton from '@/components/diagnostics/ScanTruckButton';
@@ -417,8 +418,8 @@ export default function Diagnostics() {
     try {
       const contextPrompt = buildContextPrompt();
       
-      // Run community solutions fetch, forum search, and truck state fetch in parallel
-      const [communitySolutions, forumSearchResult, truckStateResult] = await Promise.all([
+      // Run community solutions fetch, forum search, truck state fetch, and OEM link resolution in parallel
+      const [communitySolutions, forumSearchResult, truckStateResult, officialLinksResult] = await Promise.all([
         // Fetch relevant community solutions from local KnowledgeBase
         (async () => {
           try {
@@ -460,6 +461,17 @@ export default function Diagnostics() {
             return null;
           }
         })(),
+
+        // Resolve OEM official links for the truck make (non-blocking)
+        (async () => {
+          try {
+            const make = truck?.make || activeToolkit?.truck_make;
+            if (!make) return { officialLinks: [], dealerLinks: [] };
+            return await resolveOfficialLinks(make);
+          } catch {
+            return { officialLinks: [], dealerLinks: [] };
+          }
+        })(),
       ]);
       
       let communitySolutionsContext = '';
@@ -479,6 +491,19 @@ export default function Diagnostics() {
       
       // Format real forum search results (may be empty if CSE not configured or timed out)
       const forumContext = formatForumContext(forumSearchResult?.results || []);
+
+      // Format verified OEM links context for the prompt
+      let officialLinksContext = '';
+      const allOfficialLinks = [
+        ...(officialLinksResult?.officialLinks || []),
+        ...(officialLinksResult?.dealerLinks || []),
+      ];
+      if (allOfficialLinks.length > 0) {
+        officialLinksContext = '\n\n🔗 VERIFIED MANUFACTURER LINKS (use these instead of guessing URLs):\n';
+        allOfficialLinks.forEach(link => {
+          officialLinksContext += `- ${link.label}: ${link.url}\n`;
+        });
+      }
 
       // Format truck state context for the prompt (direct from fetch result)
       let truckStateContext = '';
@@ -511,6 +536,7 @@ export default function Diagnostics() {
 ${contextPrompt}
 ${communitySolutionsContext}
 ${forumContext}
+${officialLinksContext}
 ${truckStateContext}
 
 COMMUNICATION RULES:
@@ -734,6 +760,7 @@ User: ${messageText}${audioUrl ? '\n[User has attached an audio recording of eng
           suggested_parts: 'model_inference',
           community_matches: communitySolutions.length > 0 ? 'community_solution' : null,
           forum: forumSearchResult?.results?.length > 0 ? 'forum_derived' : null,
+          officialLinks: allOfficialLinks.length > 0 ? 'verified_official' : null,
           truckState: truckStateResult?.snapshot ? 'confirmed_telemetry' : null,
         },
       };
