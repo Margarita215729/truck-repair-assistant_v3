@@ -79,7 +79,7 @@ export async function invokeLLM({
       return parseResponse(data, response_json_schema);
     }
 
-    const err = new Error('AI service unavailable — no active session.');
+    const err = new Error('Diagnostic service unavailable — no active session.');
     err.code = 'NO_AI_SERVICE';
     throw err;
   } catch (error) {

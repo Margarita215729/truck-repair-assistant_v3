@@ -63,7 +63,8 @@ export default async function handler(req, res) {
 
     const githubToken = process.env.GITHUB_TOKEN;
     if (!githubToken) {
-      return res.status(500).json({ error: 'AI service not configured' });
+      console.error('GITHUB_TOKEN environment variable is not set');
+      return res.status(500).json({ error: 'Diagnostic service not configured' });
     }
 
     // Call GitHub Models API
@@ -85,7 +86,7 @@ export default async function handler(req, res) {
     if (!response.ok) {
       const errorText = await response.text();
       console.error('GitHub Models API error:', response.status, errorText);
-      return res.status(502).json({ error: 'AI service temporarily unavailable' });
+      return res.status(502).json({ error: 'Diagnostic service temporarily unavailable' });
     }
 
     const data = await response.json();
