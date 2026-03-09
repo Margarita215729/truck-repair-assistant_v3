@@ -126,7 +126,7 @@ function FaultCard({ fault, interpretation }) {
               </div>
               {aiAnalysis && (
                 <div className="space-y-1.5 mt-2">
-                  <p className="text-xs text-white/40">AI Analysis:</p>
+                  <p className="text-xs text-white/40">System Analysis:</p>
                   {aiAnalysis.system && <p className="text-xs text-white/60">System: <span className="text-white/80">{aiAnalysis.system}</span></p>}
                   {aiAnalysis.description && <p className="text-xs text-white/80">{aiAnalysis.description}</p>}
                   {aiAnalysis.probable_cause && (

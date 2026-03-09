@@ -79,7 +79,7 @@ export async function invokeLLM({
       return parseResponse(data, response_json_schema);
     }
 
-    const err = new Error('AI service unavailable — no active session.');
+    const err = new Error('Diagnostic service unavailable — no active session.');
     err.code = 'NO_AI_SERVICE';
     throw err;
   } catch (error) {
@@ -112,16 +112,17 @@ async function callViaProxy(messages, schema, accessToken, model) {
 
   if (response.status === 429) {
     const err = await response.json().catch(() => ({}));
-    const error = new Error(err.error || 'Daily AI request limit reached');
+    const error = new Error(err.error || 'Daily request limit reached');
     error.status = 429;
     error.limit = err.limit;
     throw error;
   }
 
   if (!response.ok) {
-    const errorBody = await response.text().catch(() => 'no body');
-    console.error('AI proxy responded with error:', response.status, errorBody);
-    const err = new Error(`AI proxy error: ${response.status} — ${errorBody}`);
+    const errBody = await response.json().catch(() => null);
+    const detail = errBody?.error || `Proxy error ${response.status}`;
+    console.error('Diagnostic proxy responded with error:', response.status, detail);
+    const err = new Error(detail);
     err.status = response.status;
     throw err;
   }
@@ -313,7 +314,7 @@ async function callGeminiProxy(mediaRefs, prompt, truckContext, accessToken) {
   }
 
   if (response.status === 429) {
-    const error = new Error(bodyJson?.error || 'Daily AI request limit reached');
+    const error = new Error(bodyJson?.error || 'Daily request limit reached');
     error.status = 429;
     error.limit = bodyJson?.limit;
     throw error;

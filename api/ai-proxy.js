@@ -36,11 +36,11 @@ export default async function handler(req, res) {
       return res.status(401).json({ error: 'Invalid token' });
     }
 
-    // Check AI limit
+    // Check usage limit
     const { data: limitCheck } = await getSupabase().rpc('check_ai_limit', { p_user_id: user.id });
     if (limitCheck && !limitCheck.allowed) {
       return res.status(429).json({
-        error: 'Daily AI request limit reached',
+        error: 'Daily request limit reached',
         limit: limitCheck,
       });
     }
@@ -63,7 +63,8 @@ export default async function handler(req, res) {
 
     const githubToken = process.env.GITHUB_TOKEN;
     if (!githubToken) {
-      return res.status(500).json({ error: 'AI service not configured' });
+      console.error('GITHUB_TOKEN environment variable is not set');
+      return res.status(500).json({ error: 'Diagnostic service not configured' });
     }
 
     // Call GitHub Models API
@@ -85,7 +86,24 @@ export default async function handler(req, res) {
     if (!response.ok) {
       const errorText = await response.text();
       console.error('GitHub Models API error:', response.status, errorText);
-      return res.status(502).json({ error: 'AI service temporarily unavailable' });
+
+      // Parse the upstream error for an actionable detail
+      let detail = 'Diagnostic service temporarily unavailable';
+      try {
+        const errObj = JSON.parse(errorText);
+        const msg = errObj?.error?.message || errObj?.message || '';
+        if (response.status === 401 || response.status === 403) {
+          detail = 'GitHub token is invalid or lacks Models API access. Check GITHUB_TOKEN.';
+        } else if (response.status === 404) {
+          detail = `Model "${safeModel}" not found on GitHub Models. It may have been deprecated.`;
+        } else if (response.status === 429) {
+          detail = 'GitHub Models rate limit exceeded. Please try again in a moment.';
+        } else if (msg) {
+          detail = msg.slice(0, 200);
+        }
+      } catch { /* not JSON */ }
+
+      return res.status(502).json({ error: detail, upstream_status: response.status });
     }
 
     const data = await response.json();
@@ -94,12 +112,12 @@ export default async function handler(req, res) {
     try {
       await getSupabase().rpc('increment_ai_usage', { p_user_id: user.id });
     } catch (usageErr) {
-      console.warn('Failed to increment AI usage:', usageErr);
+      console.warn('Failed to increment usage:', usageErr);
     }
 
     return res.status(200).json(data);
   } catch (error) {
-    console.error('AI proxy error:', error);
+    console.error('Diagnostic proxy error:', error);
     return res.status(500).json({ error: 'Internal server error' });
   }
 }
