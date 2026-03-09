@@ -1,6 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import { getMyRecommendedParts, getRecommendedStats, deleteRecommendation } from '@/services/partsService';
-import { searchVendors, aggregateListings, vendorKeys, aiSearchParts, groupByTier, hasListings, VENDOR_INFO, SOURCE_TIER_LABELS } from '@/services/vendorService';
+import { searchVendors, aggregateListings, vendorKeys, aiSearchParts, groupByTier, hasListings, VENDOR_INFO, SOURCE_TIER_LABELS, getSearchUrls } from '@/services/vendorService';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
@@ -145,7 +145,7 @@ export default function PartsCatalog() {
       const exists = prev.find(p => (p.id || p.itemUrl) === (part.id || part.itemUrl));
       if (exists) return prev.filter(p => (p.id || p.itemUrl) !== (part.id || part.itemUrl));
       if (prev.length >= 4) {
-        toast.error('Maximum 4 items for comparison');
+        toast.error(t('parts.maxCompare') || 'Maximum 4 items for comparison');
         return prev;
       }
       return [...prev, part];
@@ -298,7 +298,7 @@ export default function PartsCatalog() {
     if (!compareMode || selectedForCompare.length === 0) return null;
     return (
       <div className="flex items-center justify-between p-3 bg-orange-500/10 border border-orange-500/30 rounded-xl mb-4">
-        <span className="text-sm text-white">{selectedForCompare.length} selected</span>
+        <span className="text-sm text-white">{selectedForCompare.length} {t('parts.selected') || 'selected'}</span>
         <div className="flex gap-2">
           <Button size="sm" onClick={() => setShowCompareModal(true)} disabled={selectedForCompare.length < 2} className="bg-orange-500 hover:bg-orange-600">
             Compare
@@ -430,7 +430,7 @@ export default function PartsCatalog() {
             ) : (
               <>
                 <div className="mb-4 text-sm text-white/60">
-                  {recommended.length} {recommended.length !== 1 ? 'recommendations' : 'recommendation'}
+                  {recommended.length} {recommended.length !== 1 ? (t('parts.recommendations') || 'recommendations') : (t('parts.recommendation') || 'recommendation')}
                 </div>
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                   {recommended.map(part => (
@@ -509,7 +509,7 @@ export default function PartsCatalog() {
                   <>
                     <div className="mb-4 flex items-center justify-between">
                       <span className="text-sm text-white/60">
-                        {vendorListings.length} {vendorListings.length !== 1 ? 'listings' : 'listing'} found
+                        {vendorListings.length} {vendorListings.length !== 1 ? (t('parts.listings') || 'listings') : (t('parts.listing') || 'listing')} {t('parts.foundLower') || 'found'}
                       </span>
                       <Button
                         variant={compareMode ? "default" : "outline"}
@@ -562,9 +562,13 @@ export default function PartsCatalog() {
                 <Zap className="w-16 h-16 mx-auto mb-4 text-white/20" />
                 <h3 className="text-xl font-semibold text-white mb-2">{t('parts.buyFastTitle') || 'Buy Fast — Tiered Results'}</h3>
                 <p className="text-white/60 mb-6">
-                  Search for a part first, then come here to see results grouped by trust level.
+                  {t('parts.buyFastDesc') || 'Browse vendor links grouped by trust level, or search for a part to see live listings here.'}
                 </p>
-                <Button onClick={() => setActiveTab('search')} className="bg-orange-500 hover:bg-orange-600">
+
+                {/* Always show constructed search URLs even without a search */}
+                {renderSearchUrls(getSearchUrls('', '', ''))}
+
+                <Button onClick={() => setActiveTab('search')} className="bg-orange-500 hover:bg-orange-600 mt-4">
                   <Search className="w-4 h-4 mr-2" />
                   {t('parts.tabSearch') || 'Search Parts'}
                 </Button>
@@ -600,7 +604,7 @@ export default function PartsCatalog() {
                           Tier {tier}
                         </Badge>
                         <span className="text-sm font-semibold text-white/80">{tierLabel}</span>
-                        <span className="text-xs text-white/40">({tierItems.length} {tierItems.length !== 1 ? 'listings' : 'listing'})</span>
+                        <span className="text-xs text-white/40">({tierItems.length} {tierItems.length !== 1 ? (t('parts.listings') || 'listings') : (t('parts.listing') || 'listing')})</span>
                       </div>
                       {tierItems.length > 0 ? (
                         <div className={`grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 p-4 rounded-xl border ${tierColors[tier]}`}>
@@ -615,7 +619,7 @@ export default function PartsCatalog() {
                         </div>
                       ) : (
                         <div className={`p-4 rounded-xl border ${tierColors[tier]} text-center`}>
-                          <p className="text-sm text-white/40">No listings in this tier. Check the search links above.</p>
+                          <p className="text-sm text-white/40">{t('parts.noTierListings') || 'No listings in this tier. Check the search links above.'}</p>
                         </div>
                       )}
                     </div>
