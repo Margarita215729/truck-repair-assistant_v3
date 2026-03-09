@@ -251,7 +251,7 @@ export default function Diagnostics() {
         });
       }
       if (truckStateInterpretation?.overall_assessment) {
-        context += `\nAI Assessment: ${truckStateInterpretation.overall_assessment}`;
+        context += `\nSystem Assessment: ${truckStateInterpretation.overall_assessment}`;
       }
     }
     
@@ -331,7 +331,7 @@ export default function Diagnostics() {
     }
 
     if (interpretation?.overall_assessment?.summary) {
-      summaryLines.push(`\n\uD83E\uDD16 AI Assessment: ${interpretation.overall_assessment.summary}`);
+      summaryLines.push(`\n\uD83E\uDD16 System Assessment: ${interpretation.overall_assessment.summary}`);
       if (interpretation.overall_assessment.safe_to_drive === false) {
         summaryLines.push('\u26A0\uFE0F **NOT SAFE TO DRIVE** — see immediate actions below.');
       }
@@ -525,7 +525,7 @@ export default function Diagnostics() {
           });
         }
         if (interp?.overall_assessment) {
-          truckStateContext += `\nAI Assessment: ${interp.overall_assessment}`;
+          truckStateContext += `\nSystem Assessment: ${interp.overall_assessment}`;
         }
         if (interp?.maintenance_recommendations?.length > 0) {
           truckStateContext += `\nRecommendations: ${interp.maintenance_recommendations.join('; ')}`;
@@ -820,14 +820,14 @@ User: ${messageText}${audioUrl ? '\n[User has attached an audio recording of eng
       const errorMessage = {
         role: 'assistant',
         content: error.code === 'NO_AI_SERVICE'
-          ? t('diagnostics.aiUnavailable') || 'AI service is currently unavailable. Please check your configuration and try again.'
-          : t('diagnostics.responseFailed') || 'Failed to get a response. Please try again.',
+          ? t('diagnostics.aiUnavailable') || 'Diagnostic service is currently unavailable. Please try again later.'
+          : error.message || t('diagnostics.responseFailed') || 'Failed to get a response. Please try again.',
         timestamp: new Date().toISOString(),
         _dataSource: 'system_error',
         isError: true,
       };
       setMessages(prev => [...prev, errorMessage]);
-      toast.error(t('diagnostics.responseFailed'));
+      toast.error(error.message || t('diagnostics.responseFailed'));
     } finally {
       setIsLoading(false);
     }

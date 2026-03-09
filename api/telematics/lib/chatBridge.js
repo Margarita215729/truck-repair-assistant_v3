@@ -34,7 +34,7 @@ export function formatForChat(snapshot, interpretation, truckContext) {
 
   if (interpretation?.overall_assessment) {
     const oa = interpretation.overall_assessment;
-    lines.push(`AI Assessment: ${oa.severity} — ${oa.safe_to_drive ? 'SAFE TO DRIVE' : '⚠️ NOT SAFE TO DRIVE'}`);
+    lines.push(`System Assessment: ${oa.severity} — ${oa.safe_to_drive ? 'SAFE TO DRIVE' : '⚠️ NOT SAFE TO DRIVE'}`);
     lines.push(`Summary: ${oa.summary}`);
     if (oa.immediate_actions?.length) {
       lines.push('Immediate Actions:');
@@ -76,7 +76,7 @@ export function formatForChat(snapshot, interpretation, truckContext) {
 
   // Signal anomalies from AI
   if (interpretation?.signal_anomalies?.length) {
-    lines.push('\n--- Signal Anomalies (AI-detected) ---');
+    lines.push('\n--- Signal Anomalies (Auto-detected) ---');
     for (const a of interpretation.signal_anomalies) {
       lines.push(`  [${a.concern_level?.toUpperCase()}] ${a.signal_name}: ${a.current_value} — ${a.note}`);
     }

@@ -267,7 +267,7 @@ Return 5-8 results.`,
     });
 
     const parts = (response?.parts || []).map((p, idx) => ({
-      vendor: 'AI Search',
+      vendor: 'Smart Search',
       title: p.title || query,
       partNumber: p.partNumber || '',
       price: p.priceMin || 0,
@@ -281,7 +281,7 @@ Return 5-8 results.`,
       location: '',
       sellerName: '',
       sellerRating: '',
-      listingType: 'AI Suggestion',
+      listingType: 'Suggested',
       brand: p.brand || '',
       description: p.description || '',
       compatibility: p.compatibility || '',

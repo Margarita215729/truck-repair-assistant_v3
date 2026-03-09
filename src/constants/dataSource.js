@@ -34,7 +34,7 @@ export const DATA_SOURCE = Object.freeze({
 export const DATA_SOURCE_LABEL = Object.freeze({
   [DATA_SOURCE.CONFIRMED_TELEMETRY]: 'Confirmed (Telematics)',
   [DATA_SOURCE.USER_REPORTED]:       'User-Reported',
-  [DATA_SOURCE.MODEL_INFERENCE]:     'AI Analysis',
+  [DATA_SOURCE.MODEL_INFERENCE]:     'System Analysis',
   [DATA_SOURCE.FORUM_DERIVED]:       'Forum / External',
   [DATA_SOURCE.COMMUNITY_SOLUTION]:  'Community',
   [DATA_SOURCE.REFERENCE_DATA]:      'Reference Data',

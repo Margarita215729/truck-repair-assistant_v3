@@ -209,7 +209,7 @@ export default async function handler(req, res) {
     // ── Rate limit ──
     const { data: limitCheck } = await getSupabase().rpc('check_ai_limit', { p_user_id: user.id });
     if (limitCheck && !limitCheck.allowed) {
-      return res.status(429).json({ error: 'Daily AI request limit reached', limit: limitCheck });
+      return res.status(429).json({ error: 'Daily request limit reached', limit: limitCheck });
     }
 
     // ── Parse request ──
@@ -289,7 +289,7 @@ export default async function handler(req, res) {
       console.error('Gemini API error:', response.status, errorText);
 
       // Parse Gemini error for actionable detail
-      let detail = 'Vision AI service temporarily unavailable';
+      let detail = 'Vision service temporarily unavailable';
       try {
         const errObj = JSON.parse(errorText);
         const msg = errObj?.error?.message || '';
@@ -310,7 +310,7 @@ export default async function handler(req, res) {
     // Extract text content from Gemini response
     const textContent = geminiData.candidates?.[0]?.content?.parts?.[0]?.text;
     if (!textContent) {
-      return res.status(502).json({ error: 'Empty response from Vision AI' });
+      return res.status(502).json({ error: 'Empty response from vision service' });
     }
 
     let result;
@@ -333,7 +333,7 @@ export default async function handler(req, res) {
     try {
       await getSupabase().rpc('increment_ai_usage', { p_user_id: user.id });
     } catch (usageErr) {
-      console.warn('Failed to increment AI usage:', usageErr);
+      console.warn('Failed to increment usage:', usageErr);
     }
 
     return res.status(200).json(result);
