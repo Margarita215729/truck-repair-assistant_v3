@@ -30,10 +30,13 @@ import TruckParkingCard from '@/components/services/TruckParkingCard';
 import WeighStationCard from '@/components/services/WeighStationCard';
 import TruckRestrictionCard from '@/components/services/TruckRestrictionCard';
 import { useLanguage } from '@/lib/LanguageContext';
+import { useTruck } from '@/lib/TruckContext';
 import { supabase } from '@/api/supabaseClient';
+import { resolveOEMLinks } from '@/services/researchService';
 
 export default function ServiceFinder() {
   const { t } = useLanguage();
+  const { truck } = useTruck();
   const [location, setLocation] = useState('');
   const [userCoords, setUserCoords] = useState(null);
   const [services, setServices] = useState([]);
@@ -498,6 +501,33 @@ export default function ServiceFinder() {
                     {t('common.refresh')}
                   </Button>
                 </div>
+
+                {/* OEM Dealer Locator links (when truck make is known) */}
+                {truck?.make && (() => {
+                  const dealerLinks = resolveOEMLinks(truck.make).filter(l => l.linkType === 'dealer_locator');
+                  if (dealerLinks.length === 0) return null;
+                  return (
+                    <div className="p-3 rounded-lg bg-green-500/5 border border-green-500/15">
+                      <p className="text-xs font-semibold text-green-400/80 mb-2">
+                        Official {truck.make} Dealer Locator
+                      </p>
+                      <div className="flex flex-wrap gap-2">
+                        {dealerLinks.map(link => (
+                          <a
+                            key={link.url}
+                            href={link.url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="inline-flex items-center gap-1.5 text-xs text-green-400 hover:text-green-300 underline"
+                          >
+                            <MapPin className="w-3 h-3" />
+                            {link.label}
+                          </a>
+                        ))}
+                      </div>
+                    </div>
+                  );
+                })()}
                 
                 <AnimatePresence>
                   {listItems.map((item, index) => (
