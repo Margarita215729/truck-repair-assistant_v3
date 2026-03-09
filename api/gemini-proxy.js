@@ -206,10 +206,33 @@ export default async function handler(req, res) {
       return res.status(401).json({ error: 'Invalid token' });
     }
 
-    // ── Rate limit ──
-    const { data: limitCheck } = await getSupabase().rpc('check_ai_limit', { p_user_id: user.id });
-    if (limitCheck && !limitCheck.allowed) {
-      return res.status(429).json({ error: 'Daily request limit reached', limit: limitCheck });
+    // ── Rate limit (direct query — service role cannot use auth.uid()-based RPCs) ──
+    const { data: sub } = await getSupabase()
+      .from('subscriptions')
+      .select('plan, status')
+      .eq('user_id', user.id)
+      .single();
+
+    const isPro = sub && ['pro', 'lifetime', 'owner', 'fleet'].includes(sub.plan)
+      && ['active', 'trialing'].includes(sub.status);
+
+    if (!isPro) {
+      const FREE_DAILY_LIMIT = 5;
+      const today = new Date().toISOString().split('T')[0];
+      const { data: usage } = await getSupabase()
+        .from('usage_tracking')
+        .select('ai_requests_count')
+        .eq('user_id', user.id)
+        .eq('date', today)
+        .single();
+
+      const used = usage?.ai_requests_count || 0;
+      if (used >= FREE_DAILY_LIMIT) {
+        return res.status(429).json({
+          error: 'Daily request limit reached',
+          limit: { allowed: false, plan: sub?.plan || 'free', used, limit: FREE_DAILY_LIMIT, remaining: 0 },
+        });
+      }
     }
 
     // ── Parse request ──
@@ -329,9 +352,23 @@ export default async function handler(req, res) {
       });
     }
 
-    // ── Track usage ──
+    // ── Track usage (direct upsert — service role cannot use auth.uid()-based RPCs) ──
     try {
-      await getSupabase().rpc('increment_ai_usage', { p_user_id: user.id });
+      const today = new Date().toISOString().split('T')[0];
+      const { data: cur } = await getSupabase()
+        .from('usage_tracking')
+        .select('ai_requests_count')
+        .eq('user_id', user.id)
+        .eq('date', today)
+        .single();
+
+      const newCount = (cur?.ai_requests_count || 0) + 1;
+      await getSupabase()
+        .from('usage_tracking')
+        .upsert(
+          { user_id: user.id, date: today, ai_requests_count: newCount },
+          { onConflict: 'user_id,date' }
+        );
     } catch (usageErr) {
       console.warn('Failed to increment usage:', usageErr);
     }
