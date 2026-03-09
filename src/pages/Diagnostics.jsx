@@ -820,7 +820,7 @@ User: ${messageText}${audioUrl ? '\n[User has attached an audio recording of eng
       const errorMessage = {
         role: 'assistant',
         content: error.code === 'NO_AI_SERVICE'
-          ? t('diagnostics.aiUnavailable') || 'Diagnostic service is currently unavailable. Please try again later.'
+          ? t('diagnostics.aiUnavailable') || 'AI service is currently unavailable. Please check your configuration and try again.'
           : t('diagnostics.responseFailed') || 'Failed to get a response. Please try again.',
         timestamp: new Date().toISOString(),
         _dataSource: 'system_error',
