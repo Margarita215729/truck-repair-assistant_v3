@@ -7,23 +7,39 @@
 
 /**
  * Compute vin_status from truck + context state.
- * @returns {"provided" | "unavailable" | "unknown"}
+ * @returns {"provided" | "invalid" | "unavailable" | "unknown"}
  */
 export function computeVinStatus(truck, roadsideContext) {
   const vin = roadsideContext?.vin || truck?.vin || truck?.details?.vin;
-  if (vin && vin.trim().length === 17) return 'provided';
-  return 'unavailable';
+  if (!vin || !vin.trim()) return 'unavailable';
+  if (vin.trim().length === 17) return 'provided';
+  // Non-empty but wrong length → invalid format
+  return 'invalid';
 }
 
 /**
  * Compute dtc_status from codes + context state.
- * @returns {"active_reported" | "history_only" | "none_reported" | "unknown"}
+ * @returns {"active_present" | "history_only" | "none_reported" | "unavailable" | "unknown"}
  */
 export function computeDtcStatus(activeCodes = [], historyCodes = [], noCodesAvailable = false) {
-  if (activeCodes.length > 0) return 'active_reported';
+  if (activeCodes.length > 0) return 'active_present';
   if (noCodesAvailable) return 'none_reported';
   if (historyCodes.length > 0) return 'history_only';
   return 'unknown';
+}
+
+/**
+ * Backward-compatible mappers:
+ * Map new enum values to old ones that the LLM schema may still expect.
+ */
+export function dtcStatusToLegacy(status) {
+  if (status === 'active_present') return 'active_reported';
+  return status;
+}
+
+export function vinStatusToLegacy(status) {
+  if (status === 'invalid') return 'unavailable';
+  return status;
 }
 
 /**
