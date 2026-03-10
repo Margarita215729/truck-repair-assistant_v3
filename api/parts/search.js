@@ -1,33 +1,222 @@
 /**
- * Vercel Serverless Function — Repair Parts Search
+ * Vercel Serverless Function — Repair Parts Search (AI-powered)
  *
- * This route no longer calls external vendor APIs (eBay, FinditParts).
- * It returns an honest empty result set with structured metadata,
- * indicating that live pricing is currently unavailable.
+ * Hybrid pipeline:
+ *   1. Google CSE — searches truck-parts vendor sites for real product pages
+ *   2. GPT-4o-mini — normalises raw CSE results into structured VendorListing cards
+ *      with title, price, availability, vendor, condition, imageUrl, itemUrl, sourceTier
+ *   3. Fallback — if CSE or AI are unavailable, returns constructed search URLs
  *
  * POST /api/parts/search
  * Body: { query, partNumber, make, model, year, condition, limit }
- * Returns: { listings: [], searchUrls: {...}, meta: {...} }
+ * Returns: { listings: VendorListing[], searchUrls, meta }
  */
 
-// Constructed Search URLs (stable public search patterns)
+import { createClient } from '@supabase/supabase-js';
 
+// ─── Supabase singleton ──────────────────────────────────────────────
+let _supabase;
+function getSupabase() {
+  if (!_supabase) {
+    const url = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL;
+    const key = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_ANON_KEY;
+    if (!url || !key) throw new Error('Missing Supabase config');
+    _supabase = createClient(url, key);
+  }
+  return _supabase;
+}
+
+// ─── Domain → tier mapping (mirrors client-side VENDOR_INFO) ────────
+const DOMAIN_TIER = {
+  'parts.freightliner.com': 1, 'www.peterbiltparts.com': 1, 'www.kenworth.com': 1,
+  'www.volvotrucks.us': 1, 'www.macktrucks.com': 1, 'parts.cummins.com': 1,
+  'www.fleetpride.com': 2, 'www.truckpro.com': 2, 'www.finditparts.com': 2,
+  'www.rockauto.com': 3,
+  'www.ebay.com': 4, 'www.amazon.com': 4,
+};
+
+function tierFromUrl(url) {
+  try { return DOMAIN_TIER[new URL(url).hostname] || 4; } catch { return 4; }
+}
+
+function vendorFromUrl(url) {
+  try {
+    const h = new URL(url).hostname.replace('www.', '').replace('parts.', '');
+    const map = {
+      'freightliner.com': 'Freightliner', 'peterbiltparts.com': 'Peterbilt',
+      'kenworth.com': 'Kenworth', 'volvotrucks.us': 'Volvo Trucks',
+      'macktrucks.com': 'Mack Trucks', 'cummins.com': 'Cummins',
+      'fleetpride.com': 'FleetPride', 'truckpro.com': 'TruckPro',
+      'finditparts.com': 'FinditParts', 'rockauto.com': 'RockAuto',
+      'ebay.com': 'eBay', 'amazon.com': 'Amazon',
+    };
+    return map[h] || h;
+  } catch { return 'Unknown'; }
+}
+
+// ─── Constructed search URLs (stable fallback) ──────────────────────
 function buildSearchUrls(partNumber, query) {
-  const searchTermFull = [partNumber, query].filter(Boolean).join(' ');
-  const encoded = encodeURIComponent(searchTermFull);
-
+  const full = [partNumber, query].filter(Boolean).join(' ');
+  const e = encodeURIComponent(full);
+  const ep = encodeURIComponent(partNumber || query || '');
   return {
-    googleShopping: `https://www.google.com/search?tbm=shop&q=${encoded}`,
-    ebay: `https://www.ebay.com/sch/i.html?_nkw=${encoded}&_sacat=6028`,
-    amazon: `https://www.amazon.com/s?k=${encoded}+truck+parts`,
+    freightlinerParts: `https://parts.freightliner.com/search?q=${ep}`,
+    fleetpride: `https://www.fleetpride.com/parts/search?q=${ep}`,
+    finditparts: `https://www.finditparts.com/search?q=${ep}`,
+    rockauto: `https://www.rockauto.com/en/partsearch/?partnum=${ep}`,
+    googleShopping: `https://www.google.com/search?tbm=shop&q=${e}`,
+    ebay: `https://www.ebay.com/sch/i.html?_nkw=${e}&_sacat=6028`,
+    amazon: `https://www.amazon.com/s?k=${e}+truck+parts`,
   };
 }
 
-// Main Handler
+// ─── Google CSE search ──────────────────────────────────────────────
+async function searchCSE(query, num = 10) {
+  const API_KEY = process.env.GOOGLE_CSE_API_KEY;
+  const CX = process.env.GOOGLE_CSE_TRUSTED_PARTS_CX || process.env.GOOGLE_CSE_ID;
+  if (!API_KEY || !CX) return [];
 
+  const url = new URL('https://www.googleapis.com/customsearch/v1');
+  url.searchParams.set('key', API_KEY);
+  url.searchParams.set('cx', CX);
+  url.searchParams.set('q', query);
+  url.searchParams.set('num', String(Math.min(num, 10)));
+
+  const resp = await fetch(url.toString(), { headers: { Accept: 'application/json' } });
+  if (!resp.ok) return [];
+
+  const data = await resp.json();
+  return (data.items || []).map(item => ({
+    title: item.title || '',
+    link: item.link || '',
+    snippet: item.snippet || '',
+    image: item.pagemap?.cse_image?.[0]?.src
+      || item.pagemap?.cse_thumbnail?.[0]?.src
+      || null,
+    price: item.pagemap?.offer?.[0]?.price
+      || item.pagemap?.product?.[0]?.price
+      || null,
+    availability: item.pagemap?.offer?.[0]?.availability
+      || item.pagemap?.product?.[0]?.availability
+      || null,
+    condition: item.pagemap?.offer?.[0]?.itemcondition
+      || item.pagemap?.product?.[0]?.condition
+      || null,
+  }));
+}
+
+// ─── AI normalisation via GPT-4o-mini ───────────────────────────────
+async function normaliseWithAI(cseResults, query, partNumber, make, model, year) {
+  const GITHUB_TOKEN = process.env.GITHUB_TOKEN;
+  if (!GITHUB_TOKEN || cseResults.length === 0) return [];
+
+  const systemPrompt = `You are a truck parts data normaliser. Given raw search results for truck parts, extract structured product listings.
+
+Rules:
+- Only include results that are actual product listings (parts for sale), skip informational pages
+- Extract price as a number (USD). If the snippet mentions a price like "$123.45", extract 123.45. If no price found, use 0
+- Determine condition: "New", "Remanufactured", "Used", or "Unknown"
+- Determine availability: "In Stock", "Out of Stock", "Check Availability", or "Unknown"
+- The itemUrl MUST be exactly the original link from the search result — do NOT modify or fabricate URLs
+- partNumber should be extracted from the title/snippet if visible, otherwise empty string
+
+Return a JSON array of objects with these exact fields:
+{ "title": string, "price": number, "vendor": string, "condition": string, "availability": string, "partNumber": string, "imageUrl": string|null, "itemUrl": string, "sourceTier": number (1=OEM, 2=Specialist, 3=Aftermarket, 4=Marketplace) }
+
+Return ONLY the JSON array, no markdown, no explanation.`;
+
+  const userPrompt = `Search context: "${query}"${partNumber ? `, Part Number: ${partNumber}` : ''}${make ? `, Truck: ${make} ${model || ''} ${year || ''}` : ''}
+
+Raw search results:
+${cseResults.map((r, i) => `[${i + 1}] Title: ${r.title}
+   URL: ${r.link}
+   Snippet: ${r.snippet}
+   Structured price: ${r.price || 'none'}
+   Structured availability: ${r.availability || 'none'}
+   Structured condition: ${r.condition || 'none'}
+   Image: ${r.image || 'none'}`).join('\n\n')}`;
+
+  try {
+    const resp = await fetch('https://models.github.ai/inference/chat/completions', {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${GITHUB_TOKEN}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        model: 'openai/gpt-4o-mini',
+        temperature: 0.1,
+        max_tokens: 4000,
+        response_format: { type: 'json_object' },
+        messages: [
+          { role: 'system', content: systemPrompt },
+          { role: 'user', content: userPrompt },
+        ],
+      }),
+    });
+
+    if (!resp.ok) return fallbackNormalise(cseResults);
+
+    const data = await resp.json();
+    const text = data.choices?.[0]?.message?.content || '';
+    const parsed = JSON.parse(text);
+    // Accept either { listings: [...] } or raw array
+    const listings = Array.isArray(parsed) ? parsed : (parsed.listings || parsed.results || []);
+
+    // Validate: only keep items whose itemUrl matches one of the original CSE links
+    const validUrls = new Set(cseResults.map(r => r.link));
+    return listings
+      .filter(l => l.itemUrl && validUrls.has(l.itemUrl))
+      .map(l => ({
+        title: String(l.title || '').slice(0, 200),
+        price: typeof l.price === 'number' && l.price >= 0 ? l.price : 0,
+        vendor: String(l.vendor || vendorFromUrl(l.itemUrl)).slice(0, 50),
+        condition: String(l.condition || 'Unknown').slice(0, 30),
+        availability: String(l.availability || 'Unknown').slice(0, 30),
+        partNumber: String(l.partNumber || '').slice(0, 50),
+        imageUrl: l.imageUrl || null,
+        itemUrl: l.itemUrl,
+        sourceTier: tierFromUrl(l.itemUrl),
+        sourceType: 'cse_ai',
+      }));
+  } catch (err) {
+    console.warn('AI normalisation failed, using fallback:', err.message);
+    return fallbackNormalise(cseResults);
+  }
+}
+
+// ─── Fallback: normalise CSE results without AI ─────────────────────
+function fallbackNormalise(cseResults) {
+  return cseResults
+    .filter(r => r.link && r.title)
+    .map(r => {
+      let price = 0;
+      if (r.price) {
+        price = parseFloat(String(r.price).replace(/[^0-9.]/g, '')) || 0;
+      } else {
+        const priceMatch = r.snippet?.match(/\$\s?([\d,]+\.?\d{0,2})/);
+        if (priceMatch) price = parseFloat(priceMatch[1].replace(',', '')) || 0;
+      }
+      return {
+        title: r.title.slice(0, 200),
+        price,
+        vendor: vendorFromUrl(r.link),
+        condition: r.condition || 'Unknown',
+        availability: r.availability || 'Check Availability',
+        partNumber: '',
+        imageUrl: r.image || null,
+        itemUrl: r.link,
+        sourceTier: tierFromUrl(r.link),
+        sourceType: 'cse_fallback',
+      };
+    });
+}
+
+// ─── Main handler ───────────────────────────────────────────────────
 export default async function handler(req, res) {
   const ALLOWED_ORIGINS = [
     process.env.NEXT_PUBLIC_BASE_URL,
+    'https://truck-repair-assistant-v3.vercel.app',
     'http://localhost:5173',
     'http://localhost:3000',
   ].filter(Boolean);
@@ -38,54 +227,86 @@ export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
 
-  if (req.method === 'OPTIONS') {
-    return res.status(200).end();
-  }
+  if (req.method === 'OPTIONS') return res.status(200).end();
+  if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
 
-  if (req.method !== 'POST') {
-    return res.status(405).json({ error: 'Method not allowed' });
-  }
-
+  // Auth
   const authHeader = req.headers.authorization;
   if (!authHeader?.startsWith('Bearer ')) {
     return res.status(401).json({ error: 'Authentication required' });
   }
   try {
-    const { createClient } = await import('@supabase/supabase-js');
-    const supabaseAuth = createClient(
-      process.env.SUPABASE_URL,
-      process.env.SUPABASE_ANON_KEY
+    const { data: { user }, error: authError } = await getSupabase().auth.getUser(
+      authHeader.split(' ')[1]
     );
-    const { data: { user }, error: authError } = await supabaseAuth.auth.getUser(authHeader.split(' ')[1]);
-    if (authError || !user) {
-      return res.status(401).json({ error: 'Invalid or expired token' });
-    }
+    if (authError || !user) return res.status(401).json({ error: 'Invalid or expired token' });
   } catch {
     return res.status(401).json({ error: 'Authentication failed' });
   }
 
   try {
-    const { query, partNumber } = req.body || {};
+    const { query, partNumber, make, model, year, limit } = req.body || {};
 
     if (!query && !partNumber) {
       return res.status(400).json({ error: 'Either query or partNumber is required' });
     }
 
+    // Build search string
+    const searchParts = [partNumber, query, make, model].filter(Boolean);
+    const searchString = searchParts.join(' ') + ' truck part';
+    const maxResults = Math.min(Number(limit) || 10, 10);
+
     const searchUrls = buildSearchUrls(partNumber, query);
 
+    // Step 1: Google CSE
+    const cseResults = await searchCSE(searchString, maxResults);
+
+    if (cseResults.length === 0) {
+      // No CSE results — return search URLs only
+      return res.status(200).json({
+        listings: [],
+        searchUrls,
+        meta: {
+          query: query || '',
+          partNumber: partNumber || '',
+          totalResults: 0,
+          livePricingAvailable: false,
+          source: 'none',
+          message: 'No results from search engine. Use the vendor links above to search manually.',
+        },
+      });
+    }
+
+    // Step 2: AI normalisation
+    const listings = await normaliseWithAI(cseResults, query, partNumber, make, model, year);
+
+    // Sort by source tier (OEM first), then by price
+    listings.sort((a, b) => (a.sourceTier - b.sourceTier) || ((a.price || Infinity) - (b.price || Infinity)));
+
     return res.status(200).json({
-      listings: [],
+      listings,
       searchUrls,
       meta: {
         query: query || '',
         partNumber: partNumber || '',
-        totalResults: 0,
-        livePricingAvailable: false,
-        error: 'Live pricing is currently unavailable.',
+        totalResults: listings.length,
+        livePricingAvailable: listings.length > 0,
+        source: listings[0]?.sourceType || 'none',
+        cseResultCount: cseResults.length,
       },
     });
   } catch (err) {
     console.error('Parts search handler error:', err);
-    return res.status(500).json({ error: 'Internal server error' });
+    return res.status(200).json({
+      listings: [],
+      searchUrls: buildSearchUrls(req.body?.partNumber, req.body?.query),
+      meta: {
+        query: req.body?.query || '',
+        partNumber: req.body?.partNumber || '',
+        totalResults: 0,
+        livePricingAvailable: false,
+        error: 'Search temporarily unavailable. Use the vendor links to search manually.',
+      },
+    });
   }
 }

@@ -383,7 +383,7 @@ export default function PartDetailModal({ part, open, onClose }) {
                   ))
                 ) : (
                   <p className="text-sm text-white/50 text-center py-4">
-                    No live listings found. Try the links below to search manually.
+                    No listings found. Try the vendor links below to search manually.
                   </p>
                 )}
               </div>
