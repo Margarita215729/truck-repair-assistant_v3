@@ -5,8 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Package, DollarSign, Wrench, ExternalLink, Search, Loader2, Trash2, ShoppingCart, ShieldCheck, AlertTriangle, Car, Eye } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { Checkbox } from '@/components/ui/checkbox';
-import { searchVendorsForPart, getSearchUrls, VENDOR_INFO, aggregateListings, SOURCE_TIER_LABELS } from '@/services/vendorService';
-import { isConstructedUrl } from '@/services/researchService';
+import { searchVendorsForPart, aggregateListings, SOURCE_TIER_LABELS } from '@/services/vendorService';
 
 const categoryIcons = {
   engine: '🔧', transmission: '⚙️', brakes: '🛑', electrical: '⚡',
@@ -64,7 +63,7 @@ export default function PartCard({ part, variant = 'recommended', onClick, onDel
       const results = await searchVendorsForPart(part);
       setVendorPrices(results);
     } catch {
-      setVendorPrices({ listings: [], searchUrls: getSearchUrls(part.part_number, part.name) });
+      setVendorPrices({ listings: [] });
     }
     setPriceLoading(false);
   };
@@ -337,24 +336,6 @@ export default function PartCard({ part, variant = 'recommended', onClick, onDel
                   </a>
                 ))}
 
-                {/* Search URL links */}
-                {vendorPrices.searchUrls && (
-                  <div className="flex flex-wrap gap-1.5 pt-2">
-                    {Object.entries(vendorPrices.searchUrls).slice(0, 4).map(([key, url]) => (
-                      <a
-                        key={key}
-                        href={url}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        onClick={(e) => e.stopPropagation()}
-                        className={`text-[10px] hover:text-white/70 underline capitalize ${isConstructedUrl(url) ? 'text-yellow-400/40' : 'text-white/40'}`}
-                        title={isConstructedUrl(url) ? 'Link may not lead to a valid search page' : undefined}
-                      >
-                        {key === 'googleShopping' ? 'Google' : key}
-                      </a>
-                    ))}
-                  </div>
-                )}
               </div>
             )}
           </div>

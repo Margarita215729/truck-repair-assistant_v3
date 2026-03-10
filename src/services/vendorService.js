@@ -17,65 +17,15 @@ export const SOURCE_TIER_LABELS = {
   4: 'Marketplace / Search',
 };
 
-// ─── Constructed search URLs (client-side fallback, always available) ─
-
-export function getSearchUrls(partNumber, partName, make) {
-  const searchTerm = partNumber || partName || '';
-  const fullTerm = [partNumber, partName].filter(Boolean).join(' ');
-  const encoded = encodeURIComponent(fullTerm);
-  const encodedPart = encodeURIComponent(searchTerm);
-
-  return {
-    // Tier 1: OEM / Manufacturer
-    freightlinerParts: `https://parts.freightliner.com/search?q=${encodedPart}`,
-    peterbiltParts: `https://www.peterbiltparts.com/search?q=${encodedPart}`,
-    kenworthParts: `https://www.kenworth.com/parts/?q=${encodedPart}`,
-    volvoTrucks: `https://www.volvotrucks.us/parts/?q=${encodedPart}`,
-    mackParts: `https://www.macktrucks.com/parts/?q=${encodedPart}`,
-    // Tier 2: Authorized / Specialist
-    fleetpride: `https://www.fleetpride.com/search?q=${encodedPart}`,
-    truckpro: `https://www.truckpro.com/search?q=${encodedPart}`,
-    finditparts: `https://www.finditparts.com/search?q=${encodedPart}`,
-    // Tier 3: Aftermarket
-    rockauto: partNumber
-      ? `https://www.rockauto.com/en/partsearch/?partnum=${encodeURIComponent(partNumber)}`
-      : `https://www.rockauto.com/en/partsearch/?partnum=${encodedPart}`,
-    // Tier 4: Marketplace
-    googleShopping: `https://www.google.com/search?tbm=shop&q=${encoded}`,
-    ebay: `https://www.ebay.com/sch/i.html?_nkw=${encoded}&_sacat=6028`,
-    amazon: `https://www.amazon.com/s?k=${encoded}+truck+parts`,
-  };
-}
-
-// Vendor display info — keyed by sourceKey or search URL key
-export const VENDOR_INFO = {
-  // Tier 1: OEM / Manufacturer
-  freightlinerParts: { name: 'Freightliner Parts', icon: '🚛', color: 'text-blue-400', bgColor: 'bg-blue-500/10', tier: 1 },
-  peterbiltParts: { name: 'Peterbilt Parts', icon: '🚛', color: 'text-red-400', bgColor: 'bg-red-500/10', tier: 1 },
-  kenworthParts: { name: 'Kenworth Parts', icon: '🚛', color: 'text-yellow-400', bgColor: 'bg-yellow-500/10', tier: 1 },
-  volvoTrucks: { name: 'Volvo Trucks', icon: '🚛', color: 'text-blue-300', bgColor: 'bg-blue-500/10', tier: 1 },
-  mackParts: { name: 'Mack Parts', icon: '🚛', color: 'text-amber-400', bgColor: 'bg-amber-500/10', tier: 1 },
-  // Tier 2: Authorized / Specialist
-  fleetpride: { name: 'FleetPride', icon: '🏪', color: 'text-purple-400', bgColor: 'bg-purple-500/10', tier: 2 },
-  truckpro: { name: 'TruckPro', icon: '🔩', color: 'text-cyan-400', bgColor: 'bg-cyan-500/10', tier: 2 },
-  finditparts: { name: 'FinditParts', icon: '🔧', color: 'text-green-400', bgColor: 'bg-green-500/10', tier: 2 },
-  // Tier 3: Aftermarket
-  rockauto: { name: 'RockAuto', icon: '🔩', color: 'text-orange-400', bgColor: 'bg-orange-500/10', tier: 3 },
-  // Tier 4: Marketplace
-  ebay: { name: 'eBay', icon: '🛒', color: 'text-yellow-400', bgColor: 'bg-yellow-500/10', tier: 4 },
-  amazon: { name: 'Amazon', icon: '📦', color: 'text-orange-300', bgColor: 'bg-orange-500/10', tier: 4 },
-  googleShopping: { name: 'Google Shopping', icon: '🔍', color: 'text-white', bgColor: 'bg-white/10', tier: 4 },
-};
-
 // ─── Server-side vendor search via API route ─────────────────────────
 
 /**
  * Search vendors for parts through the serverless API function.
- * Returns unified listings from vendor APIs + constructed search URLs.
+ * Returns unified listings from the AI-powered search pipeline.
  *
  * @param {string} query - Part name or description
  * @param {Object} options - { partNumber, make, model, year, condition, limit }
- * @returns {{ listings: VendorListing[], searchUrls: Object, meta: Object }}
+ * @returns {{ listings: VendorListing[], meta: Object }}
  */
 export async function searchVendors(query, options = {}) {
   try {
@@ -105,7 +55,6 @@ export async function searchVendors(query, options = {}) {
       console.warn('Vendor search API error:', resp.status);
       return {
         listings: [],
-        searchUrls: getSearchUrls(options.partNumber, query, options.make),
         meta: { query, partNumber: options.partNumber || '', totalResults: 0, sources: {} },
       };
     }
@@ -115,7 +64,6 @@ export async function searchVendors(query, options = {}) {
     console.warn('Vendor search failed:', err.message);
     return {
       listings: [],
-      searchUrls: getSearchUrls(options.partNumber, query, options.make),
       meta: { query, partNumber: options.partNumber || '', totalResults: 0, sources: {} },
     };
   }
@@ -186,25 +134,6 @@ export function hasListings(vendorResults) {
 }
 
 /**
- * Get display info for a vendor key.
- */
-export function getVendorDisplayInfo(key) {
-  return VENDOR_INFO[key] || { name: key, icon: '🔗', color: 'text-white/70', bgColor: 'bg-white/5', tier: 4 };
-}
-
-/**
- * Build annotated search links with vendor display metadata.
- */
-export function getAnnotatedSearchLinks(partNumber, partName, make) {
-  const urls = getSearchUrls(partNumber, partName, make);
-  return Object.entries(urls).map(([key, url]) => ({
-    key,
-    url,
-    isVerified: (VENDOR_INFO[key]?.tier || 4) <= 2,
-  }));
-}
-
-/**
  * React Query key factories for vendor searches.
  */
 export const vendorKeys = {
@@ -215,14 +144,10 @@ export const vendorKeys = {
 export default {
   searchVendors,
   searchVendorsForPart,
-  getSearchUrls,
-  getAnnotatedSearchLinks,
-  getVendorDisplayInfo,
   aggregateListings,
   groupByTier,
   filterBySourceType,
   hasListings,
-  VENDOR_INFO,
   SOURCE_TIER_LABELS,
   vendorKeys,
 };

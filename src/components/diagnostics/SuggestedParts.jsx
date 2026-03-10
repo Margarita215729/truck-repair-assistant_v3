@@ -2,9 +2,9 @@ import React, { useState } from 'react';
 import { motion } from 'framer-motion';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Package, ExternalLink, Search, Loader2, Globe, AlertTriangle, Car } from 'lucide-react';
+import { Package, ExternalLink, Search, Loader2, AlertTriangle, Car } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
-import { searchVendorsForPart, getSearchUrls, getAnnotatedSearchLinks, aggregateListings, getVendorDisplayInfo } from '@/services/vendorService';
+import { searchVendorsForPart, aggregateListings } from '@/services/vendorService';
 
 export default function SuggestedParts({ parts, onPartClick }) {
   const navigate = useNavigate();
@@ -19,8 +19,7 @@ export default function SuggestedParts({ parts, onPartClick }) {
       const results = await searchVendorsForPart(part);
       setVendorResults(prev => ({ ...prev, [idx]: results }));
     } catch {
-      const urls = getSearchUrls(part.oem_part_number || '', part.name);
-      setVendorResults(prev => ({ ...prev, [idx]: { listings: [], searchUrls: urls } }));
+      setVendorResults(prev => ({ ...prev, [idx]: { listings: [] } }));
     }
     setLoadingIdx(null);
   };
@@ -178,28 +177,8 @@ export default function SuggestedParts({ parts, onPartClick }) {
                         </a>
                       ))
                     ) : (
-                      <p className="text-xs text-white/50 text-center py-1">No listings found — try vendor links below</p>
+                      <p className="text-xs text-white/50 text-center py-1">No listings found for this part</p>
                     )}
-
-                    {/* Quick vendor links — verified portals */}
-                    <div className="flex flex-wrap gap-1.5 pt-1">
-                      {getAnnotatedSearchLinks(part.oem_part_number || '', part.name).slice(0, 4).map((link) => {
-                        const vi = getVendorDisplayInfo(link.key);
-                        return (
-                          <a
-                            key={link.key}
-                            href={link.url}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            onClick={(e) => e.stopPropagation()}
-                            className="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-white/5 hover:bg-white/10 text-[10px] text-white/60"
-                          >
-                            <span>{vi.icon}</span> {vi.name}
-                            {link.isVerified && <span className="text-green-400/70">✓</span>}
-                          </a>
-                        );
-                      })}
-                    </div>
                   </div>
                 )}
               </div>
