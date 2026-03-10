@@ -1,12 +1,12 @@
 import React, { useState, useMemo } from 'react';
 import { getMyRecommendedParts, getRecommendedStats, deleteRecommendation } from '@/services/partsService';
-import { searchVendors, aggregateListings, vendorKeys, aiSearchParts, groupByTier, hasListings, VENDOR_INFO, SOURCE_TIER_LABELS, getSearchUrls } from '@/services/vendorService';
+import { searchVendors, aggregateListings, vendorKeys, groupByTier, VENDOR_INFO, SOURCE_TIER_LABELS, getSearchUrls } from '@/services/vendorService';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Search, Filter, Loader2, Package, Wrench, ShoppingCart, Globe, Sparkles, Store, ExternalLink, MapPin, AlertTriangle, ShieldCheck, Bookmark, Zap } from 'lucide-react';
+import { Search, Filter, Loader2, Package, Wrench, ShoppingCart, Globe, ExternalLink, AlertTriangle, ShieldCheck, Bookmark, Zap } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { toast } from 'sonner';
 import { useNavigate } from 'react-router-dom';
@@ -85,16 +85,6 @@ export default function PartsCatalog() {
       condition: searchFilters.condition,
     }),
     enabled: !!searchSubmitted,
-    staleTime: 5 * 60_000,
-    keepPreviousData: true,
-  });
-
-  // AI-powered fallback search — activates when vendor results are empty
-  const vendorHasResults = vendorResults && hasListings(vendorResults);
-  const { data: aiResults, isLoading: aiSearchLoading } = useQuery({
-    queryKey: vendorKeys.aiSearch(searchSubmitted, { make: searchMake, model: searchModel, year: searchYear }),
-    queryFn: () => aiSearchParts(searchSubmitted, { make: searchMake, model: searchModel, year: searchYear }),
-    enabled: !!searchSubmitted && vendorResults !== undefined && !vendorHasResults,
     staleTime: 5 * 60_000,
     keepPreviousData: true,
   });
@@ -211,85 +201,6 @@ export default function PartsCatalog() {
           })}
         </div>
       </div>
-    );
-  };
-
-  // ─── Render AI fallback results ────────────────────────────────────
-  const renderAIResults = () => {
-    if (!aiResults?.results?.length) return null;
-    return (
-      <>
-        <div className="mb-4 p-3 rounded-xl bg-gradient-to-r from-purple-500/10 to-orange-500/10 border border-purple-500/20">
-          <div className="flex items-center gap-2 mb-1">
-            <Sparkles className="w-4 h-4 text-purple-400" />
-            <span className="text-sm font-semibold text-white/90">{t('parts.extendedResults') || 'Extended Search Results'}</span>
-          </div>
-          <p className="text-xs text-white/50">No live vendor listings found. Here are parts with purchase options from our extended search.</p>
-        </div>
-        <div className="space-y-4">
-          {aiResults.results.map((part, idx) => (
-            <div key={part._id || idx} className="p-4 rounded-xl bg-white/5 border border-white/10 hover:border-white/20 transition-all">
-              <div className="flex items-start justify-between gap-3 mb-3">
-                <div className="flex-1">
-                  <h3 className="font-semibold text-white mb-1">{part.title}</h3>
-                  {part.partNumber && <p className="text-xs text-orange-400 font-mono mb-1">#{part.partNumber}</p>}
-                  {part.description && <p className="text-sm text-white/60 mb-2">{part.description}</p>}
-                  <div className="flex flex-wrap items-center gap-2 text-xs text-white/50">
-                    {part.brand && <Badge variant="outline" className="border-white/20 text-white/60">{part.brand}</Badge>}
-                    {part.condition && <Badge variant="outline" className="border-white/20 text-white/60">{part.condition}</Badge>}
-                  </div>
-                </div>
-                <div className="text-right shrink-0">
-                  {part.priceRange ? (
-                    <p className="text-lg font-bold text-green-400">{part.priceRange}</p>
-                  ) : part.price ? (
-                    <p className="text-lg font-bold text-green-400">
-                      ${part.price.toFixed(2)}{part.priceMax ? ` — $${part.priceMax.toFixed(2)}` : ''}
-                    </p>
-                  ) : null}
-                </div>
-              </div>
-              {part.onlineStores?.length > 0 && (
-                <div className="mb-3">
-                  <p className="text-xs font-semibold text-white/40 mb-2 flex items-center gap-1">
-                    <Globe className="w-3 h-3" /> ONLINE STORES
-                  </p>
-                  <div className="flex flex-wrap gap-2">
-                    {part.onlineStores.map((store, si) => (
-                      <span key={si} className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white/5 border border-white/10 text-xs text-white/70">
-                        <span className="font-medium">{store.name}</span>
-                        {store.estimatedPrice && <span className="text-green-400">{store.estimatedPrice}</span>}
-                      </span>
-                    ))}
-                  </div>
-                </div>
-              )}
-              {part.offlineStores?.length > 0 && (
-                <div>
-                  <p className="text-xs font-semibold text-white/40 mb-2 flex items-center gap-1">
-                    <Store className="w-3 h-3" /> LOCAL STORES
-                  </p>
-                  <div className="flex flex-wrap gap-2">
-                    {part.offlineStores.map((store, si) => (
-                      <a
-                        key={si}
-                        href={`https://www.google.com/maps/search/${encodeURIComponent(store.name + ' near me')}`}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white/5 hover:bg-white/10 border border-white/10 text-xs text-white/60 hover:text-white transition-all"
-                      >
-                        <MapPin className="w-3 h-3 text-orange-400" />
-                        <span className="font-medium">{store.name}</span>
-                        {store.availability && <span className="text-white/40">· {store.availability}</span>}
-                      </a>
-                    ))}
-                  </div>
-                </div>
-              )}
-            </div>
-          ))}
-        </div>
-      </>
     );
   };
 
@@ -494,16 +405,14 @@ export default function PartsCatalog() {
             </form>
 
             {/* Search results */}
-            {(searchLoading || aiSearchLoading) ? (
+            {searchLoading ? (
               <div className="flex flex-col items-center justify-center py-20 gap-3">
                 <Loader2 className="w-8 h-8 animate-spin text-orange-500" />
-                <p className="text-sm text-white/50">
-                  {aiSearchLoading ? 'Extended search in progress...' : 'Searching vendors and dealers...'}
-                </p>
+                <p className="text-sm text-white/50">Searching vendors and dealers...</p>
               </div>
-            ) : searchSubmitted && (vendorResults || aiResults) ? (
+            ) : searchSubmitted && vendorResults ? (
               <>
-                {renderSearchUrls(vendorResults?.searchUrls || aiResults?.searchUrls)}
+                {renderSearchUrls(vendorResults?.searchUrls)}
 
                 {vendorListings.length > 0 ? (
                   <>
@@ -535,13 +444,12 @@ export default function PartsCatalog() {
                     </div>
                   </>
                 ) : (
-                  renderAIResults() || (
                     <div className="text-center py-16">
                       <Package className="w-16 h-16 mx-auto mb-4 text-white/20" />
                       <h3 className="text-xl font-semibold text-white mb-2">{t('parts.noListings') || 'No listings found'}</h3>
-                      <p className="text-white/60 mb-4">Try the search links above to browse vendors directly.</p>
+                      <p className="text-white/60 mb-4">{t('parts.livePricingUnavailable') || 'Live pricing is currently unavailable.'}</p>
+                      <p className="text-white/40 text-sm">Try the search links above to browse vendors directly.</p>
                     </div>
-                  )
                 )}
               </>
             ) : !searchSubmitted ? (

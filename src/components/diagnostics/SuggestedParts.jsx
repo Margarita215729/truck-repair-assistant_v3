@@ -4,7 +4,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Package, ExternalLink, Search, Loader2, Globe, AlertTriangle, Car } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
-import { searchVendorsForPart, getSearchUrls, aggregateListings, VENDOR_INFO } from '@/services/vendorService';
+import { searchVendorsForPart, getSearchUrls, getAnnotatedSearchLinks, aggregateListings, getVendorDisplayInfo } from '@/services/vendorService';
 
 export default function SuggestedParts({ parts, onPartClick }) {
   const navigate = useNavigate();
@@ -54,7 +54,6 @@ export default function SuggestedParts({ parts, onPartClick }) {
         {parts.map((part, idx) => {
           const results = vendorResults[idx];
           const listings = results ? aggregateListings(results) : [];
-          const urls = getSearchUrls(part.oem_part_number || '', part.name);
 
           return (
             <div 
@@ -146,7 +145,7 @@ export default function SuggestedParts({ parts, onPartClick }) {
                     className="w-full border-orange-500/30 text-orange-400 hover:bg-orange-500/10 text-xs h-7"
                   >
                     <Search className="w-3 h-3 mr-1" />
-                    Find Live Prices
+                    Search External Sources
                   </Button>
                 )}
 
@@ -182,20 +181,21 @@ export default function SuggestedParts({ parts, onPartClick }) {
                       <p className="text-xs text-white/50 text-center py-1">No live listings found</p>
                     )}
 
-                    {/* Quick vendor links */}
+                    {/* Quick vendor links — verified portals */}
                     <div className="flex flex-wrap gap-1.5 pt-1">
-                      {Object.entries(urls).slice(0, 4).map(([key, url]) => {
-                        const vi = VENDOR_INFO[key] || { name: key, icon: '🔗' };
+                      {getAnnotatedSearchLinks(part.oem_part_number || '', part.name).slice(0, 4).map((link) => {
+                        const vi = getVendorDisplayInfo(link.key);
                         return (
                           <a
-                            key={key}
-                            href={url}
+                            key={link.key}
+                            href={link.url}
                             target="_blank"
                             rel="noopener noreferrer"
                             onClick={(e) => e.stopPropagation()}
                             className="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-white/5 hover:bg-white/10 text-[10px] text-white/60"
                           >
                             <span>{vi.icon}</span> {vi.name}
+                            {link.isVerified && <span className="text-green-400/70">✓</span>}
                           </a>
                         );
                       })}
@@ -209,7 +209,7 @@ export default function SuggestedParts({ parts, onPartClick }) {
       </div>
 
       <p className="text-[10px] text-white/30 mt-3 text-center">
-        Part recommendations are saved for reference. Prices are live from vendors.
+        Part recommendations are saved for reference. Use vendor links to check current prices.
       </p>
     </motion.div>
   );

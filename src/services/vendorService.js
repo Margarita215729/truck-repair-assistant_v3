@@ -3,10 +3,8 @@
  * Calls the /api/parts/search serverless function for live vendor pricing.
  * Returns a unified listings[] array with normalized VendorListing objects.
  * Also provides client-side constructed search URLs as fallback.
- * Includes AI-powered search when APIs are unavailable.
  */
 import { supabase, hasSupabaseConfig } from '@/api/supabaseClient';
-import { invokeLLM } from './aiService';
 
 const API_BASE = '/api/parts/search';
 
@@ -184,121 +182,7 @@ export function filterBySourceType(listings, sourceType) {
  * Check if vendor results have any live listings.
  */
 export function hasListings(vendorResults) {
-  if (vendorResults?.listings?.length > 0) return true;
-  // Legacy fallback
-  return (vendorResults?.fleetpride?.length > 0 ||
-    vendorResults?.truckpro?.length > 0 ||
-    vendorResults?.ebay?.length > 0 ||
-    vendorResults?.finditparts?.length > 0);
-}
-
-/**
- * AI-powered parts search — uses LLM when vendor APIs return no results.
- * Returns both online and offline (local store) purchase options.
- *
- * @param {string} query - Part name/description
- * @param {Object} options - { make, model, year }
- * @returns {Promise<{ results: AIPart[], searchUrls: Object }>}
- */
-export async function aiSearchParts(query, options = {}) {
-  try {
-    const truckCtx = [options.year, options.make, options.model].filter(Boolean).join(' ');
-    const response = await invokeLLM({
-      prompt: `Find truck parts matching: "${query}"${truckCtx ? ` for a ${truckCtx}` : ''}.
-
-For EACH part, provide:
-- Common OEM and aftermarket part numbers
-- Brands that make this part (Dorman, ACDelco, Gates, Motorcraft, etc.)
-- Approximate price range (do NOT invent exact prices)
-- Where to look: online (FleetPride, TruckPro, dealer parts websites) and offline (NAPA, TravelCenters of America, Pilot/Flying J)
-
-CRITICAL RULES:
-- Do NOT generate specific URLs — just store names.
-- Price ranges should be approximate (e.g. "$45-$90").
-- For inStock/availability, say "Check retailer" — do NOT guess.
-
-Return 5-8 results.`,
-      response_json_schema: {
-        type: 'object',
-        properties: {
-          parts: {
-            type: 'array',
-            items: {
-              type: 'object',
-              properties: {
-                title: { type: 'string' },
-                partNumber: { type: 'string' },
-                description: { type: 'string' },
-                category: { type: 'string' },
-                priceRange: { type: 'string' },
-                priceMin: { type: 'number' },
-                priceMax: { type: 'number' },
-                condition: { type: 'string' },
-                brand: { type: 'string' },
-                compatibility: { type: 'string' },
-                onlineStores: {
-                  type: 'array',
-                  items: {
-                    type: 'object',
-                    properties: {
-                      name: { type: 'string' },
-                      estimatedPrice: { type: 'string', description: 'Approximate range, e.g. $45-$90' },
-                      availability: { type: 'string', description: 'Check retailer' }
-                    }
-                  }
-                },
-                offlineStores: {
-                  type: 'array',
-                  items: {
-                    type: 'object',
-                    properties: {
-                      name: { type: 'string' },
-                      availability: { type: 'string' },
-                      notes: { type: 'string' }
-                    }
-                  }
-                }
-              }
-            }
-          }
-        }
-      },
-      add_context_from_internet: true,
-    });
-
-    const parts = (response?.parts || []).map((p, idx) => ({
-      vendor: 'Smart Search',
-      title: p.title || query,
-      partNumber: p.partNumber || '',
-      price: p.priceMin || 0,
-      priceMax: p.priceMax || 0,
-      priceRange: p.priceRange || '',
-      currency: 'USD',
-      condition: p.condition || 'New/Used',
-      imageUrl: '',
-      itemUrl: '',
-      shipping: 'Varies',
-      location: '',
-      sellerName: '',
-      sellerRating: '',
-      listingType: 'Suggested',
-      brand: p.brand || '',
-      description: p.description || '',
-      compatibility: p.compatibility || '',
-      onlineStores: p.onlineStores || [],
-      offlineStores: p.offlineStores || [],
-      _isAI: true,
-      _id: `ai-${idx}`,
-    }));
-
-    return {
-      results: parts,
-      searchUrls: getSearchUrls(parts[0]?.partNumber, query),
-    };
-  } catch (err) {
-    console.warn('AI parts search failed:', err);
-    return { results: [], searchUrls: getSearchUrls('', query) };
-  }
+  return vendorResults?.listings?.length > 0;
 }
 
 /**
@@ -306,14 +190,12 @@ Return 5-8 results.`,
  */
 export const vendorKeys = {
   search: (query, options) => ['vendor-search', query, options],
-  aiSearch: (query, options) => ['ai-parts-search', query, options],
   part: (partId) => ['vendor-part', partId],
 };
 
 export default {
   searchVendors,
   searchVendorsForPart,
-  aiSearchParts,
   getSearchUrls,
   aggregateListings,
   groupByTier,
