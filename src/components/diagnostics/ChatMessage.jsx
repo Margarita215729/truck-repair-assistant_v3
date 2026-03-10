@@ -5,6 +5,7 @@ import { Badge } from '@/components/ui/badge';
 import { Copy, Check, ExternalLink, Play, Pause, ChevronDown, ChevronUp, TrendingUp, CheckCircle, AlertTriangle, Lightbulb, Users } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { toast } from 'sonner';
+import { useLanguage } from '@/lib/LanguageContext';
 import SuggestedParts from './SuggestedParts';
 import RepairInstructions from './RepairInstructions.jsx';
 import ClarifyingQuestions from './ClarifyingQuestions.jsx';
@@ -21,6 +22,7 @@ function SourceBadge({ source }) {
 }
 
 export default function ChatMessage({ message, onPartClick, onAnswerQuestion, onGenerateGuide }) {
+  const { t } = useLanguage();
   const [copied, setCopied] = useState(false);
   const [sourcesExpanded, setSourcesExpanded] = useState(false);
   const [playingAudio, setPlayingAudio] = useState(false);
@@ -155,7 +157,7 @@ export default function ChatMessage({ message, onPartClick, onAnswerQuestion, on
                   onClick={() => setContentExpanded(!contentExpanded)}
                   className="text-xs text-purple-400 hover:text-purple-300 mt-2"
                 >
-                  {contentExpanded ? '↑ Show less' : '↓ Read more'}
+                  {contentExpanded ? t('diagnostics.showLess') : t('diagnostics.readMore')}
                 </button>
               )}
             </>
@@ -167,11 +169,11 @@ export default function ChatMessage({ message, onPartClick, onAnswerQuestion, on
           <div className="mt-3 p-3 bg-amber-500/10 border border-amber-500/25 rounded-xl space-y-3">
             <div className="flex items-center gap-2">
               <AlertTriangle className="w-4 h-4 text-amber-400 shrink-0" />
-              <span className="text-sm font-semibold text-amber-300">Недостаточно информации для качественного анализа</span>
+              <span className="text-sm font-semibold text-amber-300">{t('diagnostics.insufficientInfo')}</span>
             </div>
             {message.missing_details && message.missing_details.length > 0 && (
               <div>
-                <p className="text-xs text-white/50 mb-1.5">Для точной диагностики укажите:</p>
+                <p className="text-xs text-white/50 mb-1.5">{t('diagnostics.specifyForDiagnostics')}</p>
                 <ul className="space-y-1">
                   {message.missing_details.map((detail, i) => (
                     <li key={i} className="flex items-center gap-2 text-xs text-amber-200/80">
@@ -184,7 +186,7 @@ export default function ChatMessage({ message, onPartClick, onAnswerQuestion, on
             )}
             {message.preliminary_suggestions && message.preliminary_suggestions.length > 0 && (
               <div className="pt-2 border-t border-amber-500/20">
-                <p className="text-xs text-white/50 mb-2">Что можно сделать уже сейчас:</p>
+                <p className="text-xs text-white/50 mb-2">{t('diagnostics.whatYouCanDoNow')}</p>
                 <div className="space-y-2">
                   {message.preliminary_suggestions.map((sug, i) => (
                     <div key={i} className="flex items-start gap-2">
@@ -205,7 +207,7 @@ export default function ChatMessage({ message, onPartClick, onAnswerQuestion, on
         {message.isError && (
           <div className="mt-2 px-3 py-2 bg-red-500/10 border border-red-500/20 rounded-xl flex items-center gap-2">
             <AlertTriangle className="w-4 h-4 text-red-400 shrink-0" />
-            <span className="text-xs text-red-300/80">Service temporarily unavailable — please try again.</span>
+            <span className="text-xs text-red-300/80">{t('diagnostics.serviceUnavailable')}</span>
           </div>
         )}
 
