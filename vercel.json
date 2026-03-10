@@ -7,6 +7,15 @@
     { "source": "/((?!api/).*)", "destination": "/index.html" }
   ],
   "functions": {
+    "api/create-checkout-session.js": {
+      "maxDuration": 30
+    },
+    "api/create-portal-session.js": {
+      "maxDuration": 30
+    },
+    "api/stripe-webhook.js": {
+      "maxDuration": 30
+    },
     "api/ai-proxy.js": {
       "maxDuration": 60
     },

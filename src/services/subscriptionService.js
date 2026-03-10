@@ -11,7 +11,7 @@ import { supabase, hasSupabaseConfig } from '@/api/supabaseClient';
 //   2. Restore "api/stripe-webhook.js" entry in vercel.json functions
 //   3. Set STRIPE_PAUSED = false below
 // ────────────────────────────────────────────────────────────────────────
-const STRIPE_PAUSED = true;
+const STRIPE_PAUSED = false;
 
 export const subscriptionService = {
   /**
