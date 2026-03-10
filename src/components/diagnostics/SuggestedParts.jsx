@@ -178,7 +178,7 @@ export default function SuggestedParts({ parts, onPartClick }) {
                         </a>
                       ))
                     ) : (
-                      <p className="text-xs text-white/50 text-center py-1">No live listings found</p>
+                      <p className="text-xs text-white/50 text-center py-1">No listings found — try vendor links below</p>
                     )}
 
                     {/* Quick vendor links — verified portals */}

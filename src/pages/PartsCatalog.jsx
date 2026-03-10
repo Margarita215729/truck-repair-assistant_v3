@@ -447,8 +447,7 @@ export default function PartsCatalog() {
                     <div className="text-center py-16">
                       <Package className="w-16 h-16 mx-auto mb-4 text-white/20" />
                       <h3 className="text-xl font-semibold text-white mb-2">{t('parts.noListings') || 'No listings found'}</h3>
-                      <p className="text-white/60 mb-4">{t('parts.livePricingUnavailable') || 'Live pricing is currently unavailable.'}</p>
-                      <p className="text-white/40 text-sm">Try the search links above to browse vendors directly.</p>
+                      <p className="text-white/60 mb-4">{t('parts.noListingsHint') || 'Try a more specific part name or OEM number, or browse vendors above.'}</p>
                     </div>
                 )}
               </>
