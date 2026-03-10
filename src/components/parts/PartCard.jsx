@@ -304,7 +304,7 @@ export default function PartCard({ part, variant = 'recommended', onClick, onDel
                 className="w-full border-orange-500/30 text-orange-400 hover:bg-orange-500/10"
               >
                 <Search className="w-3.5 h-3.5 mr-2" />
-                Find Live Prices
+                Search External Sources
               </Button>
             )}
 

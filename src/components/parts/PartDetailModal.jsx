@@ -314,12 +314,13 @@ export default function PartDetailModal({ part, open, onClose }) {
             </div>
           )}
 
-          {/* ─── LIVE VENDOR PRICING ─── */}
+          {/* ─── VENDOR PRICING ─── */}
           <div className="pt-4 border-t border-white/10">
+            <p className="text-xs text-white/40 mb-3">Live pricing is currently unavailable. Use the links below to check prices directly.</p>
             <div className="flex items-center justify-between mb-4">
               <h3 className="text-sm font-semibold text-white/90 flex items-center gap-2">
                 <ShoppingCart className="w-4 h-4 text-orange-400" />
-                Live Vendor Pricing
+                Vendor Pricing
               </h3>
               {!vendorResults && !vendorLoading && (
                 <Button
