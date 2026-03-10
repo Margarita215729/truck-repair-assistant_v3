@@ -5,11 +5,11 @@
  *   1. Google CSE — searches truck-parts vendor sites for real product pages
  *   2. GPT-4o-mini — normalises raw CSE results into structured VendorListing cards
  *      with title, price, availability, vendor, condition, imageUrl, itemUrl, sourceTier
- *   3. Fallback — if CSE or AI are unavailable, returns constructed search URLs
+ *   3. Fallback — if AI is unavailable, basic regex-based normalisation of CSE results
  *
  * POST /api/parts/search
  * Body: { query, partNumber, make, model, year, condition, limit }
- * Returns: { listings: VendorListing[], searchUrls, meta }
+ * Returns: { listings: VendorListing[], meta }
  */
 
 import { createClient } from '@supabase/supabase-js';
@@ -52,22 +52,6 @@ function vendorFromUrl(url) {
     };
     return map[h] || h;
   } catch { return 'Unknown'; }
-}
-
-// ─── Constructed search URLs (stable fallback) ──────────────────────
-function buildSearchUrls(partNumber, query) {
-  const full = [partNumber, query].filter(Boolean).join(' ');
-  const e = encodeURIComponent(full);
-  const ep = encodeURIComponent(partNumber || query || '');
-  return {
-    freightlinerParts: `https://parts.freightliner.com/search?q=${ep}`,
-    fleetpride: `https://www.fleetpride.com/parts/search?q=${ep}`,
-    finditparts: `https://www.finditparts.com/search?q=${ep}`,
-    rockauto: `https://www.rockauto.com/en/partsearch/?partnum=${ep}`,
-    googleShopping: `https://www.google.com/search?tbm=shop&q=${e}`,
-    ebay: `https://www.ebay.com/sch/i.html?_nkw=${e}&_sacat=6028`,
-    amazon: `https://www.amazon.com/s?k=${e}+truck+parts`,
-  };
 }
 
 // ─── Google CSE search ──────────────────────────────────────────────
@@ -256,23 +240,18 @@ export default async function handler(req, res) {
     const searchString = searchParts.join(' ') + ' truck part';
     const maxResults = Math.min(Number(limit) || 10, 10);
 
-    const searchUrls = buildSearchUrls(partNumber, query);
-
     // Step 1: Google CSE
     const cseResults = await searchCSE(searchString, maxResults);
 
     if (cseResults.length === 0) {
-      // No CSE results — return search URLs only
       return res.status(200).json({
         listings: [],
-        searchUrls,
         meta: {
           query: query || '',
           partNumber: partNumber || '',
           totalResults: 0,
           livePricingAvailable: false,
           source: 'none',
-          message: 'No results from search engine. Use the vendor links above to search manually.',
         },
       });
     }
@@ -285,7 +264,6 @@ export default async function handler(req, res) {
 
     return res.status(200).json({
       listings,
-      searchUrls,
       meta: {
         query: query || '',
         partNumber: partNumber || '',
@@ -299,13 +277,12 @@ export default async function handler(req, res) {
     console.error('Parts search handler error:', err);
     return res.status(200).json({
       listings: [],
-      searchUrls: buildSearchUrls(req.body?.partNumber, req.body?.query),
       meta: {
         query: req.body?.query || '',
         partNumber: req.body?.partNumber || '',
         totalResults: 0,
         livePricingAvailable: false,
-        error: 'Search temporarily unavailable. Use the vendor links to search manually.',
+        error: 'Search temporarily unavailable',
       },
     });
   }

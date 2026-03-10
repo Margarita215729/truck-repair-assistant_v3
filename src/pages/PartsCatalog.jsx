@@ -1,12 +1,12 @@
 import React, { useState, useMemo } from 'react';
 import { getMyRecommendedParts, getRecommendedStats, deleteRecommendation } from '@/services/partsService';
-import { searchVendors, aggregateListings, vendorKeys, groupByTier, VENDOR_INFO, SOURCE_TIER_LABELS, getSearchUrls } from '@/services/vendorService';
+import { searchVendors, aggregateListings, vendorKeys, groupByTier, SOURCE_TIER_LABELS } from '@/services/vendorService';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Search, Filter, Loader2, Package, Wrench, ShoppingCart, Globe, ExternalLink, AlertTriangle, ShieldCheck, Bookmark, Zap } from 'lucide-react';
+import { Search, Filter, Loader2, Package, Wrench, ShoppingCart, ExternalLink, AlertTriangle, ShieldCheck, Bookmark, Zap } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { toast } from 'sonner';
 import { useNavigate } from 'react-router-dom';
@@ -172,37 +172,6 @@ export default function PartsCatalog() {
     if (!stats?.categories) return [];
     return Object.entries(stats.categories).sort(([, a], [, b]) => b - a).slice(0, 6);
   }, [stats]);
-
-  // ─── Render search URL links ───────────────────────────────────────
-  const renderSearchUrls = (urls) => {
-    if (!urls) return null;
-    return (
-      <div className="mb-6 p-4 rounded-xl bg-white/5 border border-white/10">
-        <div className="flex items-center gap-2 mb-3">
-          <Globe className="w-4 h-4 text-white/60" />
-          <span className="text-sm font-semibold text-white/80">{t('parts.alsoSearchOn') || 'Also search on:'}</span>
-        </div>
-        <div className="flex flex-wrap gap-2">
-          {Object.entries(urls).map(([key, url]) => {
-            const info = VENDOR_INFO[key];
-            return (
-              <a
-                key={key}
-                href={url}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white/5 hover:bg-white/10 border border-white/10 hover:border-white/20 text-sm text-white/70 hover:text-white transition-all"
-              >
-                {info?.icon || '🔗'}
-                <span>{info?.name || key}</span>
-                <ExternalLink className="w-3 h-3 opacity-40" />
-              </a>
-            );
-          })}
-        </div>
-      </div>
-    );
-  };
 
   // ─── Compare bar ───────────────────────────────────────────────────
   const renderCompareBar = () => {
@@ -412,7 +381,6 @@ export default function PartsCatalog() {
               </div>
             ) : searchSubmitted && vendorResults ? (
               <>
-                {renderSearchUrls(vendorResults?.searchUrls)}
 
                 {vendorListings.length > 0 ? (
                   <>
@@ -447,7 +415,7 @@ export default function PartsCatalog() {
                     <div className="text-center py-16">
                       <Package className="w-16 h-16 mx-auto mb-4 text-white/20" />
                       <h3 className="text-xl font-semibold text-white mb-2">{t('parts.noListings') || 'No listings found'}</h3>
-                      <p className="text-white/60 mb-4">{t('parts.noListingsHint') || 'Try a more specific part name or OEM number, or browse vendors above.'}</p>
+                      <p className="text-white/60 mb-4">{t('parts.noListingsHint') || 'Try a more specific part name or OEM number.'}</p>
                     </div>
                 )}
               </>
@@ -469,11 +437,8 @@ export default function PartsCatalog() {
                 <Zap className="w-16 h-16 mx-auto mb-4 text-white/20" />
                 <h3 className="text-xl font-semibold text-white mb-2">{t('parts.buyFastTitle') || 'Buy Fast — Tiered Results'}</h3>
                 <p className="text-white/60 mb-6">
-                  {t('parts.buyFastDesc') || 'Browse vendor links grouped by trust level, or search for a part to see live listings here.'}
+                  {t('parts.buyFastDesc') || 'Search for a part to see live listings grouped by trust level.'}
                 </p>
-
-                {/* Always show constructed search URLs even without a search */}
-                {renderSearchUrls(getSearchUrls('', '', ''))}
 
                 <Button onClick={() => setActiveTab('search')} className="bg-orange-500 hover:bg-orange-600 mt-4">
                   <Search className="w-4 h-4 mr-2" />
@@ -486,8 +451,6 @@ export default function PartsCatalog() {
               </div>
             ) : tieredListings ? (
               <div className="space-y-8">
-                {renderSearchUrls(vendorResults?.searchUrls)}
-
                 {[1, 2, 3, 4].map(tier => {
                   const tierItems = tieredListings[tier] || [];
                   const tierLabel = SOURCE_TIER_LABELS[tier] || `Tier ${tier}`;
@@ -526,7 +489,7 @@ export default function PartsCatalog() {
                         </div>
                       ) : (
                         <div className={`p-4 rounded-xl border ${tierColors[tier]} text-center`}>
-                          <p className="text-sm text-white/40">{t('parts.noTierListings') || 'No listings in this tier. Check the search links above.'}</p>
+                          <p className="text-sm text-white/40">{t('parts.noTierListings') || 'No listings in this tier.'}</p>
                         </div>
                       )}
                     </div>
