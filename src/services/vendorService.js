@@ -186,6 +186,25 @@ export function hasListings(vendorResults) {
 }
 
 /**
+ * Get display info for a vendor key.
+ */
+export function getVendorDisplayInfo(key) {
+  return VENDOR_INFO[key] || { name: key, icon: '🔗', color: 'text-white/70', bgColor: 'bg-white/5', tier: 4 };
+}
+
+/**
+ * Build annotated search links with vendor display metadata.
+ */
+export function getAnnotatedSearchLinks(partNumber, partName, make) {
+  const urls = getSearchUrls(partNumber, partName, make);
+  return Object.entries(urls).map(([key, url]) => ({
+    key,
+    url,
+    isVerified: (VENDOR_INFO[key]?.tier || 4) <= 2,
+  }));
+}
+
+/**
  * React Query key factories for vendor searches.
  */
 export const vendorKeys = {
@@ -197,6 +216,8 @@ export default {
   searchVendors,
   searchVendorsForPart,
   getSearchUrls,
+  getAnnotatedSearchLinks,
+  getVendorDisplayInfo,
   aggregateListings,
   groupByTier,
   filterBySourceType,
