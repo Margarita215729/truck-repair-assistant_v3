@@ -39,6 +39,23 @@ export default async function handler(req, res) {
     let vehicleProfileId = req.query.vehicleProfileId;
     if (vehicleProfileId === '_auto') vehicleProfileId = null;
 
+    // Status-only check — return connection list without building a snapshot
+    if (vehicleProfileId === '_status_only') {
+      const { data: connections } = await sb
+        .from('telematics_connections')
+        .select('provider, status, provider_vehicle_id, updated_at')
+        .eq('user_id', user.id);
+
+      return res.status(200).json({
+        connections: (connections || []).map(c => ({
+          provider: c.provider,
+          status: c.status,
+          last_sync_at: c.updated_at,
+          provider_vehicle_id: c.provider_vehicle_id,
+        })),
+      });
+    }
+
     // Load active connection
     const { data: connection } = await sb
       .from('telematics_connections')

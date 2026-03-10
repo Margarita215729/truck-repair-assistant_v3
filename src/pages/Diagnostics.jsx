@@ -1067,7 +1067,23 @@ Focus on:
         truck_info: truck ? { make: truck.make, model: truck.model, year: truck.year } : null,
         report_type: 'INTAKE_Triage_Roadside',
         diagnosis_summary: response.conclusions?.[0]?.statement || 'Intake & Triage Report generated',
-        report_data: response,
+        report_data: {
+          ...response,
+          _metadata: {
+            schema_version: '1.0',
+            normalization_version: '1.0',
+            model_version: 'gpt-4o-roadside-triage',
+            generation_timestamp: new Date().toISOString(),
+            raw_input_snapshot: { message_count: messages.length, has_truck: !!truck },
+            normalized_input_snapshot: normalized,
+            generation_context: {
+              mode: roadsideContext?.mode || 'roadside',
+              conversation_length: messages.length,
+              has_truck_profile: !!truck,
+              has_roadside_context: !!roadsideContext,
+            },
+          },
+        },
         error_codes_analysis: response.fault_codes?.active_codes || [],
         identified_issues: (response.hypotheses || []).map(h => ({
           issue: h.possible_cause,
@@ -1077,20 +1093,6 @@ Focus on:
         recommendations: (response.conclusions || []).map(c => c.recommended_action_now),
         estimated_costs: null,
         sources: [],
-        metadata: {
-          schema_version: '1.0',
-          normalization_version: '1.0',
-          model_version: 'gpt-4o-roadside-triage',
-          generation_timestamp: new Date().toISOString(),
-          raw_input_snapshot: { message_count: messages.length, has_truck: !!truck },
-          normalized_input_snapshot: normalized,
-          generation_context: {
-            mode: roadsideContext?.mode || 'roadside',
-            conversation_length: messages.length,
-            has_truck_profile: !!truck,
-            has_roadside_context: !!roadsideContext,
-          },
-        },
       });
 
       toast.success(t('diagnostics.reportGenerated'));

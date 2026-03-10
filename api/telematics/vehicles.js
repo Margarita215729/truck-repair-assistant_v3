@@ -39,6 +39,8 @@ export default async function handler(req, res) {
     return handleListVehicles(req, res, sb, user);
   } else if (req.method === 'POST') {
     return handleMapVehicle(req, res, sb, user);
+  } else if (req.method === 'DELETE') {
+    return handleDisconnect(req, res, sb, user);
   }
   return res.status(405).json({ error: 'Method not allowed' });
 }
@@ -167,5 +169,38 @@ async function handleMapVehicle(req, res, sb, user) {
   } catch (err) {
     console.error('Map vehicle error:', err);
     return res.status(500).json({ error: 'Failed to map vehicle' });
+  }
+}
+
+async function handleDisconnect(req, res, sb, user) {
+  const provider = req.query.provider;
+  if (!provider) {
+    return res.status(400).json({ error: 'provider query parameter is required' });
+  }
+
+  try {
+    const { data: conn } = await sb
+      .from('telematics_connections')
+      .select('id')
+      .eq('user_id', user.id)
+      .eq('provider', provider)
+      .eq('status', 'active')
+      .maybeSingle();
+
+    if (!conn) {
+      return res.status(404).json({ error: 'No active connection found for this provider' });
+    }
+
+    const { error: updateErr } = await sb
+      .from('telematics_connections')
+      .update({ status: 'disconnected', updated_at: new Date().toISOString() })
+      .eq('id', conn.id);
+
+    if (updateErr) throw new Error(updateErr.message);
+
+    return res.status(200).json({ success: true, provider, status: 'disconnected' });
+  } catch (err) {
+    console.error('Disconnect provider error:', err);
+    return res.status(500).json({ error: 'Failed to disconnect provider' });
   }
 }

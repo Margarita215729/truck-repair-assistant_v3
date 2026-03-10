@@ -239,6 +239,13 @@ export default {
     symptomsDesc: 'Describe what you notice',
     visualDesc: 'Photo / video of the issue',
     selectTruckFirst: 'Please select your truck first using the truck button in the top menu',
+    // Chat message UI
+    insufficientInfo: 'Insufficient information for quality analysis',
+    specifyForDiagnostics: 'For accurate diagnostics, specify:',
+    whatYouCanDoNow: 'What you can do now:',
+    showLess: '↑ Show less',
+    readMore: '↓ Read more',
+    serviceUnavailable: 'Service temporarily unavailable — please try again.',
   },
 
   // ─── Visual Diagnostics ───
@@ -359,6 +366,8 @@ export default {
     noTierListings: 'No listings in this tier. Check the search links above.',
     savedParts: 'saved parts',
     savedPart: 'saved part',
+    recommendationRemoved: 'Recommendation removed',
+    removeFailed: 'Failed to remove',
   },
 
   // ─── Service Finder ───

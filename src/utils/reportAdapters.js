@@ -241,13 +241,16 @@ export function getEvidence(report) {
 export function getReportMetadata(report) {
   if (!report) return {};
   const rd = getReportPayload(report);
+  const meta = rd._metadata || {};
   return {
-    schema_version: rd.schema_version || report.schema_version || null,
-    normalization_version: rd.normalization_version || report.normalization_version || null,
-    model_version: rd.model_version || report.model_version || null,
-    generation_timestamp: rd.generated_at_iso || report.generation_timestamp || null,
+    schema_version: meta.schema_version || rd.schema_version || report.schema_version || null,
+    normalization_version: meta.normalization_version || rd.normalization_version || report.normalization_version || null,
+    model_version: meta.model_version || rd.model_version || report.model_version || null,
+    generation_timestamp: meta.generation_timestamp || rd.generated_at_iso || report.generation_timestamp || null,
     report_type: rd.report_type || report.report_type || null,
     created_at: report.created_date || report.created_at || null,
+    generation_context: meta.generation_context || null,
+    normalized_input_snapshot: meta.normalized_input_snapshot || null,
   };
 }
 

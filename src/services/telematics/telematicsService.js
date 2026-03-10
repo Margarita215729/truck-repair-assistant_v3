@@ -6,7 +6,7 @@
  * - connectProvider(provider) — redirects to OAuth start
  * - getProviderStatus() — returns connection status
  * - getTruckStateSnapshot(vehicleProfileId) — fetches truck state with AI interpretation
- * - disconnectProvider(provider) — deactivates a connection
+ * - disconnectProvider(provider) — deactivates a connection via DELETE /api/telematics/vehicles
  */
 import { env } from '@/config/env';
 
@@ -75,7 +75,7 @@ export async function connectProviderWithCredentials(provider, credentials) {
       Authorization: `Bearer ${token}`,
       'Content-Type': 'application/json',
     },
-    body: JSON.stringify({ provider, ...credentials }),
+    body: JSON.stringify({ provider, credentials }),
   });
 
   if (!resp.ok) {
@@ -100,7 +100,7 @@ export async function getProviderStatus() {
     });
     if (!resp.ok) return [];
     const data = await resp.json();
-    return data?.snapshot?.connections || [];
+    return data?.connections || [];
   } catch {
     return [];
   }
@@ -142,10 +142,17 @@ export async function disconnectProvider(provider) {
   const token = await getAuthToken();
   if (!token) throw new Error('Not authenticated');
 
-  // For now, we'll use a simple approach: call the snapshot endpoint
-  // with a disconnect action. In a full implementation, this would be a
-  // dedicated endpoint. For MVP, the user can reconnect via OAuth.
-  console.warn('disconnectProvider not yet implemented — remove from Supabase dashboard');
+  const resp = await fetch(`${API_BASE}/vehicles?provider=${encodeURIComponent(provider)}`, {
+    method: 'DELETE',
+    headers: { Authorization: `Bearer ${token}` },
+  });
+
+  if (!resp.ok) {
+    const err = await resp.json().catch(() => ({}));
+    throw new Error(err.error || `HTTP ${resp.status}`);
+  }
+
+  return await resp.json();
 }
 
 /**
