@@ -4,29 +4,35 @@
  * All pricing and vendor data is fetched live via vendorService.
  */
 import { hasSupabaseConfig } from '@/api/supabaseClient';
+import { supabase } from '@/api/supabaseClient';
 import { entities } from './entityService';
 
 // ─── Category inference ──────────────────────────────────────────────
 
 const CATEGORY_KEYWORDS = {
-  engine: ['engine', 'piston', 'cylinder', 'crankshaft', 'camshaft', 'turbo', 'turbocharger', 'injector', 'gasket', 'valve'],
+  engine: ['engine', 'piston', 'cylinder', 'crankshaft', 'camshaft', 'turbo', 'turbocharger', 'gasket'],
   transmission: ['transmission', 'clutch', 'gearbox', 'torque converter', 'shift'],
   brakes: ['brake', 'caliper', 'rotor', 'pad', 'drum', 'abs'],
   electrical: ['battery', 'alternator', 'starter', 'wiring', 'fuse', 'relay', 'ecu', 'ecm', 'sensor module'],
-  exhaust: ['exhaust', 'dpf', 'def', 'egr', 'scr', 'catalyst', 'muffler', 'aftertreatment', 'nox'],
-  fuel_system: ['fuel', 'injector', 'pump', 'rail', 'tank', 'filter fuel', 'fuel filter'],
+  exhaust: ['exhaust', 'dpf filter', 'dpf', 'def', 'egr', 'scr', 'catalyst', 'muffler', 'aftertreatment', 'nox'],
+  fuel_system: ['fuel injector', 'fuel filter', 'fuel pump', 'fuel rail', 'fuel tank', 'fuel', 'injector'],
   cooling: ['coolant', 'radiator', 'thermostat', 'water pump', 'fan', 'heat exchanger', 'cooling'],
   suspension: ['suspension', 'shock', 'spring', 'leaf spring', 'air bag', 'bushings'],
   drivetrain: ['differential', 'axle', 'driveshaft', 'u-joint', 'wheel bearing', 'hub'],
-  filters: ['filter', 'air filter', 'oil filter', 'cabin filter', 'hydraulic filter'],
-  sensors: ['sensor', 'thermocouple', 'pressure sensor', 'speed sensor', 'temp sensor', 'o2 sensor', 'nox sensor'],
+  filters: ['air filter', 'oil filter', 'cabin filter', 'hydraulic filter', 'filter'],
+  sensors: ['nox sensor', 'o2 sensor', 'temp sensor', 'speed sensor', 'pressure sensor', 'thermocouple', 'sensor'],
   body: ['mirror', 'light', 'headlight', 'tail light', 'bumper', 'hood', 'fender', 'door'],
 };
 
+// Pre-build a flat list sorted longest-keyword-first so multi-word matches win
+const _KEYWORD_INDEX = Object.entries(CATEGORY_KEYWORDS)
+  .flatMap(([cat, kws]) => kws.map(kw => ({ kw, cat })))
+  .sort((a, b) => b.kw.length - a.kw.length);
+
 function inferCategory(name, description) {
   const text = `${name} ${description}`.toLowerCase();
-  for (const [category, keywords] of Object.entries(CATEGORY_KEYWORDS)) {
-    if (keywords.some(kw => text.includes(kw))) return category;
+  for (const { kw, cat } of _KEYWORD_INDEX) {
+    if (text.includes(kw)) return cat;
   }
   return 'other';
 }
@@ -154,12 +160,21 @@ export async function deleteRecommendation(id) {
 
 export async function getRecommendedStats() {
   try {
-    // Get total count server-side instead of fetching all rows
     const total = await entities.Part.count();
     if (!total) return { total: 0, categories: {} };
 
-    // Fetch only id + category for aggregation (still needed for breakdown)
-    const data = await entities.Part.list('-created_at', 500);
+    // Fetch only the category column for aggregation (not full rows)
+    let data;
+    if (hasSupabaseConfig && supabase) {
+      const { data: rows, error } = await supabase
+        .from('parts')
+        .select('category')
+        .limit(500);
+      data = error ? [] : rows;
+    } else {
+      data = await entities.Part.list('-created_at', 500);
+    }
+
     const categories = {};
     for (const part of (data || [])) {
       categories[part.category] = (categories[part.category] || 0) + 1;

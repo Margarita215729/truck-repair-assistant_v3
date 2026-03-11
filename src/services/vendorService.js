@@ -102,7 +102,7 @@ export function aggregateListings(vendorResults) {
     ...(vendorResults?.ebay || []),
     ...(vendorResults?.finditparts || []),
   ];
-  return all.sort((a, b) => (a.price || Infinity) - (b.price || Infinity));
+  return all.sort((a, b) => (a.price ?? Infinity) - (b.price ?? Infinity));
 }
 
 /**
@@ -133,6 +133,31 @@ export function hasListings(vendorResults) {
   return vendorResults?.listings?.length > 0;
 }
 
+// ─── Vendor search URL builders (for Compare Modal links) ────────────
+
+export const VENDOR_INFO = {
+  fleetpride:  { name: 'FleetPride',  icon: '🏭' },
+  finditparts: { name: 'FinditParts', icon: '🔍' },
+  rockauto:    { name: 'RockAuto',    icon: '🔧' },
+  ebay:        { name: 'eBay',        icon: '🛒' },
+};
+
+/**
+ * Build direct search URLs on major vendor sites for a given part.
+ * @param {string} partNumber
+ * @param {string} partName
+ * @returns {Record<string, string>}
+ */
+export function getSearchUrls(partNumber, partName) {
+  const q = encodeURIComponent(partNumber || partName);
+  return {
+    fleetpride:  `https://www.fleetpride.com/search?q=${q}`,
+    finditparts: `https://www.finditparts.com/search?searchTerm=${q}`,
+    rockauto:    `https://www.rockauto.com/en/partsearch/?partnum=${q}`,
+    ebay:        `https://www.ebay.com/sch/i.html?_nkw=${q}+truck+part`,
+  };
+}
+
 /**
  * React Query key factories for vendor searches.
  */
@@ -148,6 +173,8 @@ export default {
   groupByTier,
   filterBySourceType,
   hasListings,
+  getSearchUrls,
+  VENDOR_INFO,
   SOURCE_TIER_LABELS,
   vendorKeys,
 };

@@ -41,7 +41,7 @@ function tierFromUrl(url) {
 
 function vendorFromUrl(url) {
   try {
-    const h = new URL(url).hostname.replace('www.', '').replace('parts.', '');
+    const h = new URL(url).hostname.replace(/^www\./, '').replace(/^parts\./, '');
     const map = {
       'freightliner.com': 'Freightliner', 'peterbiltparts.com': 'Peterbilt',
       'kenworth.com': 'Kenworth', 'volvotrucks.us': 'Volvo Trucks',
@@ -67,7 +67,10 @@ async function searchCSE(query, num = 10) {
   url.searchParams.set('num', String(Math.min(num, 10)));
 
   const resp = await fetch(url.toString(), { headers: { Accept: 'application/json' } });
-  if (!resp.ok) return [];
+  if (!resp.ok) {
+    console.error(`CSE search failed: HTTP ${resp.status} — ${resp.statusText}`);
+    return [];
+  }
 
   const data = await resp.json();
   return (data.items || []).map(item => ({
@@ -260,7 +263,7 @@ export default async function handler(req, res) {
     const listings = await normaliseWithAI(cseResults, query, partNumber, make, model, year);
 
     // Sort by source tier (OEM first), then by price
-    listings.sort((a, b) => (a.sourceTier - b.sourceTier) || ((a.price || Infinity) - (b.price || Infinity)));
+    listings.sort((a, b) => (a.sourceTier - b.sourceTier) || ((a.price ?? Infinity) - (b.price ?? Infinity)));
 
     return res.status(200).json({
       listings,

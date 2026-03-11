@@ -103,9 +103,9 @@ export default function PartsCatalog() {
     }
     // Sort
     if (searchFilters.sort === 'price_asc') {
-      all.sort((a, b) => (a.price || Infinity) - (b.price || Infinity));
+      all.sort((a, b) => (a.price ?? Infinity) - (b.price ?? Infinity));
     } else if (searchFilters.sort === 'price_desc') {
-      all.sort((a, b) => (b.price || 0) - (a.price || 0));
+      all.sort((a, b) => (b.price ?? 0) - (a.price ?? 0));
     } else if (searchFilters.sort === 'trust') {
       all.sort((a, b) => (a.sourceTier || 4) - (b.sourceTier || 4));
     }
