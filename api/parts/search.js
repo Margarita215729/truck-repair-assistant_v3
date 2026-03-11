@@ -70,7 +70,15 @@ async function searchCSE(query, num = 10) {
 
   const resp = await fetch(url.toString(), { headers: { Accept: 'application/json' } });
   if (!resp.ok) {
-    throw new Error(`CSE search failed: HTTP ${resp.status} — ${resp.statusText}`);
+    const errBody = await resp.text().catch(() => '');
+    let detail = resp.statusText;
+    try {
+      const parsed = JSON.parse(errBody);
+      const gErr = parsed?.error;
+      if (gErr) detail = `${gErr.message || gErr.status} [${gErr.code}]${gErr.errors?.[0]?.reason ? ` reason=${gErr.errors[0].reason}` : ''}`;
+    } catch { /* use raw statusText */ }
+    console.error('CSE error:', { status: resp.status, detail, cx: CX?.slice(0, 6) + '…', queryLength: query.length });
+    throw new Error(`CSE search failed: HTTP ${resp.status} — ${detail}`);
   }
 
   const data = await resp.json();
