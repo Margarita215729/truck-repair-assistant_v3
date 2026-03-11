@@ -1,11 +1,11 @@
 /**
  * Vercel Serverless Function — Repair Parts Search (AI-powered)
  *
- * Hybrid pipeline:
+ * Pipeline:
  *   1. Google CSE — searches truck-parts vendor sites for real product pages
  *   2. GPT-4o-mini — normalises raw CSE results into structured VendorListing cards
- *      with title, price, availability, vendor, condition, imageUrl, itemUrl, sourceTier
- *   3. Fallback — if AI is unavailable, basic regex-based normalisation of CSE results
+ *
+ * If any step fails, the API returns an error — no degraded/synthetic data.
  *
  * POST /api/parts/search
  * Body: { query, partNumber, make, model, year, condition, limit }
@@ -58,7 +58,9 @@ function vendorFromUrl(url) {
 async function searchCSE(query, num = 10) {
   const API_KEY = process.env.GOOGLE_CSE_API_KEY;
   const CX = process.env.GOOGLE_CSE_TRUSTED_PARTS_CX || process.env.GOOGLE_CSE_ID;
-  if (!API_KEY || !CX) return [];
+  if (!API_KEY || !CX) {
+    throw new Error('Google CSE is not configured (missing API_KEY or CX).');
+  }
 
   const url = new URL('https://www.googleapis.com/customsearch/v1');
   url.searchParams.set('key', API_KEY);
@@ -68,8 +70,7 @@ async function searchCSE(query, num = 10) {
 
   const resp = await fetch(url.toString(), { headers: { Accept: 'application/json' } });
   if (!resp.ok) {
-    console.error(`CSE search failed: HTTP ${resp.status} — ${resp.statusText}`);
-    return [];
+    throw new Error(`CSE search failed: HTTP ${resp.status} — ${resp.statusText}`);
   }
 
   const data = await resp.json();
@@ -95,7 +96,9 @@ async function searchCSE(query, num = 10) {
 // ─── AI normalisation via GPT-4o-mini ───────────────────────────────
 async function normaliseWithAI(cseResults, query, partNumber, make, model, year) {
   const GITHUB_TOKEN = process.env.GITHUB_TOKEN;
-  if (!GITHUB_TOKEN || cseResults.length === 0) return [];
+  if (!GITHUB_TOKEN || cseResults.length === 0) {
+    throw new Error('AI normalisation is not configured (missing GITHUB_TOKEN) or no CSE results.');
+  }
 
   const systemPrompt = `You are a truck parts data normaliser. Given raw search results for truck parts, extract structured product listings.
 
@@ -142,7 +145,9 @@ ${cseResults.map((r, i) => `[${i + 1}] Title: ${r.title}
       }),
     });
 
-    if (!resp.ok) return fallbackNormalise(cseResults);
+    if (!resp.ok) {
+      throw new Error(`AI normalisation failed: HTTP ${resp.status}`);
+    }
 
     const data = await resp.json();
     const text = data.choices?.[0]?.message?.content || '';
@@ -167,36 +172,8 @@ ${cseResults.map((r, i) => `[${i + 1}] Title: ${r.title}
         sourceType: 'cse_ai',
       }));
   } catch (err) {
-    console.warn('AI normalisation failed, using fallback:', err.message);
-    return fallbackNormalise(cseResults);
+    throw new Error(`AI normalisation failed: ${err.message}`);
   }
-}
-
-// ─── Fallback: normalise CSE results without AI ─────────────────────
-function fallbackNormalise(cseResults) {
-  return cseResults
-    .filter(r => r.link && r.title)
-    .map(r => {
-      let price = 0;
-      if (r.price) {
-        price = parseFloat(String(r.price).replace(/[^0-9.]/g, '')) || 0;
-      } else {
-        const priceMatch = r.snippet?.match(/\$\s?([\d,]+\.?\d{0,2})/);
-        if (priceMatch) price = parseFloat(priceMatch[1].replace(',', '')) || 0;
-      }
-      return {
-        title: r.title.slice(0, 200),
-        price,
-        vendor: vendorFromUrl(r.link),
-        condition: r.condition || 'Unknown',
-        availability: r.availability || 'Check Availability',
-        partNumber: '',
-        imageUrl: r.image || null,
-        itemUrl: r.link,
-        sourceTier: tierFromUrl(r.link),
-        sourceType: 'cse_fallback',
-      };
-    });
 }
 
 // ─── Main handler ───────────────────────────────────────────────────
@@ -278,14 +255,14 @@ export default async function handler(req, res) {
     });
   } catch (err) {
     console.error('Parts search handler error:', err);
-    return res.status(200).json({
+    return res.status(500).json({
       listings: [],
       meta: {
         query: req.body?.query || '',
         partNumber: req.body?.partNumber || '',
         totalResults: 0,
         livePricingAvailable: false,
-        error: 'Search temporarily unavailable',
+        error: err.message || 'Search temporarily unavailable',
       },
     });
   }

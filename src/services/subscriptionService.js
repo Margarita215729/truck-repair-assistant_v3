@@ -18,24 +18,25 @@ export const subscriptionService = {
    * Get current user's subscription
    */
   async getCurrentSubscription() {
-    if (!hasSupabaseConfig || !supabase) return { plan: 'free', status: 'active' };
-
-    try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return { plan: 'free', status: 'active' };
-
-      const { data, error } = await supabase
-        .from('subscriptions')
-        .select('*')
-        .eq('user_id', user.id)
-        .single();
-
-      if (error || !data) return { plan: 'free', status: 'active', user_id: user.id, _source: 'no_record' };
-      return { ...data, _source: 'confirmed' };
-    } catch (err) {
-      console.error('getCurrentSubscription failed:', err);
-      throw err;
+    if (!hasSupabaseConfig || !supabase) {
+      throw new Error('Subscription service is not configured.');
     }
+
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) throw new Error('Not authenticated. Please log in.');
+
+    const { data, error } = await supabase
+      .from('subscriptions')
+      .select('*')
+      .eq('user_id', user.id)
+      .single();
+
+    // No subscription row = genuinely free-tier user (not a fallback)
+    if (error?.code === 'PGRST116' || !data) {
+      return { plan: 'free', status: 'active', user_id: user.id, _source: 'no_record' };
+    }
+    if (error) throw new Error(error.message || 'Failed to fetch subscription.');
+    return { ...data, _source: 'confirmed' };
   },
 
   /**
@@ -43,39 +44,34 @@ export const subscriptionService = {
    */
   async checkAiLimit() {
     if (!hasSupabaseConfig || !supabase) {
-      return { allowed: true, plan: 'free', used: 0, limit: 10, remaining: 10 };
+      throw new Error('AI limit service is not configured.');
     }
 
-    try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return { allowed: false, plan: 'free', used: 0, limit: 0, remaining: 0 };
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) throw new Error('Not authenticated. Please log in.');
 
-      const { data, error } = await supabase.rpc('check_ai_limit', { p_user_id: user.id });
-      if (error) {
-        console.error('Failed to check AI limit:', error);
-        throw new Error(error.message || 'Failed to check AI limit');
-      }
-
-      return { ...data, _source: 'confirmed' };
-    } catch (err) {
-      console.error('checkAiLimit failed:', err);
-      throw err;
+    const { data, error } = await supabase.rpc('check_ai_limit', { p_user_id: user.id });
+    if (error) {
+      throw new Error(error.message || 'Failed to check AI limit.');
     }
+
+    return { ...data, _source: 'confirmed' };
   },
 
   /**
    * Increment AI usage counter
    */
   async incrementAiUsage() {
-    if (!hasSupabaseConfig || !supabase) return 0;
+    if (!hasSupabaseConfig || !supabase) {
+      throw new Error('AI usage service is not configured.');
+    }
 
     const { data: { user } } = await supabase.auth.getUser();
-    if (!user) return 0;
+    if (!user) throw new Error('Not authenticated. Please log in.');
 
     const { data, error } = await supabase.rpc('increment_ai_usage', { p_user_id: user.id });
     if (error) {
-      console.error('Failed to increment AI usage:', error);
-      return 0;
+      throw new Error(error.message || 'Failed to increment AI usage.');
     }
 
     return data;

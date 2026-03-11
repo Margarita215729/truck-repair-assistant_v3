@@ -1,30 +1,10 @@
 /**
  * Entity Service — Production
- * Manages entities via Supabase with proper user_id, UUID PKs, and no localStorage fallback for auth-required tables.
- * localStorage is ONLY used as offline cache when Supabase is unreachable.
+ * Manages entities via Supabase with proper user_id, UUID PKs.
+ * No localStorage cache — all data comes from the database.
+ * If Supabase is unreachable, operations fail explicitly.
  */
 import { supabase, hasSupabaseConfig } from '@/api/supabaseClient';
-
-const STORAGE_PREFIX = 'trv3_entity_';
-
-// ─── LocalStorage Cache (offline fallback only) ──────────────────────
-
-function getLocalCollection(entityName) {
-  try {
-    const raw = localStorage.getItem(STORAGE_PREFIX + entityName);
-    return raw ? JSON.parse(raw) : [];
-  } catch {
-    return [];
-  }
-}
-
-function saveLocalCollection(entityName, items) {
-  try {
-    localStorage.setItem(STORAGE_PREFIX + entityName, JSON.stringify(items));
-  } catch {
-    // storage full or unavailable
-  }
-}
 
 // ─── Get current user ID ─────────────────────────────────────────────
 
@@ -168,7 +148,7 @@ function createEntityAPI(entityName) {
      */
     async list(sortField = '-created_at', limit = 50) {
       if (!hasSupabaseConfig || !supabase) {
-        return getLocalCollection(entityName);
+        throw new Error('Database is not configured.');
       }
 
       let query = supabase.from(tableName).select('*');
@@ -183,14 +163,10 @@ function createEntityAPI(entityName) {
 
       const { data, error } = await query;
       if (error) {
-        console.warn(`List ${tableName} failed:`, error);
-        return getLocalCollection(entityName);
+        throw new Error(`Failed to list ${tableName}: ${error.message}`);
       }
 
-      const mapped = fromDbFieldsArray(tableName, data);
-      // Cache for offline use
-      saveLocalCollection(entityName, mapped);
-      return mapped;
+      return fromDbFieldsArray(tableName, data);
     },
 
     /**
@@ -198,10 +174,7 @@ function createEntityAPI(entityName) {
      */
     async filter(filterObj) {
       if (!hasSupabaseConfig || !supabase) {
-        const items = getLocalCollection(entityName);
-        return items.filter((item) =>
-          Object.entries(filterObj).every(([key, value]) => item[key] === value)
-        );
+        throw new Error('Database is not configured.');
       }
 
       const dbFilter = toDbFields(tableName, filterObj);
@@ -216,8 +189,7 @@ function createEntityAPI(entityName) {
 
       const { data, error } = await query;
       if (error) {
-        console.warn(`Filter ${tableName} failed:`, error);
-        return [];
+        throw new Error(`Failed to filter ${tableName}: ${error.message}`);
       }
       return fromDbFieldsArray(tableName, data);
     },
@@ -227,8 +199,7 @@ function createEntityAPI(entityName) {
      */
     async get(id) {
       if (!hasSupabaseConfig || !supabase) {
-        const items = getLocalCollection(entityName);
-        return items.find((item) => item.id === id) || null;
+        throw new Error('Database is not configured.');
       }
 
       const { data, error } = await supabase
@@ -238,8 +209,7 @@ function createEntityAPI(entityName) {
         .single();
 
       if (error) {
-        console.warn(`Get ${tableName} failed:`, error);
-        return null;
+        throw new Error(`Failed to get ${tableName} record: ${error.message}`);
       }
       return fromDbFields(tableName, data);
     },
@@ -295,12 +265,6 @@ function createEntityAPI(entityName) {
         throw new Error('Record not found or access denied.');
       }
 
-      // Remove from localStorage offline cache so stale data doesn't resurface
-      const cached = getLocalCollection(entityName);
-      if (cached.length > 0) {
-        saveLocalCollection(entityName, cached.filter(item => item.id !== id));
-      }
-
       return true;
     },
 
@@ -308,7 +272,9 @@ function createEntityAPI(entityName) {
      * Count records (useful for limit checks)
      */
     async count(filterObj = {}) {
-      if (!hasSupabaseConfig || !supabase) return 0;
+      if (!hasSupabaseConfig || !supabase) {
+        throw new Error('Database is not configured.');
+      }
 
       const dbFilter = toDbFields(tableName, filterObj);
       let query = supabase.from(tableName).select('id', { count: 'exact', head: true });
@@ -317,7 +283,9 @@ function createEntityAPI(entityName) {
       });
 
       const { count, error } = await query;
-      if (error) return 0;
+      if (error) {
+        throw new Error(`Failed to count ${tableName}: ${error.message}`);
+      }
       return count || 0;
     },
   };

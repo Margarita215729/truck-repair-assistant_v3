@@ -220,7 +220,7 @@ async function searchGoogleCSE(query, num = 5) {
   const CSE_ID = process.env.GOOGLE_CSE_ID;
 
   if (!API_KEY || !CSE_ID) {
-    return []; // Graceful: not configured
+    throw new Error('Google CSE is not configured (missing GOOGLE_CSE_API_KEY or GOOGLE_CSE_ID).');
   }
 
   const clampedNum = Math.min(Math.max(1, num), 10);
@@ -236,7 +236,7 @@ async function searchGoogleCSE(query, num = 5) {
 
   if (!response.ok) {
     if (response.status === 429) {
-      return []; // Quota exceeded — degrade silently
+      throw new Error('Google CSE quota exceeded. Try again later.');
     }
     throw new Error(`Google CSE HTTP ${response.status}`);
   }
