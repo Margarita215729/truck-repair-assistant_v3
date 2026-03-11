@@ -20,17 +20,17 @@ import { useLanguage } from '@/lib/LanguageContext';
 function classifySearch(input) {
   if (!input) return { type: 'free_text', value: input };
   const trimmed = input.trim();
-  // Part number pattern: alphanumeric with hyphens, 4+ chars, starts with letter/digit
-  if (/^[A-Za-z0-9][\w\-]{3,}$/.test(trimmed) && /\d/.test(trimmed)) {
-    return { type: 'part_number', value: trimmed };
-  }
-  // VIN: 17 alphanumeric chars
+  // VIN: 17 alphanumeric chars (check before part_number — VINs match the generic pattern)
   if (/^[A-HJ-NPR-Z0-9]{17}$/i.test(trimmed)) {
     return { type: 'vin', value: trimmed };
   }
   // Fault/DTC code: starts with P/B/C/U followed by 4 digits, or SPN/FMI pattern
   if (/^[PBCU]\d{4}$/i.test(trimmed) || /^SPN\s?\d+/i.test(trimmed)) {
     return { type: 'fault_code', value: trimmed };
+  }
+  // Part number pattern: alphanumeric with hyphens, 4+ chars, starts with letter/digit
+  if (/^[A-Za-z0-9][\w\-]{3,}$/.test(trimmed) && /\d/.test(trimmed)) {
+    return { type: 'part_number', value: trimmed };
   }
   return { type: 'free_text', value: trimmed };
 }
