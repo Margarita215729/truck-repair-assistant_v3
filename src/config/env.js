@@ -1,31 +1,25 @@
 /**
  * Environment configuration
- * Safe environment variable access with fallback chain
+ * Reads env vars from Vite (VITE_ prefix) or window.__ENV__ (runtime injection).
+ * Returns empty string for unconfigured optional vars — services must check
+ * and throw their own errors for required configuration.
  */
 
-const FALLBACK_VALUES = {
-  SUPABASE_URL: '',
-  SUPABASE_ANON_KEY: '',
-  GITHUB_TOKEN: '',
-  GOOGLE_MAPS_API_KEY: '',
-  YOUTUBE_API_KEY: '',
-  GOOGLE_CSE_API_KEY: '',
-  GOOGLE_CSE_ID: '',
-  STRIPE_PUBLISHABLE_KEY: '',
-  OWNER_PRICE_MONTHLY: '',
-  OWNER_PRICE_ANNUAL: '',
-  FLEET_PRICE_MONTHLY: '',
-  FLEET_PRICE_ANNUAL: '',
-  APP_URL: '',
-};
+// Known env var keys (not fallback values — just the list of supported keys)
+const KNOWN_KEYS = [
+  'SUPABASE_URL', 'SUPABASE_ANON_KEY', 'GITHUB_TOKEN',
+  'GOOGLE_MAPS_API_KEY', 'YOUTUBE_API_KEY', 'GOOGLE_CSE_API_KEY', 'GOOGLE_CSE_ID',
+  'STRIPE_PUBLISHABLE_KEY', 'OWNER_PRICE_MONTHLY', 'OWNER_PRICE_ANNUAL',
+  'FLEET_PRICE_MONTHLY', 'FLEET_PRICE_ANNUAL', 'APP_URL',
+];
 
 function getEnv(key) {
   // 1. Vite env vars (VITE_ prefix)
   try {
     const viteValue = import.meta.env?.[`VITE_${key}`] || import.meta.env?.[key];
     if (viteValue) return viteValue;
-  } catch (e) {
-    // silent
+  } catch {
+    // import.meta.env unavailable (SSR/test)
   }
 
   // 2. Window.__ENV__ (runtime injection)
@@ -34,11 +28,11 @@ function getEnv(key) {
       const windowValue = window.__ENV__[key];
       if (windowValue) return windowValue;
     }
-  } catch (e) {
-    // silent
+  } catch {
+    // window unavailable (SSR)
   }
 
-  return FALLBACK_VALUES[key] || '';
+  return '';
 }
 
 export const env = {

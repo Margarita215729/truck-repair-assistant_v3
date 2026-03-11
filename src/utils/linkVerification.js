@@ -10,7 +10,7 @@ import { classifyDomain } from './domainTrust';
 
 /**
  * Batch-verify links through the research API.
- * Falls back gracefully — unverified links are still usable.
+ * If verification fails, the error propagates — no fake results.
  *
  * @param {string[]} urls - URLs to verify
  * @param {string} accessToken - JWT for auth
@@ -19,32 +19,28 @@ import { classifyDomain } from './domainTrust';
 export async function verifyLinks(urls, accessToken) {
   if (!urls || urls.length === 0) return new Map();
 
-  try {
-    const response = await fetch('/api/research-search', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        ...(accessToken ? { 'Authorization': `Bearer ${accessToken}` } : {}),
-      },
-      body: JSON.stringify({
-        action: 'verify_links',
-        urls: urls.slice(0, 10), // max 10 per batch
-      }),
-    });
+  const response = await fetch('/api/research-search', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      ...(accessToken ? { 'Authorization': `Bearer ${accessToken}` } : {}),
+    },
+    body: JSON.stringify({
+      action: 'verify_links',
+      urls: urls.slice(0, 10), // max 10 per batch
+    }),
+  });
 
-    if (!response.ok) {
-      return fallbackMap(urls);
-    }
-
-    const data = await response.json();
-    const map = new Map();
-    for (const [url, result] of Object.entries(data.results || {})) {
-      map.set(url, result);
-    }
-    return map;
-  } catch {
-    return fallbackMap(urls);
+  if (!response.ok) {
+    throw new Error(`Link verification failed: HTTP ${response.status}`);
   }
+
+  const data = await response.json();
+  const map = new Map();
+  for (const [url, result] of Object.entries(data.results || {})) {
+    map.set(url, result);
+  }
+  return map;
 }
 
 /**
@@ -124,12 +120,4 @@ export function isConstructedUrl(url) {
   return constructedPatterns.some(p => p.test(url));
 }
 
-// ─── Internal ───────────────────────────────────────────────────────
 
-function fallbackMap(urls) {
-  const map = new Map();
-  for (const url of urls) {
-    map.set(url, { reachable: false, statusCode: null, redirectUrl: null });
-  }
-  return map;
-}
