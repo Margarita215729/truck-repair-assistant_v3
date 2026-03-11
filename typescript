@@ -1,0 +1,406 @@
+Script started on Sun Mar  8 19:13:29 2026
+[1m[7m%[27m[1m[0m                                                                    [0m[27m[24m[Jrm@RMs-MacBook-Air-2 truck-repair-assistant_v3 % [K[?2004h[?2004l
+[1m[7m%[27m[1m[0m                                                                    [0m[27m[24m[Jrm@RMs-MacBook-Air-2 truck-repair-assistant_v3 % [K[?2004h  pwd[?2004l
+/Users/rm/truck-repair-assistant_v3
+[1m[7m%[27m[1m[0m                                                                    [0m[27m[24m[Jrm@RMs-MacBook-Air-2 truck-repair-assistant_v3 % [K[?2004h[?2004l
+[1m[7m%[27m[1m[0m                                                                    [0m[27m[24m[Jrm@RMs-MacBook-Air-2 truck-repair-assistant_v3 % [K[?2004h  export NVM_DIR="$H [KOOME/.nvm" && . "$NVM_DIR/nvm.sh" && nvm use 20 && cd ~/truck-repair- [Kaassistant_v3 && export $(grep -v '^#' .env.local | xargs) && NODE_PA [KTTH=./node_modules node /tmp/check_migrations.js[?2004l
+Now using node v20.20.0 (npm v10.8.2)
+=== Migration 001: Core tables ===
+  OK profiles
+  OK subscriptions
+  OK trucks
+  OK diagnostic_reports
+  OK conversations
+  OK knowledge_base
+  OK service_reviews
+  OK solution_votes
+  OK parts
+  OK usage_tracking
+
+=== Migration 003: Functions ===
+  MISS check_ai_limit
+  MISS increment_ai_usage
+  MISS nearby_truck_parking
+  MISS nearby_weigh_stations
+  MISS nearby_truck_restrictions
+  MISS get_user_truck_count
+  MISS redeem_promo_code
+
+=== Migration 004/010: Seed data tables ===
+  OK promo_codes
+  OK promo_redemptions
+
+=== Migration 005: Parts upgrade ===
+  OK diagnostic_toolkits
+  OK repair_guide_ratings
+
+=== Migration 007: Infrastructure ===
+  OK truck_parking
+  OK weigh_stations
+  OK truck_restrictions
+
+=== Migration 012: Telematics ===
+  OK telematics_connections
+  OK encrypted_tokens
+  OK oauth_sessions
+  OK vehicle_system_snapshots
+  OK vehicle_signal_events
+  OK vehicle_operational_events
+  OK vehicle_defect_events
+  OK fault_events_raw
+  OK fault_events_normalized
+
+=== Migration 013: Parts decision fields ===
+  FAIL decision columns missing
+
+=== Migration 014: user_id NOT NULL ===
+  Parts with NULL user_id: 0
+
+Done.
+[1m[7m%[27m[1m[0m                                                                    [0m[27m[24m[Jrm@RMs-MacBook-Air-2 truck-repair-assistant_v3 % [K[?2004h[?2004l
+[1m[7m%[27m[1m[0m                                                                    [0m[27m[24m[Jrm@RMs-MacBook-Air-2 truck-repair-assistant_v3 % [K[?2004h  cd ~/truck-repair- [Kaassistant_v3 && NODE_PATH=./node_modules node /tmp/check_migrations2 [K..js[?2004l
+=== RPC check with correct params ===
+check_ai_limit: Could not find the function public.check_ai_limit(feature_name, user_uuid) in the schema cache
+increment_ai_usage: Could not find the function public.increment_ai_usage(feature_name, user_uuid) in the schema cache
+get_user_truck_count: Could not find the function public.get_user_truck_count(user_uuid) in the schema cache
+nearby_truck_parking: Could not find the function public.nearby_truck_parking(lat, lng, radius_miles) in the schema cache
+nearby_weigh_stations: Could not find the function public.nearby_weigh_stations(lat, lng, radius_miles) in the schema cache
+nearby_truck_restrictions: Could not find the function public.nearby_truck_restrictions(lat, lng, radius_miles) in the schema cache
+redeem_promo_code: Could not find the function public.redeem_promo_code(code_text, user_uuid) in the schema cache
+
+=== Parts table column check ===
+Parts columns: id, name, part_number, manufacturer, category, price, compatibility, description, image_url, specifications, created_at, updated_at, part_type, installation_difficulty, compatible_makes, related_error_codes, related_symptoms, source, importance, notes, why_needed, installation_notes, truck_context, user_id
+
+=== Migration 013 columns test ===
+  oem_part_number: MISSING - column parts.oem_part_number does not exist
+  urgency: MISSING - column parts.urgency does not exist
+  driveability: MISSING - column parts.driveability does not exist
+  action_type: MISSING - column parts.action_type does not exist
+  roadside_possible: MISSING - column parts.roadside_possible does not exist
+  fitment_status: MISSING - column parts.fitment_status does not exist
+  where_to_buy: MISSING - column parts.where_to_buy does not exist
+  estimated_cost: MISSING - column parts.estimated_cost does not exist
+  labor_hours: MISSING - column parts.labor_hours does not exist
+  special_tools: MISSING - column parts.special_tools does not exist
+  diy_difficulty: MISSING - column parts.diy_difficulty does not exist
+  warranty_impact: MISSING - column parts.warranty_impact does not exist
+  recall_related: MISSING - column parts.recall_related does not exist
+[1m[7m%[27m[1m[0m                                                                    [0m[27m[24m[Jrm@RMs-MacBook-Air-2 truck-repair-assistant_v3 % [K[?2004h[?2004l
+[1m[7m%[27m[1m[0m                                                                    [0m[27m[24m[Jrm@RMs-MacBook-Air-2 truck-repair-assistant_v3 % [K[?2004h  cd ~/truck-repair- [Kaassistant_v3 && NODE_PATH=./node_modules node /tmp/check_migrations3 [K..js[?2004l
+=== 003: Functions ===
+check_ai_limit(): MISSING: Could not find the function public.check_ai_limit without parameters in the schema cache
+increment_ai_usage(): MISSING: Could not find the function public.increment_ai_usage without parameters in the schema cache
+get_user_truck_count(): MISSING: Could not find the function public.get_user_truck_count without parameters in the schema cache
+redeem_promo_code(p_code): MISSING: Could not find the function public.redeem_promo_code(p_code) in the schema cache
+nearby_truck_parking(p_lat,p_lng,p_radius_miles): OK: 0 rows
+nearby_weigh_stations: OK: 0 rows
+nearby_truck_restrictions: OK: 0 rows
+handle_new_user: (trigger function, checked via trigger existence)
+
+=== 005: Parts added columns ===
+  part_type: OK
+  installation_difficulty: OK
+  compatible_makes: OK
+  related_error_codes: OK
+  related_symptoms: OK
+  source: OK
+  importance: OK
+  notes: OK
+  why_needed: OK
+  installation_notes: OK
+  truck_context: OK
+
+=== 008: Trucks added columns ===
+  trucks.engine_displacement: OK
+  trucks.transmission_model: OK
+  trucks.fuel_type: OK
+  trucks.tire_size: OK
+  trucks.fluid_capacities: OK
+  trucks.modifications: OK
+  trucks.maintenance_notes: OK
+  trucks.images: OK
+  trucks.manuals: OK
+
+=== 008: Diagnostic_reports added columns ===
+  diagnostic_reports.truck_info: OK
+  diagnostic_reports.report_type: OK
+  diagnostic_reports.diagnosis_summary: OK
+  diagnostic_reports.report_data: OK
+  diagnostic_reports.error_codes_analysis: OK
+  diagnostic_reports.identified_issues: OK
+  diagnostic_reports.recommendations: OK
+  diagnostic_reports.estimated_costs: OK
+  diagnostic_reports.sources: OK
+
+=== 009: Conversations added columns ===
+  conversations.truck_make: OK
+  conversations.truck_model: OK
+  conversations.truck_year: OK
+  conversations.status: OK
+
+=== 010: Subscription plan enum check ===
+  query plan='owner': ERROR: invalid input value for enum subscription_plan: "owner"
+
+=== 011: Vision-temp bucket ===
+  vision-temp bucket: OK
+
+=== 013: Parts decision columns ===
+  oem_part_number: MISSING
+  urgency: MISSING
+  driveability: MISSING
+  action_type: MISSING
+  roadside_possible: MISSING
+  fitment_status: MISSING
+
+Done.
+[1m[7m%[27m[1m[0m                                                                    [0m[27m[24m[Jrm@RMs-MacBook-Air-2 truck-repair-assistant_v3 % [K[?2004h[?2004l
+[1m[7m%[27m[1m[0m                                                                    [0m[27m[24m[Jrm@RMs-MacBook-Air-2 truck-repair-assistant_v3 % [K[?2004h  cd ~/truck-repair- [Kaassistant_v3 && NODE_PATH=./node_modules node /tmp/check_migrations4 [K..js[?2004l
+=== promo_codes columns ===
+  Columns: id, code, type, discount_percent, max_uses, current_uses, valid_from, valid_until, active, created_at
+
+=== profiles columns ===
+  Columns: id, full_name, phone, company_name, avatar_url, role, preferred_language, notification_preferences, created_at, updated_at
+
+=== knowledge_base.votes_count ===
+  votes_count: OK
+
+=== solution_votes columns ===
+  vote_type: OK
+
+=== subscriptions columns ===
+  stripe_customer_id: OK
+
+=== usage_tracking columns ===
+  Columns: id, user_id, date, ai_requests_count, created_at
+[1m[7m%[27m[1m[0m                                                                    [0m[27m[24m[Jrm@RMs-MacBook-Air-2 truck-repair-assistant_v3 % [K[?2004h[?2004l
+[1m[7m%[27m[1m[0m                                                                    [0m[27m[24m[Jrm@RMs-MacBook-Air-2 truck-repair-assistant_v3 % [K[?2004h  cd ~/truck-repair- [Kaassistant_v3 && npx supabase db push 2>&1[?2004l
+[1G[0K]11;?\[6nInitialising login role...
+Connecting to remote database...
+Do you want to push these migrations to the remote database?
+ • [1m015_remediate_missing_ddl.sql[0m
+
+ [Y/n] ^C[91mcontext canceled[0m
+[1G[0K⠙[1G[0K[1m[7m%[27m[1m[0m                                                                    [0m[27m[24m[Jrm@RMs-MacBook-Air-2 truck-repair-assistant_v3 % [K[?2004h  y[?2004l
+zsh: command not found: y
+[1m[7m%[27m[1m[0m                                                                    [0m[27m[24m[Jrm@RMs-MacBook-Air-2 truck-repair-assistant_v3 % [K[?2004h[?2004l
+[1m[7m%[27m[1m[0m                                                                    [0m[27m[24m[Jrm@RMs-MacBook-Air-2 truck-repair-assistant_v3 % [K[?2004h  cd ~/truck-repair- [Kaassistant_v3 && echo "y" | npx supabase db push 2>&1[?2004l
+[1G[0K]11;?\[6nInitialising login role...
+Connecting to remote database...
+Do you want to push these migrations to the remote database?
+ • [1m015_remediate_missing_ddl.sql[0m
+
+ [Y/n] y
+Applying migration 015_remediate_missing_ddl.sql...
+NOTICE (00000): policy "Users can update own usage via RPC only" for relation "usage_tracking" does not exist, skipping
+[91mERROR: cannot change return type of existing function (SQLSTATE 42P13)[0m                          
+[91mAt statement: 9[0m                                                                                 
+[91m-- check_ai_limit (010 version with auth + owner/fleet support)[0m                                 
+[91mCREATE OR REPLACE FUNCTION check_ai_limit(p_user_id UUID)[0m                                       
+[91mRETURNS JSONB[0m                                                                                   
+[91mLANGUAGE plpgsql[0m                                                                                
+[91mSECURITY DEFINER[0m                                                                                
+[91mAS $$[0m                                                                                           
+[91mDECLARE[0m                                                                                         
+[91m  v_plan subscription_plan;[0m                                                                     
+[91m  v_status TEXT;[0m                                                                                
+[91m  v_limit INT;[0m                                                                                  
+[91m  v_used INT;[0m                                                                                   
+[91mBEGIN[0m                                                                                           
+[91m  IF auth.uid() IS DISTINCT FROM p_user_id THEN[0m                                                 
+[91m    RETURN jsonb_build_object('allowed', false, 'error', 'unauthorized');[0m                       
+[91m  END IF;[0m                                                                                       
+[91m[0m                                                                                                
+[91m  SELECT plan, status INTO v_plan, v_status[0m                                                     
+[91m  FROM subscriptions[0m                                                                            
+[91m  WHERE user_id = p_user_id;[0m                                                                    
+[91m[0m                                                                                                
+[91m  IF v_plan IN ('pro', 'lifetime', 'owner', 'fleet') AND v_status IN ('active', 'trialing') THEN[0m
+[91m    RETURN jsonb_build_object([0m                                                                  
+[91m      'allowed', true,[0m                                                                          
+[91m      'plan', v_plan,[0m                                                                           
+[91m      'used', 0,[0m                                                                                
+[91m      'limit', -1,[0m                                                                              
+[91m      'remaining', -1[0m                                                                           
+[91m    );[0m                                                                                          
+[91m  END IF;[0m                                                                                       
+[91m[0m                                                                                                
+[91m  v_limit := 5;[0m                                                                                 
+[91m[0m                                                                                                
+[91m  SELECT COALESCE(ai_requests_count, 0) INTO v_used[0m                                             
+[91m  FROM usage_tracking[0m                                                                           
+[91m  WHERE user_id = p_user_id AND date = CURRENT_DATE;[0m                                            
+[91m[0m                                                                                                
+[91m  IF v_used IS NULL THEN v_used := 0; END IF;[0m                                                   
+[91m[0m                                                                                                
+[91m  RETURN jsonb_build_object([0m                                                                    
+[91m    'allowed', v_used < v_limit,[0m                                                                
+[91m    'plan', COALESCE(v_plan, 'free'),[0m                                                           
+[91m    'used', v_used,[0m                                                                             
+[91m    'limit', v_limit,[0m                                                                           
+[91m    'remaining', GREATEST(0, v_limit - v_used)[0m                                                  
+[91m  );[0m                                                                                            
+[91mEND;[0m                                                                                            
+[91m$$[0m                                                                                              
+Try rerunning the command with --debug to troubleshoot the error.
+[1G[0K⠙[1G[0K[1m[7m%[27m[1m[0m                                                                    [0m[27m[24m[Jrm@RMs-MacBook-Air-2 truck-repair-assistant_v3 % [K[?2004h[?2004l
+[1m[7m%[27m[1m[0m                                                                    [0m[27m[24m[Jrm@RMs-MacBook-Air-2 truck-repair-assistant_v3 % [K[?2004h  cd ~/truck-repair- [Kaassistant_v3 && npx supabase migration list 2>&1 | tail -20[?2004l
+
+  
+   Local | Remote | Time (UTC) 
+  -------|--------|------------
+   001   | 001    | 001        
+   002   | 002    | 002        
+   003   | 003    | 003        
+   004   | 004    | 004        
+   005   | 005    | 005        
+   006   | 006    | 006        
+   007   | 007    | 007        
+   008   | 008    | 008        
+   009   | 009    | 009        
+   010   | 010    | 010        
+   011   | 011    | 011        
+   012   | 012    | 012        
+   013   | 013    | 013        
+   014   | 014    | 014        
+   015   |        | 015        
+
+[1m[7m%[27m[1m[0m                                                                    [0m[27m[24m[Jrm@RMs-MacBook-Air-2 truck-repair-assistant_v3 % [K[?2004h[?2004l
+[1m[7m%[27m[1m[0m                                                                    [0m[27m[24m[Jrm@RMs-MacBook-Air-2 truck-repair-assistant_v3 % [K[?2004h  cd ~/truck-repair- [Kaassistant_v3 && echo "y" | npx supabase db push 2>&1[?2004l
+[1G[0K]11;?\[6nInitialising login role...
+Connecting to remote database...
+Do you want to push these migrations to the remote database?
+ • [1m015_remediate_missing_ddl.sql[0m
+
+ [Y/n] y
+Applying migration 015_remediate_missing_ddl.sql...
+NOTICE (00000): policy "Users can update own usage via RPC only" for relation "usage_tracking" does not exist, skipping
+[91mERROR: cannot drop function handle_new_user() because other objects depend on it (SQLSTATE 2BP01)[0m
+[91mtrigger on_auth_user_created on table auth.users depends on function handle_new_user()[0m           
+[91mAt statement: 10[0m                                                                                 
+[91mDROP FUNCTION IF EXISTS public.handle_new_user()[0m                                                 
+Try rerunning the command with --debug to troubleshoot the error.
+[1G[0K⠙[1G[0K[1m[7m%[27m[1m[0m                                                                    [0m[27m[24m[Jrm@RMs-MacBook-Air-2 truck-repair-assistant_v3 % [K[?2004h[?2004l
+[1m[7m%[27m[1m[0m                                                                    [0m[27m[24m[Jrm@RMs-MacBook-Air-2 truck-repair-assistant_v3 % [K[?2004h  cd ~/truck-repair- [Kaassistant_v3 && echo "y" | npx supabase db push 2>&1[?2004l
+[1G[0K]11;?\[6nInitialising login role...
+Connecting to remote database...
+Do you want to push these migrations to the remote database?
+ • [1m015_remediate_missing_ddl.sql[0m
+
+ [Y/n] y
+Applying migration 015_remediate_missing_ddl.sql...
+NOTICE (00000): policy "Users can update own usage via RPC only" for relation "usage_tracking" does not exist, skipping
+NOTICE (00000): trigger "on_auth_user_created" for relation "auth.users" does not exist, skipping
+NOTICE (00000): trigger "trigger_update_votes_count" for relation "solution_votes" does not exist, skipping
+Finished [96msupabase db push[0m.
+[1G[0K⠙[1G[0K[1m[7m%[27m[1m[0m                                                                    [0m[27m[24m[Jrm@RMs-MacBook-Air-2 truck-repair-assistant_v3 % [K[?2004h[?2004l
+[1m[7m%[27m[1m[0m                                                                    [0m[27m[24m[Jrm@RMs-MacBook-Air-2 truck-repair-assistant_v3 % [K[?2004h  cd ~/truck-repair- [Kaassistant_v3 && NODE_PATH=./node_modules node /tmp/verify_015.js[?2004l
+=== Functions ===
+  OK check_ai_limit
+  OK increment_ai_usage
+  OK get_user_truck_count
+  OK redeem_promo_code
+  OK nearby_truck_parking
+  OK nearby_weigh_stations
+  OK nearby_truck_restrictions
+
+=== subscription_plan enum ===
+  OK enum 'owner'
+  OK enum 'fleet'
+
+=== Parts decision columns (013) ===
+  OK parts.oem_part_number
+  OK parts.alt_part_numbers
+  OK parts.root_cause_confidence
+  OK parts.urgency
+  OK parts.driveability
+  OK parts.action_type
+  OK parts.roadside_possible
+  OK parts.shop_required
+  OK parts.programming_required
+  OK parts.inspection_steps
+  OK parts.pair_with_parts
+  OK parts.bundle_label
+  OK parts.fitment_status
+
+=== profiles.email ===
+  OK profiles.email
+
+=============================
+PASSED: 23 / 23
+ALL CHECKS PASSED!
+[1m[7m%[27m[1m[0m                                                                    [0m[27m[24m[Jrm@RMs-MacBook-Air-2 truck-repair-assistant_v3 % [K[?2004h[?2004l
+[1m[7m%[27m[1m[0m                                                                    [0m[27m[24m[Jrm@RMs-MacBook-Air-2 truck-repair-assistant_v3 % [K[?2004h  cd ~/truck-repair- [Kaassistant_v3 && git add supabase/migrations/015_remediate_missing_dd [Kll.sql && git commit -m "fix: migration 015 — remediate missing DDL f [Krrom 003/010/013[?2004l
+[0m[27m[24m[Jcmdand cmdand dquote> [K[?2004h[?2004l
+[0m[27m[24m[Jcmdand cmdand dquote> [K[?2004h-- Create 7 RPC functions (check_ai_limit, incr [Keement_ai_usage, get_user_truck_count, redeem_promo_code, handle_new_ [Kuuser, update_votes_count + trigger)[?2004l
+[0m[27m[24m[Jcmdand cmdand dquote> [K[?2004h-- Add 'owner'/'fleet' enum values to subscript [Kiion_plan[?2004l
+[0m[27m[24m[Jcmdand cmdand dquote> [K[?2004h-- Add 13 parts decision columns from migration [K  013[?2004l
+[0m[27m[24m[Jcmdand cmdand dquote> [K[?2004h-- Add profiles.email column[?2004l
+[0m[27m[24m[Jcmdand cmdand dquote> [K[?2004h-- Fix usage_tracking RLS policy[?2004l
+[0m[27m[24m[Jcmdand cmdand dquote> [K[?2004h-- Add solution_votes vote_type check constrain [Kt[?2004l
+[0m[27m[24m[Jcmdand cmdand dquote> [K[?2004h-- Add idx_subscriptions_stripe_customer index" [K  && git push origin main 2>&1[?2004l
+[main 0cbc0b5] fix: migration 015 — remediate missing DDL from 003/010/013
+ 1 file changed, 285 insertions(+)
+ create mode 100644 supabase/migrations/015_remediate_missing_ddl.sql
+To https://github.com/Margarita215729/truck-repair-assistant_v3.git
+ [31m! [rejected]       [m main -> main (fetch first)
+[31merror: failed to push some refs to 'https://github.com/Margarita215729/truck-repair-assistant_v3.git'
+[m[33mhint: Updates were rejected because the remote contains work that you do[m
+[33mhint: not have locally. This is usually caused by another repository pushing[m
+[33mhint: to the same ref. You may want to first integrate the remote changes[m
+[33mhint: (e.g., 'git pull ...') before pushing again.[m
+[33mhint: See the 'Note about fast-forwards' in 'git push --help' for details.[m
+[1m[7m%[27m[1m[0m                                                                    [0m[27m[24m[Jrm@RMs-MacBook-Air-2 truck-repair-assistant_v3 % [K[?2004h[?2004l
+[1m[7m%[27m[1m[0m                                                                    [0m[27m[24m[Jrm@RMs-MacBook-Air-2 truck-repair-assistant_v3 % [K[?2004h  cd ~/truck-repair- [Kaassistant_v3 && git pull --rebase origin main 2>&1 && git push origi [Knn main 2>&1[?2004l
+error: cannot pull with rebase: You have unstaged changes.
+error: please commit or stash them.
+[1m[7m%[27m[1m[0m                                                                    [0m[27m[24m[Jrm@RMs-MacBook-Air-2 truck-repair-assistant_v3 % [K[?2004h[?2004l
+[1m[7m%[27m[1m[0m                                                                    [0m[27m[24m[Jrm@RMs-MacBook-Air-2 truck-repair-assistant_v3 % [K[?2004h  cd ~/truck-repair- [Kaassistant_v3 && git stash && git pull --rebase origin main 2>&1 && g [Kiit stash pop && git push origin main 2>&1[?2004l
+Saved working directory and index state WIP on main: 0cbc0b5 fix: migration 015 — remediate missing DDL from 003/010/013
+remote: Enumerating objects: 9, done.[K
+remote: Counting objects:  11% (1/9)[Kremote: Counting objects:  22% (2/9)[Kremote: Counting objects:  33% (3/9)[Kremote: Counting objects:  44% (4/9)[Kremote: Counting objects:  55% (5/9)[Kremote: Counting objects:  66% (6/9)[Kremote: Counting objects:  77% (7/9)[Kremote: Counting objects:  88% (8/9)[Kremote: Counting objects: 100% (9/9)[Kremote: Counting objects: 100% (9/9), done.[K
+remote: Compressing objects:  20% (1/5)[Kremote: Compressing objects:  40% (2/5)[Kremote: Compressing objects:  60% (3/5)[Kremote: Compressing objects:  80% (4/5)[Kremote: Compressing objects: 100% (5/5)[Kremote: Compressing objects: 100% (5/5), done.[K
+remote: Total 5 (delta 4), reused 0 (delta 0), pack-reused 0 (from 0)[K
+Unpacking objects:  20% (1/5)Unpacking objects:  40% (2/5)Unpacking objects:  60% (3/5)Unpacking objects:  80% (4/5)Unpacking objects: 100% (5/5)Unpacking objects: 100% (5/5), 1.27 KiB | 325.00 KiB/s, done.
+From https://github.com/Margarita215729/truck-repair-assistant_v3
+ * branch            main       -> FETCH_HEAD
+   8d00977..d3a3af3  main       -> origin/main
+Rebasing (1/1)[KSuccessfully rebased and updated refs/heads/main.
+On branch main
+Your branch is ahead of 'origin/main' by 1 commit.
+  (use "git push" to publish your local commits)
+
+Changes not staged for commit:
+  (use "git add <file>..." to update what will be committed)
+  (use "git restore <file>..." to discard changes in working directory)
+	[31mmodified:   package-lock.json[m
+	[31mmodified:   package.json[m
+
+Untracked files:
+  (use "git add <file>..." to include in what will be committed)
+	[31mtypescript[m
+
+no changes added to commit (use "git add" and/or "git commit -a")
+Dropped refs/stash@{0} (a34400ae0face372ef62d388c49ba9d11631453e)
+Enumerating objects: 8, done.
+Counting objects:  12% (1/8)Counting objects:  25% (2/8)Counting objects:  37% (3/8)Counting objects:  50% (4/8)Counting objects:  62% (5/8)Counting objects:  75% (6/8)Counting objects:  87% (7/8)Counting objects: 100% (8/8)Counting objects: 100% (8/8), done.
+Delta compression using up to 10 threads
+Compressing objects:  20% (1/5)Compressing objects:  40% (2/5)Compressing objects:  60% (3/5)Compressing objects:  80% (4/5)Compressing objects: 100% (5/5)Compressing objects: 100% (5/5), done.
+Writing objects:  20% (1/5)Writing objects:  40% (2/5)Writing objects:  60% (3/5)Writing objects:  80% (4/5)Writing objects: 100% (5/5)Writing objects: 100% (5/5), 3.30 KiB | 3.30 MiB/s, done.
+Total 5 (delta 3), reused 0 (delta 0), pack-reused 0
+remote: Resolving deltas:   0% (0/3)[Kremote: Resolving deltas:  33% (1/3)[Kremote: Resolving deltas:  66% (2/3)[Kremote: Resolving deltas: 100% (3/3)[Kremote: Resolving deltas: 100% (3/3), completed with 3 local objects.[K
+To https://github.com/Margarita215729/truck-repair-assistant_v3.git
+   d3a3af3..eb37a67  main -> main
+[1m[7m%[27m[1m[0m                                                                    [0m[27m[24m[Jrm@RMs-MacBook-Air-2 truck-repair-assistant_v3 % [K[?2004h[?2004l
+[1m[7m%[27m[1m[0m                                                                    [0m[27m[24m[Jrm@RMs-MacBook-Air-2 truck-repair-assistant_v3 % [K[?2004h  cd ~/truck-repair- [Kaassistant_v3 && git add package.json package-lock.json && git commit [K  -m "chore: add supabase CLI as devDependency" && git push origin ma [Kiin 2>&1[?2004l
+[main 9bf3b75] chore: add supabase CLI as devDependency
+ 2 files changed, 278 insertions(+), 2 deletions(-)
+Enumerating objects: 7, done.
+Counting objects:  14% (1/7)Counting objects:  28% (2/7)Counting objects:  42% (3/7)Counting objects:  57% (4/7)Counting objects:  71% (5/7)Counting objects:  85% (6/7)Counting objects: 100% (7/7)Counting objects: 100% (7/7), done.
+Delta compression using up to 10 threads
+Compressing objects:  25% (1/4)Compressing objects:  50% (2/4)Compressing objects:  75% (3/4)Compressing objects: 100% (4/4)Compressing objects: 100% (4/4), done.
+Writing objects:  25% (1/4)Writing objects:  50% (2/4)Writing objects:  75% (3/4)Writing objects: 100% (4/4)Writing objects: 100% (4/4), 3.28 KiB | 3.28 MiB/s, done.
+Total 4 (delta 3), reused 0 (delta 0), pack-reused 0
+remote: Resolving deltas:   0% (0/3)[Kremote: Resolving deltas:  33% (1/3)[Kremote: Resolving deltas:  66% (2/3)[Kremote: Resolving deltas: 100% (3/3)[Kremote: Resolving deltas: 100% (3/3), completed with 3 local objects.[K
+To https://github.com/Margarita215729/truck-repair-assistant_v3.git
+   eb37a67..9bf3b75  main -> main
+[1m[7m%[27m[1m[0m                                                                    [0m[27m[24m[Jrm@RMs-MacBook-Air-2 truck-repair-assistant_v3 % [K[?2004h
