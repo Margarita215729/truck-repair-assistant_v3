@@ -57,7 +57,18 @@ function vendorFromUrl(url) {
 // ─── Google CSE search ──────────────────────────────────────────────
 async function searchCSE(query, num = 10) {
   const API_KEY = process.env.GOOGLE_CSE_API_KEY;
-  const CX = process.env.GOOGLE_CSE_TRUSTED_PARTS_CX || process.env.GOOGLE_CSE_ID;
+  const PARTS_CX = process.env.GOOGLE_CSE_TRUSTED_PARTS_CX;
+  const GENERAL_CX = process.env.GOOGLE_CSE_ID;
+  const CX = PARTS_CX || GENERAL_CX;
+
+  console.log('CSE env check:', {
+    hasApiKey: !!API_KEY,
+    apiKeyPrefix: API_KEY?.slice(0, 8) + '…',
+    partsCx: PARTS_CX || '(not set)',
+    generalCx: GENERAL_CX || '(not set)',
+    usingCx: CX || '(none)',
+  });
+
   if (!API_KEY || !CX) {
     throw new Error('Google CSE is not configured (missing API_KEY or CX).');
   }
