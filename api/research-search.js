@@ -169,12 +169,8 @@ async function handleSearch(body, res) {
     }));
   }
 
-  if (shouldSearchParts && (context.partNumber || context.partName)) {
-    tasks.push(Promise.resolve().then(() => {
-      const vendorLinks = buildVerifiedVendorLinks(context.partNumber, context.partName);
-      for (const link of vendorLinks) dealerLinks.push(link);
-    }));
-  }
+  // Parts vendor links are now provided exclusively by CSE search results.
+  // No constructed/fabricated vendor links are generated.
 
   if (shouldSearchDealers && context.make) {
     tasks.push(
@@ -372,43 +368,6 @@ function resolveOEMLinksServer(make) {
     });
   }
   return links;
-}
-
-// ─── Verified vendor links ──────────────────────────────────────────
-
-function buildVerifiedVendorLinks(partNumber, partName) {
-  const term = partNumber || partName || '';
-  if (!term) return [];
-  const encoded = encodeURIComponent(term);
-  const fullEncoded = encodeURIComponent([partNumber, partName].filter(Boolean).join(' '));
-
-  return [
-    {
-      url: `https://www.fleetpride.com/parts/search?q=${encoded}`,
-      linkType: 'oem_parts', label: 'FleetPride', source: 'FleetPride',
-      trustTier: 2, verifiedOfficial: true, confidence: 0.8,
-    },
-    {
-      url: `https://www.finditparts.com/search?q=${encoded}`,
-      linkType: 'oem_parts', label: 'FinditParts', source: 'FinditParts',
-      trustTier: 2, verifiedOfficial: true, confidence: 0.8,
-    },
-    {
-      url: `https://www.rockauto.com/en/partsearch/?partnum=${encoded}`,
-      linkType: 'oem_parts', label: 'RockAuto', source: 'RockAuto',
-      trustTier: 3, verifiedOfficial: true, confidence: 0.7,
-    },
-    {
-      url: `https://www.ebay.com/sch/i.html?_nkw=${fullEncoded}&_sacat=6028`,
-      linkType: 'general', label: 'eBay (Truck Parts)', source: 'eBay',
-      trustTier: 4, verifiedOfficial: false, confidence: 0.6,
-    },
-    {
-      url: `https://www.google.com/search?tbm=shop&q=${fullEncoded}`,
-      linkType: 'general', label: 'Google Shopping', source: 'Google',
-      trustTier: 4, verifiedOfficial: false, confidence: 0.5,
-    },
-  ];
 }
 
 // ─── Link verification handler ──────────────────────────────────────

@@ -25,7 +25,6 @@ const {
   groupByTier,
   filterBySourceType,
   hasListings,
-  getSearchUrls,
   VENDOR_INFO,
   SOURCE_TIER_LABELS,
   vendorKeys,
@@ -208,37 +207,6 @@ describe('vendorService — VENDOR_INFO', () => {
   });
 });
 
-// ─── getSearchUrls ───────────────────────────────────────────────────
-
-describe('vendorService — getSearchUrls', () => {
-  it('builds URLs for all 4 vendors', () => {
-    const urls = getSearchUrls('CUM-4352857', 'EGR Valve');
-    expect(urls).toHaveProperty('fleetpride');
-    expect(urls).toHaveProperty('finditparts');
-    expect(urls).toHaveProperty('rockauto');
-    expect(urls).toHaveProperty('ebay');
-  });
-
-  it('encodes partNumber into URLs', () => {
-    const urls = getSearchUrls('CUM-4352857', 'EGR Valve');
-    expect(urls.fleetpride).toContain('CUM-4352857');
-    expect(urls.rockauto).toContain('CUM-4352857');
-  });
-
-  it('falls back to partName when partNumber is empty', () => {
-    const urls = getSearchUrls('', 'EGR Valve');
-    expect(urls.fleetpride).toContain('EGR%20Valve');
-    expect(urls.ebay).toContain('EGR%20Valve');
-  });
-
-  it('returns valid URLs', () => {
-    const urls = getSearchUrls('ABC-123', 'Test');
-    for (const url of Object.values(urls)) {
-      expect(() => new URL(url)).not.toThrow();
-    }
-  });
-});
-
 // ─── searchVendors (fetch mock) ──────────────────────────────────────
 
 describe('vendorService — searchVendors', () => {
@@ -273,25 +241,30 @@ describe('vendorService — searchVendors', () => {
     expect(result.listings).toHaveLength(1);
   });
 
-  it('returns empty result on HTTP error', async () => {
-    global.fetch = vi.fn().mockResolvedValue({ ok: false, status: 500 });
-    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+  it('throws on HTTP error', async () => {
+    global.fetch = vi.fn().mockResolvedValue({
+      ok: false,
+      status: 500,
+      json: () => Promise.resolve({ error: 'CSE not configured' }),
+    });
 
-    const result = await searchVendors('turbo');
-    warn.mockRestore();
-
-    expect(result.listings).toEqual([]);
-    expect(result.meta.totalResults).toBe(0);
+    await expect(searchVendors('turbo')).rejects.toThrow('CSE not configured');
   });
 
-  it('returns empty result on network error', async () => {
+  it('throws on network error', async () => {
     global.fetch = vi.fn().mockRejectedValue(new Error('Network error'));
-    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
 
-    const result = await searchVendors('turbo');
-    warn.mockRestore();
+    await expect(searchVendors('turbo')).rejects.toThrow('Network error');
+  });
 
-    expect(result.listings).toEqual([]);
+  it('includes HTTP status in error when no body message', async () => {
+    global.fetch = vi.fn().mockResolvedValue({
+      ok: false,
+      status: 503,
+      json: () => Promise.reject(new Error('not json')),
+    });
+
+    await expect(searchVendors('turbo')).rejects.toThrow('HTTP 503');
   });
 });
 

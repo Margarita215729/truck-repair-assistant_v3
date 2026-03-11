@@ -19,7 +19,7 @@ import {
   Car
 } from 'lucide-react';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { getSearchUrls, VENDOR_INFO } from '@/services/vendorService';
+import { VENDOR_INFO } from '@/services/vendorService';
 
 const difficultyColors = {
   easy: 'bg-green-500/20 text-green-400 border-green-500/30',
@@ -300,41 +300,7 @@ export default function ComparePartsModal({ parts, open, onClose }) {
               </div>
             )}
 
-            {/* ─── Search Vendor Links ─── */}
-            <div>
-              <h3 className="text-sm font-semibold text-white/90 mb-3 flex items-center gap-2">
-                <ShoppingCart className="w-4 h-4 text-orange-400" />
-                Search on Vendor Sites
-              </h3>
-              <div className="grid gap-4" style={{ gridTemplateColumns: `repeat(${parts.length}, 1fr)` }}>
-                {parts.map((part, idx) => {
-                  const urls = getSearchUrls(
-                    part.part_number || part.partNumber || '',
-                    part.name || part.title || ''
-                  );
-                  return (
-                    <div key={idx} className="p-4 rounded-lg bg-white/5 border border-white/10 space-y-2">
-                      {Object.entries(urls).slice(0, 4).map(([key, url]) => {
-                        const vi = VENDOR_INFO[key] || { name: key, icon: '🔗' };
-                        return (
-                          <a
-                            key={key}
-                            href={url}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="flex items-center gap-2 p-2 rounded bg-white/5 hover:bg-white/10 transition-all text-xs"
-                          >
-                            <span>{vi.icon}</span>
-                            <span className="text-white/80 flex-1">{vi.name}</span>
-                            <ExternalLink className="w-3 h-3 text-white/40" />
-                          </a>
-                        );
-                      })}
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
+
           </div>
         </ScrollArea>
       </DialogContent>
