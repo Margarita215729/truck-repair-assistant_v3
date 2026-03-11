@@ -2,7 +2,6 @@
  * Vendor Service — Client-side
  * Calls the /api/parts/search serverless function for live vendor pricing.
  * Returns a unified listings[] array with normalized VendorListing objects.
- * Also provides client-side constructed search URLs as fallback.
  */
 import { supabase, hasSupabaseConfig } from '@/api/supabaseClient';
 
@@ -52,20 +51,14 @@ export async function searchVendors(query, options = {}) {
     });
 
     if (!resp.ok) {
-      console.warn('Vendor search API error:', resp.status);
-      return {
-        listings: [],
-        meta: { query, partNumber: options.partNumber || '', totalResults: 0, sources: {} },
-      };
+      const body = await resp.json().catch(() => ({}));
+      const message = body?.meta?.error || body?.error || `Vendor search failed (HTTP ${resp.status})`;
+      throw new Error(message);
     }
 
     return await resp.json();
   } catch (err) {
-    console.warn('Vendor search failed:', err.message);
-    return {
-      listings: [],
-      meta: { query, partNumber: options.partNumber || '', totalResults: 0, sources: {} },
-    };
+    throw err;
   }
 }
 
@@ -133,7 +126,7 @@ export function hasListings(vendorResults) {
   return vendorResults?.listings?.length > 0;
 }
 
-// ─── Vendor search URL builders (for Compare Modal links) ────────────
+// ─── Vendor display info ─────────────────────────────────────────────
 
 export const VENDOR_INFO = {
   fleetpride:  { name: 'FleetPride',  icon: '🏭' },
@@ -141,22 +134,6 @@ export const VENDOR_INFO = {
   rockauto:    { name: 'RockAuto',    icon: '🔧' },
   ebay:        { name: 'eBay',        icon: '🛒' },
 };
-
-/**
- * Build direct search URLs on major vendor sites for a given part.
- * @param {string} partNumber
- * @param {string} partName
- * @returns {Record<string, string>}
- */
-export function getSearchUrls(partNumber, partName) {
-  const q = encodeURIComponent(partNumber || partName);
-  return {
-    fleetpride:  `https://www.fleetpride.com/search?q=${q}`,
-    finditparts: `https://www.finditparts.com/search?searchTerm=${q}`,
-    rockauto:    `https://www.rockauto.com/en/partsearch/?partnum=${q}`,
-    ebay:        `https://www.ebay.com/sch/i.html?_nkw=${q}+truck+part`,
-  };
-}
 
 /**
  * React Query key factories for vendor searches.
@@ -173,7 +150,6 @@ export default {
   groupByTier,
   filterBySourceType,
   hasListings,
-  getSearchUrls,
   VENDOR_INFO,
   SOURCE_TIER_LABELS,
   vendorKeys,

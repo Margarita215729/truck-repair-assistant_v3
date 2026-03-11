@@ -7,7 +7,6 @@
  *
  * Replaces direct usage of:
  *   - forumSearchService.searchForums()       → researchService.searchForums()
- *   - vendorService.getSearchUrls()           → researchService.getVerifiedLinks()
  *   - fabricated OEM URLs                     → researchService.resolveOfficialLinks()
  */
 
@@ -22,8 +21,7 @@ import {
   RESULT_TYPES,
   SEARCH_MODES,
 } from '@/utils/researchModels';
-import { buildQuery, resolveOEMLinks, getTrustedVendorLinks } from '@/utils/queryBuilder';
-import { isConstructedUrl } from '@/utils/linkVerification';
+import { buildQuery, resolveOEMLinks } from '@/utils/queryBuilder';
 
 const RESEARCH_API = '/api/research-search';
 const SEARCH_TIMEOUT = 6000; // 6s for the shared layer (was 3s for forums only)
@@ -168,18 +166,15 @@ export async function getIssueResearchPacket(context = {}) {
   });
 
   if (!data) {
-    // Full fallback: client-side only
+    // Fallback: client-side OEM links only (no constructed vendor URLs)
     const oemLinks = context.make ? resolveOEMLinks(context.make) : [];
-    const vendorLinks = (context.partNumber || context.partName)
-      ? getTrustedVendorLinks(context.partNumber, context.partName)
-      : [];
 
     return createResearchPacket({
       context: query,
       mode: SEARCH_MODES.ISSUE_RESEARCH,
       results: [],
       officialLinks: oemLinks.filter(l => l.linkType !== 'dealer_locator'),
-      dealerLinks: oemLinks.filter(l => l.linkType === 'dealer_locator').concat(vendorLinks),
+      dealerLinks: oemLinks.filter(l => l.linkType === 'dealer_locator'),
       error: 'Research API unavailable — showing cached links only',
     });
   }
@@ -195,7 +190,7 @@ export async function getIssueResearchPacket(context = {}) {
 }
 
 /**
- * Get verified parts source links (replaces getSearchUrls for parts).
+ * Get verified parts source links via server-side CSE search.
  * Returns trusted vendor links with trust metadata instead of guessed OEM URLs.
  *
  * @param {string} partNumber
@@ -204,10 +199,9 @@ export async function getIssueResearchPacket(context = {}) {
  * @returns {Promise<{ links: ResolvedLink[], officialLinks: ResolvedLink[] }>}
  */
 export async function getVerifiedPartsLinks(partNumber, partName, make) {
-  const vendorLinks = getTrustedVendorLinks(partNumber, partName);
   const oemLinks = make ? resolveOEMLinks(make) : [];
 
-  // Try to enrich with server-side search results
+  // Server-side CSE search — the only source of real vendor links
   const data = await researchFetch({
     action: 'search',
     mode: 'parts_sources',
@@ -215,16 +209,9 @@ export async function getVerifiedPartsLinks(partNumber, partName, make) {
     context: { partNumber, partName, make },
   });
 
-  if (data && data.dealerLinks?.length > 0) {
-    return {
-      links: data.dealerLinks,
-      officialLinks: data.officialLinks || oemLinks.filter(l => l.linkType !== 'dealer_locator'),
-    };
-  }
-
   return {
-    links: vendorLinks,
-    officialLinks: oemLinks.filter(l => l.linkType !== 'dealer_locator'),
+    links: data?.dealerLinks || [],
+    officialLinks: data?.officialLinks || oemLinks.filter(l => l.linkType !== 'dealer_locator'),
   };
 }
 
@@ -300,6 +287,5 @@ export function formatForumContext(results) {
 // ─── Utility re-exports for consumers ───────────────────────────────
 
 export { SEARCH_MODES, RESULT_TYPES } from '@/utils/researchModels';
-export { isConstructedUrl } from '@/utils/linkVerification';
-export { resolveOEMLinks, getTrustedVendorLinks } from '@/utils/queryBuilder';
+export { resolveOEMLinks } from '@/utils/queryBuilder';
 export { classifyDomain, TRUST_TIERS, SOURCE_CLASSES } from '@/utils/domainTrust';

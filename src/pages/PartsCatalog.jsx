@@ -75,7 +75,7 @@ export default function PartsCatalog() {
   });
 
   // ─── Search tab: live vendor search ────────────────────────────────
-  const { data: vendorResults, isLoading: searchLoading } = useQuery({
+  const { data: vendorResults, isLoading: searchLoading, error: searchError } = useQuery({
     queryKey: vendorKeys.search(searchSubmitted, { partNumber: searchPartNumber, make: searchMake, model: searchModel, year: searchYear, condition: searchFilters.condition }),
     queryFn: () => searchVendors(searchSubmitted, {
       partNumber: searchPartNumber,
@@ -87,6 +87,7 @@ export default function PartsCatalog() {
     enabled: !!searchSubmitted,
     staleTime: 5 * 60_000,
     keepPreviousData: true,
+    retry: 1,
   });
 
   // Aggregated and filtered vendor listings
@@ -378,6 +379,16 @@ export default function PartsCatalog() {
               <div className="flex flex-col items-center justify-center py-20 gap-3">
                 <Loader2 className="w-8 h-8 animate-spin text-orange-500" />
                 <p className="text-sm text-white/50">Searching vendors and dealers...</p>
+              </div>
+            ) : searchError ? (
+              <div className="text-center py-16">
+                <AlertTriangle className="w-16 h-16 mx-auto mb-4 text-red-400/50" />
+                <h3 className="text-xl font-semibold text-white mb-2">{t('parts.searchFailed') || 'Search Failed'}</h3>
+                <p className="text-white/60 mb-4 max-w-md mx-auto">{searchError.message}</p>
+                <Button onClick={handleSearch} variant="outline" className="border-orange-500/30 text-orange-400 hover:bg-orange-500/10">
+                  <Search className="w-4 h-4 mr-2" />
+                  Retry Search
+                </Button>
               </div>
             ) : searchSubmitted && vendorResults ? (
               <>

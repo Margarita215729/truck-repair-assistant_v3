@@ -224,11 +224,13 @@ export default async function handler(req, res) {
     const cseResults = await searchCSE(searchString, maxResults);
 
     if (cseResults.length === 0) {
+      console.warn('CSE returned 0 results for query:', searchString);
       return res.status(200).json({
         listings: [],
         meta: {
           query: query || '',
           partNumber: partNumber || '',
+          searchQuery: searchString,
           totalResults: 0,
           livePricingAvailable: false,
           source: 'none',
@@ -247,6 +249,7 @@ export default async function handler(req, res) {
       meta: {
         query: query || '',
         partNumber: partNumber || '',
+        searchQuery: searchString,
         totalResults: listings.length,
         livePricingAvailable: listings.length > 0,
         source: listings[0]?.sourceType || 'none',
@@ -262,8 +265,8 @@ export default async function handler(req, res) {
         partNumber: req.body?.partNumber || '',
         totalResults: 0,
         livePricingAvailable: false,
-        error: err.message || 'Search temporarily unavailable',
       },
+      error: err.message || 'Search temporarily unavailable',
     });
   }
 }

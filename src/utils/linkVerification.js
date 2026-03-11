@@ -100,24 +100,5 @@ export function validateUrlStructure(url) {
   }
 }
 
-/**
- * Determine if a link should be marked as "constructed" (guessed) vs "resolved" (verified).
- * @param {string} url
- * @returns {boolean} true if the URL is a known pattern-guess
- */
-export function isConstructedUrl(url) {
-  if (!url) return true;
-
-  // These URL patterns are known to be guessed/constructed (not actual API endpoints)
-  const constructedPatterns = [
-    /parts\.freightliner\.com\/search\?q=/i,
-    /peterbiltparts\.com\/search\?q=/i,
-    /kenworth\.com\/parts\/\?q=/i,
-    /volvotrucks\.us\/parts\/\?q=/i,
-    /macktrucks\.com\/parts\/\?q=/i,
-  ];
-
-  return constructedPatterns.some(p => p.test(url));
-}
 
 

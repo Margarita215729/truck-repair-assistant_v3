@@ -6,6 +6,7 @@ import { Package, DollarSign, Wrench, ExternalLink, Search, Loader2, Trash2, Sho
 import { motion } from 'framer-motion';
 import { Checkbox } from '@/components/ui/checkbox';
 import { searchVendorsForPart, aggregateListings, SOURCE_TIER_LABELS } from '@/services/vendorService';
+import { toast } from 'sonner';
 
 const categoryIcons = {
   engine: '🔧', transmission: '⚙️', brakes: '🛑', electrical: '⚡',
@@ -55,15 +56,18 @@ const tierBadgeColors = {
 export default function PartCard({ part, variant = 'recommended', onClick, onDelete, compareMode, isSelected }) {
   const [vendorPrices, setVendorPrices] = useState(null);
   const [priceLoading, setPriceLoading] = useState(false);
+  const [priceError, setPriceError] = useState(null);
 
   const handleFindPrices = async (e) => {
     e.stopPropagation();
     setPriceLoading(true);
+    setPriceError(null);
     try {
       const results = await searchVendorsForPart(part);
       setVendorPrices(results);
-    } catch {
-      setVendorPrices({ listings: [] });
+    } catch (err) {
+      setPriceError(err.message);
+      toast.error(err.message || 'Vendor search failed');
     }
     setPriceLoading(false);
   };
@@ -295,7 +299,7 @@ export default function PartCard({ part, variant = 'recommended', onClick, onDel
 
           {/* Find Prices button */}
           <div className="pt-3 border-t border-white/10">
-            {!vendorPrices && !priceLoading && (
+            {!vendorPrices && !priceLoading && !priceError && (
               <Button
                 size="sm"
                 variant="outline"
@@ -311,6 +315,21 @@ export default function PartCard({ part, variant = 'recommended', onClick, onDel
               <div className="flex items-center justify-center py-2 gap-2">
                 <Loader2 className="w-4 h-4 animate-spin text-orange-400" />
                 <span className="text-xs text-white/50">Searching vendors...</span>
+              </div>
+            )}
+
+            {priceError && !priceLoading && (
+              <div className="space-y-2">
+                <p className="text-xs text-red-400">Search failed: {priceError}</p>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={handleFindPrices}
+                  className="w-full border-orange-500/30 text-orange-400 hover:bg-orange-500/10"
+                >
+                  <Search className="w-3.5 h-3.5 mr-2" />
+                  Retry
+                </Button>
               </div>
             )}
 
