@@ -81,9 +81,9 @@ describe('PartsCatalog — classifySearch', () => {
 function sortListings(listings, sortType) {
   const all = [...listings];
   if (sortType === 'price_asc') {
-    all.sort((a, b) => (a.price || Infinity) - (b.price || Infinity));
+    all.sort((a, b) => (a.price ?? Infinity) - (b.price ?? Infinity));
   } else if (sortType === 'price_desc') {
-    all.sort((a, b) => (b.price || 0) - (a.price || 0));
+    all.sort((a, b) => (b.price ?? 0) - (a.price ?? 0));
   } else if (sortType === 'trust') {
     all.sort((a, b) => (a.sourceTier || 4) - (b.sourceTier || 4));
   }
@@ -124,9 +124,9 @@ describe('PartsCatalog — listing sort logic', () => {
       { title: 'C', price: undefined, sourceTier: 3 },
     ];
     const sorted = sortListings(mixed, 'price_asc');
-    // (0 || Infinity) = Infinity, so 0 is treated as missing → sorts last with C
-    expect(sorted[0].title).toBe('B');
-    expect(sorted[1].title).toBe('A');
+    // (0 ?? Infinity) = 0, so zero-price sorts first; undefined → Infinity sorts last
+    expect(sorted[0].title).toBe('A');
+    expect(sorted[1].title).toBe('B');
     expect(sorted[2].title).toBe('C');
   });
 });

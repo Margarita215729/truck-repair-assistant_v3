@@ -14,6 +14,7 @@ const CATEGORIES = [
   { value: 'drivetrain', label: 'Drivetrain' },
   { value: 'filters', label: 'Filters' },
   { value: 'sensors', label: 'Sensors' },
+  { value: 'body', label: 'Body' },
   { value: 'other', label: 'Other' }
 ];
 

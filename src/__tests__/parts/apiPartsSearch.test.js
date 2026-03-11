@@ -34,7 +34,7 @@ function tierFromUrl(url) {
 
 function vendorFromUrl(url) {
   try {
-    const h = new URL(url).hostname.replace('www.', '').replace('parts.', '');
+    const h = new URL(url).hostname.replace(/^www\./, '').replace(/^parts\./, '');
     const map = {
       'freightliner.com': 'Freightliner',
       'peterbiltparts.com': 'Peterbilt',
@@ -123,6 +123,10 @@ describe('api/parts/search — vendorFromUrl', () => {
 
   it('returns hostname for unknown domains', () => {
     expect(vendorFromUrl('https://www.acmetrucks.com/x')).toBe('acmetrucks.com');
+  });
+
+  it('does not corrupt domains containing "parts" mid-string', () => {
+    expect(vendorFromUrl('https://www.unknownparts.com/x')).toBe('unknownparts.com');
   });
 
   it('returns "Unknown" for invalid URLs', () => {

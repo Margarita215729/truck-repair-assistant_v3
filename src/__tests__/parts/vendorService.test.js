@@ -25,6 +25,8 @@ const {
   groupByTier,
   filterBySourceType,
   hasListings,
+  getSearchUrls,
+  VENDOR_INFO,
   SOURCE_TIER_LABELS,
   vendorKeys,
 } = await import('@/services/vendorService');
@@ -184,6 +186,56 @@ describe('vendorService — vendorKeys', () => {
 
   it('generates part key', () => {
     expect(vendorKeys.part('part-123')).toEqual(['vendor-part', 'part-123']);
+  });
+});
+
+// ─── VENDOR_INFO ─────────────────────────────────────────────────────
+
+describe('vendorService — VENDOR_INFO', () => {
+  it('has entries for all 4 vendors', () => {
+    expect(Object.keys(VENDOR_INFO)).toEqual(
+      expect.arrayContaining(['fleetpride', 'finditparts', 'rockauto', 'ebay'])
+    );
+  });
+
+  it('each entry has name and icon', () => {
+    for (const v of Object.values(VENDOR_INFO)) {
+      expect(v).toHaveProperty('name');
+      expect(v).toHaveProperty('icon');
+      expect(typeof v.name).toBe('string');
+      expect(typeof v.icon).toBe('string');
+    }
+  });
+});
+
+// ─── getSearchUrls ───────────────────────────────────────────────────
+
+describe('vendorService — getSearchUrls', () => {
+  it('builds URLs for all 4 vendors', () => {
+    const urls = getSearchUrls('CUM-4352857', 'EGR Valve');
+    expect(urls).toHaveProperty('fleetpride');
+    expect(urls).toHaveProperty('finditparts');
+    expect(urls).toHaveProperty('rockauto');
+    expect(urls).toHaveProperty('ebay');
+  });
+
+  it('encodes partNumber into URLs', () => {
+    const urls = getSearchUrls('CUM-4352857', 'EGR Valve');
+    expect(urls.fleetpride).toContain('CUM-4352857');
+    expect(urls.rockauto).toContain('CUM-4352857');
+  });
+
+  it('falls back to partName when partNumber is empty', () => {
+    const urls = getSearchUrls('', 'EGR Valve');
+    expect(urls.fleetpride).toContain('EGR%20Valve');
+    expect(urls.ebay).toContain('EGR%20Valve');
+  });
+
+  it('returns valid URLs', () => {
+    const urls = getSearchUrls('ABC-123', 'Test');
+    for (const url of Object.values(urls)) {
+      expect(() => new URL(url)).not.toThrow();
+    }
   });
 });
 

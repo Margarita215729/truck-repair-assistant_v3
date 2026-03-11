@@ -22,7 +22,7 @@ vi.mock('@/services/entityService', () => ({
 
 vi.mock('@/api/supabaseClient', () => ({
   hasSupabaseConfig: true,
-  supabase: null,
+  supabase: null,   // null so getRecommendedStats falls through to entities.Part.list
 }));
 
 // Import AFTER mocks
@@ -60,18 +60,18 @@ describe('partsService — inferCategory (via save)', () => {
   });
 
   const cases = [
-    ['EGR Valve', 'exhaust gas recirculation', 'engine'],       // 'valve' in engine keywords matches first
+    ['EGR Valve', 'exhaust gas recirculation', 'exhaust'],
     ['Turbocharger', 'turbo assembly', 'engine'],
     ['Brake Pad Set', 'front brake pads', 'brakes'],
     ['Alternator', 'battery charging', 'electrical'],
-    ['Water Pump', 'cooling system pump', 'fuel_system'],       // 'pump' in fuel_system matches before cooling
+    ['Water Pump', 'cooling system pump', 'cooling'],
     ['Leaf Spring', 'rear suspension spring', 'suspension'],
     ['DPF Filter', 'diesel particulate', 'exhaust'],
-    ['Fuel Injector', 'common rail fuel injector', 'engine'],   // 'injector' in engine matches first
-    ['NOx Sensor', 'nitrogen oxide sensor downstream', 'exhaust'], // 'nox' in exhaust matches before sensors
+    ['Fuel Injector', 'common rail fuel injector', 'fuel_system'],
+    ['NOx Sensor', 'nitrogen oxide sensor downstream', 'sensors'],
     ['Clutch Kit', 'transmission clutch assembly', 'transmission'],
     ['Axle Seal', 'rear differential axle', 'drivetrain'],
-    ['Oil Filter', 'engine oil filter', 'engine'],              // 'engine' keyword matches first
+    ['Oil Filter', 'engine oil filter', 'filters'],
     ['Headlight Assembly', 'left headlight', 'body'],
     ['Widget XYZ', 'some unknown part', 'other'],
   ];
