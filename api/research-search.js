@@ -4,7 +4,7 @@
  * POST /api/research-search
  *
  * Unified entry point for all research/retrieval operations:
- *   action: 'search'        — Google CSE search with mode routing
+ *   action: 'search'        — Brave Web Search with mode routing
  *   action: 'verify_links'  — Batch HEAD-request link verification
  *
  * Search modes (when action='search'):
@@ -155,7 +155,7 @@ async function handleSearch(body, res) {
 
   if (shouldSearchForums) {
     tasks.push(
-      searchGoogleCSE(query, Math.min(num, 8))
+      searchBrave(query, Math.min(num, 8))
         .then(forumResults => {
           for (const r of forumResults) results.push(r);
         })
@@ -175,7 +175,7 @@ async function handleSearch(body, res) {
 
   if (shouldSearchDealers && context.make) {
     tasks.push(
-      searchGoogleCSE(`${context.make} truck ${context.serviceType || 'repair'} dealer near me`, 5)
+      searchBrave(`${context.make} truck ${context.serviceType || 'repair'} dealer near me`, 5)
         .then(dealerResults => {
           for (const r of dealerResults) {
             r.resultType = 'dealer_link';
@@ -210,55 +210,54 @@ async function handleSearch(body, res) {
   });
 }
 
-// ─── Google CSE search (shared) ─────────────────────────────────────
+// ─── Brave Web Search (shared) ──────────────────────────────────────
 
-async function searchGoogleCSE(query, num = 5) {
-  const API_KEY = process.env.GOOGLE_CSE_API_KEY;
-  const CSE_ID = process.env.GOOGLE_CSE_ID;
+async function searchBrave(query, num = 5) {
+  const API_KEY = process.env.BRAVE_API_KEY;
 
-  if (!API_KEY || !CSE_ID) {
-    throw new Error('Google CSE is not configured (missing GOOGLE_CSE_API_KEY or GOOGLE_CSE_ID).');
+  if (!API_KEY) {
+    throw new Error('Brave Search is not configured (missing BRAVE_API_KEY).');
   }
 
-  const clampedNum = Math.min(Math.max(1, num), 10);
-  const url = new URL('https://www.googleapis.com/customsearch/v1');
-  url.searchParams.set('key', API_KEY);
-  url.searchParams.set('cx', CSE_ID);
+  const clampedNum = Math.min(Math.max(1, num), 20);
+  const url = new URL('https://api.search.brave.com/res/v1/web/search');
   url.searchParams.set('q', query);
-  url.searchParams.set('num', String(clampedNum));
+  url.searchParams.set('count', String(clampedNum));
 
   const response = await fetch(url.toString(), {
-    headers: { Accept: 'application/json' },
+    headers: {
+      Accept: 'application/json',
+      'Accept-Encoding': 'gzip',
+      'X-Subscription-Token': API_KEY,
+    },
   });
 
   if (!response.ok) {
     if (response.status === 429) {
-      throw new Error('Google CSE quota exceeded. Try again later.');
+      throw new Error('Brave Search rate limit exceeded. Try again later.');
     }
-    throw new Error(`Google CSE HTTP ${response.status}`);
+    throw new Error(`Brave Search HTTP ${response.status}`);
   }
 
   const data = await response.json();
 
-  return (data.items || []).map(item => {
-    const domain = classifyUrl(item.link || '');
+  return (data.web?.results || []).map(item => {
+    const domain = classifyUrl(item.url || '');
     return {
-      id: `cse-${hashStr(item.link)}`,
+      id: `brave-${hashStr(item.url)}`,
       resultType: domain.sourceClass.includes('forum') || domain.sourceClass === 'qa_site'
         ? 'forum_post' : 'article',
       title: item.title || '',
-      url: item.link || '',
-      snippet: item.snippet || '',
+      url: item.url || '',
+      snippet: item.description || '',
       source: domain.source,
       sourceClass: domain.sourceClass,
       trustTier: domain.tier,
       trustLabel: domain.source,
-      isKnownSource: !!SOURCE_MAP[tryHostname(item.link)],
-      verifiedLive: true, // CSE only returns live indexed pages
+      isKnownSource: !!SOURCE_MAP[tryHostname(item.url)],
+      verifiedLive: true,
       confidence: domain.tier <= 2 ? 0.85 : domain.tier === 3 ? 0.7 : 0.5,
-      date: item.pagemap?.metatags?.[0]?.['article:published_time']
-        || item.pagemap?.metatags?.[0]?.['og:updated_time']
-        || null,
+      date: item.age || null,
       meta: {},
     };
   });
