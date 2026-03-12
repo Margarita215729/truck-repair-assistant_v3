@@ -153,10 +153,15 @@ ${cseResults.map((r, i) => `[${i + 1}] Title: ${r.title}
     // Accept either { listings: [...] } or raw array
     const listings = Array.isArray(parsed) ? parsed : (parsed.listings || parsed.results || []);
 
-    // Validate: only keep items whose itemUrl matches one of the original CSE links
-    const validUrls = new Set(cseResults.map(r => r.link));
+    // Validate: only keep items whose itemUrl domain+path matches an original result
+    // LLMs often add/remove trailing slashes or query params, so compare loosely
+    function normalizeUrl(u) {
+      try { const p = new URL(u); return (p.hostname + p.pathname).replace(/\/$/, '').toLowerCase(); }
+      catch { return u; }
+    }
+    const validUrls = new Set(cseResults.map(r => normalizeUrl(r.link)));
     return listings
-      .filter(l => l.itemUrl && validUrls.has(l.itemUrl))
+      .filter(l => l.itemUrl && validUrls.has(normalizeUrl(l.itemUrl)))
       .map(l => ({
         title: String(l.title || '').slice(0, 200),
         price: typeof l.price === 'number' && l.price >= 0 ? l.price : 0,
@@ -178,6 +183,7 @@ ${cseResults.map((r, i) => `[${i + 1}] Title: ${r.title}
 export default async function handler(req, res) {
   const ALLOWED_ORIGINS = [
     process.env.NEXT_PUBLIC_BASE_URL,
+    'https://tra.tools',
     'https://truck-repair-assistantv3-main.vercel.app',
     'https://truck-repair-assistant-v3.vercel.app',
     'http://localhost:5173',
@@ -238,7 +244,29 @@ export default async function handler(req, res) {
     }
 
     // Step 2: AI normalisation
-    const listings = await normaliseWithAI(cseResults, query, partNumber, make, model, year);
+    let listings;
+    try {
+      listings = await normaliseWithAI(cseResults, query, partNumber, make, model, year);
+    } catch (aiErr) {
+      console.warn('AI normalisation failed, using raw Brave results:', aiErr.message);
+      listings = [];
+    }
+
+    // Fallback: if AI returned nothing, build basic listings from raw Brave results
+    if (listings.length === 0 && cseResults.length > 0) {
+      listings = cseResults.map(r => ({
+        title: r.title,
+        price: 0,
+        vendor: vendorFromUrl(r.link),
+        condition: 'Unknown',
+        availability: 'Check Availability',
+        partNumber: partNumber || '',
+        imageUrl: r.image || null,
+        itemUrl: r.link,
+        sourceTier: tierFromUrl(r.link),
+        sourceType: 'brave_raw',
+      }));
+    }
 
     // Sort by source tier (OEM first), then by price
     listings.sort((a, b) => (a.sourceTier - b.sourceTier) || ((a.price ?? Infinity) - (b.price ?? Infinity)));
