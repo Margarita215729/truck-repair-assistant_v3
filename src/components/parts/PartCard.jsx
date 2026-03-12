@@ -349,7 +349,9 @@ export default function PartCard({ part, variant = 'recommended', onClick, onDel
                       <span className="text-white/70 line-clamp-1 max-w-[140px]">{listing.title}</span>
                     </div>
                     <div className="flex items-center gap-2 flex-shrink-0">
-                      <span className="font-semibold text-orange-400">${listing.price?.toFixed(2)}</span>
+                      <span className="font-semibold text-orange-400">
+                        {listing.price > 0 ? `$${listing.price.toFixed(2)}` : 'See listing'}
+                      </span>
                       <ExternalLink className="w-3 h-3 text-white/40" />
                     </div>
                   </a>
