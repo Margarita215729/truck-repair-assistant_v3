@@ -26,6 +26,7 @@ function getSupabase() {
 }
 
 const ALLOWED_ORIGINS = [
+  'https://truck-repair-assistantv3-main.vercel.app',
   'https://truck-repair-assistant-v3.vercel.app',
   'http://localhost:5173',
   'http://localhost:3000',
