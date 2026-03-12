@@ -5,3 +5,4 @@ dist/
 .env.prod-test
 .env.vercel-test
 .env.local
+.env*.local

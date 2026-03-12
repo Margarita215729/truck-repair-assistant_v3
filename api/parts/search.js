@@ -85,10 +85,42 @@ async function searchBrave(query, num = 10) {
     link: item.url || '',
     snippet: item.description || '',
     image: item.thumbnail?.src || null,
+    extra_snippets: item.extra_snippets || [],
     price: null,
     availability: null,
     condition: null,
   }));
+}
+
+// ─── Extract price from text using regex ───────────────────────────
+function extractPrice(text) {
+  if (!text) return null;
+  // Match patterns like $123.45, $$144.49, US$99.00, from$37.49
+  const matches = text.match(/\$\$?([\d,]+\.?\d{0,2})/g);
+  if (!matches || matches.length === 0) return null;
+  const prices = matches
+    .map(m => parseFloat(m.replace(/[$,]/g, '')))
+    .filter(p => p > 0 && p < 50000); // reasonable truck part price range
+  return prices.length > 0 ? Math.min(...prices) : null;
+}
+
+// ─── Extract condition from text ────────────────────────────────────
+function extractCondition(text) {
+  if (!text) return 'Unknown';
+  const lower = text.toLowerCase();
+  if (/\bremanufactured\b|\breman\b/.test(lower)) return 'Remanufactured';
+  if (/\bused\b|\brefurbished\b/.test(lower)) return 'Used';
+  if (/\bnew\b|\bbrand new\b|\bfactory\b/.test(lower)) return 'New';
+  return 'Unknown';
+}
+
+// ─── Extract availability from text ─────────────────────────────────
+function extractAvailability(text) {
+  if (!text) return 'Check Availability';
+  const lower = text.toLowerCase();
+  if (/\bin stock\b|\bin-stock\b/.test(lower)) return 'In Stock';
+  if (/\bout of stock\b|\bsold out\b|\bunavailable\b/.test(lower)) return 'Out of Stock';
+  return 'Check Availability';
 }
 
 // ─── AI normalisation via GPT-4o-mini ───────────────────────────────
@@ -144,7 +176,9 @@ ${cseResults.map((r, i) => `[${i + 1}] Title: ${r.title}
     });
 
     if (!resp.ok) {
-      throw new Error(`AI normalisation failed: HTTP ${resp.status}`);
+      const errBody = await resp.text().catch(() => '');
+      console.error('AI normalisation HTTP error:', { status: resp.status, body: errBody.slice(0, 500) });
+      throw new Error(`AI normalisation failed: HTTP ${resp.status} — ${errBody.slice(0, 100)}`);
     }
 
     const data = await resp.json();
@@ -247,25 +281,30 @@ export default async function handler(req, res) {
     let listings;
     try {
       listings = await normaliseWithAI(cseResults, query, partNumber, make, model, year);
+      console.log(`AI normalisation succeeded: ${listings.length} listings from ${cseResults.length} results`);
     } catch (aiErr) {
-      console.warn('AI normalisation failed, using raw Brave results:', aiErr.message);
+      console.warn('AI normalisation failed, falling back to regex extraction:', aiErr.message);
       listings = [];
     }
 
-    // Fallback: if AI returned nothing, build basic listings from raw Brave results
+    // Fallback: if AI returned nothing, build listings from raw Brave results with regex price extraction
     if (listings.length === 0 && cseResults.length > 0) {
-      listings = cseResults.map(r => ({
-        title: r.title,
-        price: 0,
-        vendor: vendorFromUrl(r.link),
-        condition: 'Unknown',
-        availability: 'Check Availability',
-        partNumber: partNumber || '',
-        imageUrl: r.image || null,
-        itemUrl: r.link,
-        sourceTier: tierFromUrl(r.link),
-        sourceType: 'brave_raw',
-      }));
+      listings = cseResults.map(r => {
+        const allText = [r.snippet, r.title, ...(r.extra_snippets || [])].join(' ');
+        const price = extractPrice(allText);
+        return {
+          title: r.title,
+          price: price ?? 0,
+          vendor: vendorFromUrl(r.link),
+          condition: extractCondition(allText),
+          availability: extractAvailability(allText),
+          partNumber: partNumber || '',
+          imageUrl: r.image || null,
+          itemUrl: r.link,
+          sourceTier: tierFromUrl(r.link),
+          sourceType: price !== null ? 'brave_extracted' : 'brave_raw',
+        };
+      });
     }
 
     // Sort by source tier (OEM first), then by price
