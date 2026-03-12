@@ -26,6 +26,7 @@ export default async function handler(req, res) {
   // CORS
   const origin = req.headers.origin || '';
   const allowedOrigins = [
+    'https://tra.tools',
     'http://localhost:5173',
     'http://localhost:3000',
     process.env.NEXT_PUBLIC_BASE_URL,
