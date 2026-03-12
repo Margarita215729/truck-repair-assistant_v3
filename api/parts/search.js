@@ -2,8 +2,8 @@
  * Vercel Serverless Function — Repair Parts Search (AI-powered)
  *
  * Pipeline:
- *   1. Google CSE — searches truck-parts vendor sites for real product pages
- *   2. GPT-4o-mini — normalises raw CSE results into structured VendorListing cards
+ *   1. Brave Web Search — searches truck-parts vendor sites for real product pages
+ *   2. GPT-4o-mini — normalises raw search results into structured VendorListing cards
  *
  * If any step fails, the API returns an error — no degraded/synthetic data.
  *
@@ -54,61 +54,40 @@ function vendorFromUrl(url) {
   } catch { return 'Unknown'; }
 }
 
-// ─── Google CSE search ──────────────────────────────────────────────
-async function searchCSE(query, num = 10) {
-  const API_KEY = process.env.GOOGLE_CSE_API_KEY;
-  const PARTS_CX = process.env.GOOGLE_CSE_TRUSTED_PARTS_CX;
-  const GENERAL_CX = process.env.GOOGLE_CSE_ID;
-  const CX = PARTS_CX || GENERAL_CX;
+// ─── Brave Search ───────────────────────────────────────────────────
+async function searchBrave(query, num = 10) {
+  const API_KEY = process.env.BRAVE_API_KEY;
 
-  console.log('CSE env check:', {
-    hasApiKey: !!API_KEY,
-    apiKeyPrefix: API_KEY?.slice(0, 8) + '…',
-    partsCx: PARTS_CX || '(not set)',
-    generalCx: GENERAL_CX || '(not set)',
-    usingCx: CX || '(none)',
-  });
-
-  if (!API_KEY || !CX) {
-    throw new Error('Google CSE is not configured (missing API_KEY or CX).');
+  if (!API_KEY) {
+    throw new Error('Brave Search is not configured (missing BRAVE_API_KEY).');
   }
 
-  const url = new URL('https://www.googleapis.com/customsearch/v1');
-  url.searchParams.set('key', API_KEY);
-  url.searchParams.set('cx', CX);
+  const url = new URL('https://api.search.brave.com/res/v1/web/search');
   url.searchParams.set('q', query);
-  url.searchParams.set('num', String(Math.min(num, 10)));
+  url.searchParams.set('count', String(Math.min(num, 20)));
 
-  const resp = await fetch(url.toString(), { headers: { Accept: 'application/json' } });
+  const resp = await fetch(url.toString(), {
+    headers: {
+      Accept: 'application/json',
+      'Accept-Encoding': 'gzip',
+      'X-Subscription-Token': API_KEY,
+    },
+  });
   if (!resp.ok) {
     const errBody = await resp.text().catch(() => '');
-    let detail = resp.statusText;
-    try {
-      const parsed = JSON.parse(errBody);
-      const gErr = parsed?.error;
-      if (gErr) detail = `${gErr.message || gErr.status} [${gErr.code}]${gErr.errors?.[0]?.reason ? ` reason=${gErr.errors[0].reason}` : ''}`;
-    } catch { /* use raw statusText */ }
-    console.error('CSE error:', { status: resp.status, detail, cx: CX?.slice(0, 6) + '…', queryLength: query.length });
-    throw new Error(`CSE search failed: HTTP ${resp.status} — ${detail}`);
+    console.error('Brave search error:', { status: resp.status, body: errBody.slice(0, 300) });
+    throw new Error(`Brave search failed: HTTP ${resp.status}`);
   }
 
   const data = await resp.json();
-  return (data.items || []).map(item => ({
+  return (data.web?.results || []).map(item => ({
     title: item.title || '',
-    link: item.link || '',
-    snippet: item.snippet || '',
-    image: item.pagemap?.cse_image?.[0]?.src
-      || item.pagemap?.cse_thumbnail?.[0]?.src
-      || null,
-    price: item.pagemap?.offer?.[0]?.price
-      || item.pagemap?.product?.[0]?.price
-      || null,
-    availability: item.pagemap?.offer?.[0]?.availability
-      || item.pagemap?.product?.[0]?.availability
-      || null,
-    condition: item.pagemap?.offer?.[0]?.itemcondition
-      || item.pagemap?.product?.[0]?.condition
-      || null,
+    link: item.url || '',
+    snippet: item.description || '',
+    image: item.thumbnail?.src || null,
+    price: null,
+    availability: null,
+    condition: null,
   }));
 }
 
@@ -240,11 +219,11 @@ export default async function handler(req, res) {
     const searchString = searchParts.join(' ') + ' truck part';
     const maxResults = Math.min(Number(limit) || 10, 10);
 
-    // Step 1: Google CSE
-    const cseResults = await searchCSE(searchString, maxResults);
+    // Step 1: Brave Web Search
+    const cseResults = await searchBrave(searchString, maxResults);
 
     if (cseResults.length === 0) {
-      console.warn('CSE returned 0 results for query:', searchString);
+      console.warn('Brave search returned 0 results for query:', searchString);
       return res.status(200).json({
         listings: [],
         meta: {

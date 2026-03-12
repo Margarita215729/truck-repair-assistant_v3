@@ -1,13 +1,12 @@
 /**
- * Vercel Serverless Function — Forum Search via Google Custom Search API
- * Searches curated truck repair forums for real community discussions.
+ * Vercel Serverless Function — Forum Search via Brave Web Search API
+ * Searches for truck repair forum discussions and community content.
  *
  * POST /api/forum-search
  * Body: { query: string, num?: number }
  * Returns: { results: ForumResult[], query: string }
  *
- * Free tier: 100 queries/day via Google Custom Search JSON API.
- * CSE must be configured to target truck repair forums.
+ * Free tier: 2000 queries/month via Brave Search API.
  */
 
 import { createClient } from '@supabase/supabase-js';
@@ -56,14 +55,13 @@ export default async function handler(req, res) {
     return res.status(401).json({ error: 'Invalid or expired token' });
   }
 
-  const API_KEY = process.env.GOOGLE_CSE_API_KEY;
-  const CSE_ID = process.env.GOOGLE_CSE_ID;
+  const API_KEY = process.env.BRAVE_API_KEY;
 
-  if (!API_KEY || !CSE_ID) {
+  if (!API_KEY) {
     return res.status(200).json({
       results: [],
       query: req.body?.query || '',
-      error: 'Forum search not configured — set GOOGLE_CSE_API_KEY and GOOGLE_CSE_ID',
+      error: 'Forum search not configured — set BRAVE_API_KEY',
     });
   }
 
@@ -74,49 +72,49 @@ export default async function handler(req, res) {
       return res.status(400).json({ error: 'Missing "query" in request body' });
     }
 
-    const clampedNum = Math.min(Math.max(1, num), 10); // API max is 10
+    const clampedNum = Math.min(Math.max(1, num), 20);
 
-    const url = new URL('https://www.googleapis.com/customsearch/v1');
-    url.searchParams.set('key', API_KEY);
-    url.searchParams.set('cx', CSE_ID);
-    url.searchParams.set('q', query);
-    url.searchParams.set('num', String(clampedNum));
+    // Add forum-oriented terms to improve relevance
+    const forumQuery = `${query} forum discussion`;
+    const url = new URL('https://api.search.brave.com/res/v1/web/search');
+    url.searchParams.set('q', forumQuery);
+    url.searchParams.set('count', String(clampedNum));
 
     const response = await fetch(url.toString(), {
-      headers: { Accept: 'application/json' },
+      headers: {
+        Accept: 'application/json',
+        'Accept-Encoding': 'gzip',
+        'X-Subscription-Token': API_KEY,
+      },
     });
 
     if (!response.ok) {
-      const errText = await response.text();
-      console.error('Google CSE error:', response.status, errText);
+      console.error('Brave Search error:', response.status);
 
-      // Graceful degradation — return empty results, not 500
       if (response.status === 429) {
         return res.status(200).json({
           results: [],
           query,
-          error: 'Daily forum search quota exceeded (100/day free tier)',
+          error: 'Forum search rate limit exceeded',
         });
       }
 
       return res.status(200).json({
         results: [],
         query,
-        error: `Google CSE returned ${response.status}`,
+        error: `Brave Search returned ${response.status}`,
       });
     }
 
     const data = await response.json();
 
-    // Transform Google CSE items into a simplified format
-    const results = (data.items || []).map((item) => ({
+    // Transform Brave results into a simplified format
+    const results = (data.web?.results || []).map((item) => ({
       title: item.title || '',
-      link: item.link || '',
-      snippet: item.snippet || '',
-      source: extractSource(item.displayLink || item.link || ''),
-      date: item.pagemap?.metatags?.[0]?.['article:published_time']
-        || item.pagemap?.metatags?.[0]?.['og:updated_time']
-        || null,
+      link: item.url || '',
+      snippet: item.description || '',
+      source: extractSource(new URL(item.url).hostname),
+      date: item.age || null,
     }));
 
     return res.status(200).json({ results, query });
