@@ -870,6 +870,22 @@ User: ${messageText}${audioUrl ? '\n[User has attached an audio recording of eng
     }
   };
 
+  const buildReportConversation = (allMessages = []) => {
+    const MAX_MESSAGES = 12;
+    const MAX_CHARS_PER_MESSAGE = 1000;
+    return allMessages
+      .slice(-MAX_MESSAGES)
+      .map((m) => {
+        const role = m?.role || 'unknown';
+        const content = String(m?.content || '').replace(/\s+/g, ' ').trim();
+        const compact = content.length > MAX_CHARS_PER_MESSAGE
+          ? `${content.slice(0, MAX_CHARS_PER_MESSAGE)}...`
+          : content;
+        return `${role}: ${compact}`;
+      })
+      .join('\n\n');
+  };
+
   const generateReport = async () => {
     if (isGuest) {
       toast.error('Saving reports requires an account. Create a free account to export diagnostics.');
@@ -890,6 +906,8 @@ User: ${messageText}${audioUrl ? '\n[User has attached an audio recording of eng
         errorCodes,
         symptoms,
       });
+      const compactConversation = buildReportConversation(messages);
+      const normalizedCompact = JSON.stringify(normalized);
 
       const response = await invokeLLM({
         prompt: `You are a roadside truck intake and triage system.
@@ -905,10 +923,10 @@ CRITICAL RULES:
 - The "estimated_costs" field must ALWAYS be null.
 
 CONTEXT (PRE-COMPUTED \u2014 do NOT re-derive these values):
-${JSON.stringify(normalized, null, 2)}
+${normalizedCompact}
 
 CONVERSATION HISTORY:
-${messages.map(m => `${m.role}: ${m.content}`).join('\n\n')}
+${compactConversation}
 
 Generate an INTAKE & TRIAGE REPORT (Roadside) following the exact JSON schema provided.
 Focus on:
@@ -1097,8 +1115,14 @@ Focus on:
 
       toast.success(t('diagnostics.reportGenerated'));
     } catch (error) {
-      console.error('Error generating report:', error);
-      toast.error(t('diagnostics.reportError'));
+      console.error('Error generating report:', {
+        message: error?.message,
+        status: error?.status,
+        code: error?.code,
+        stack: error?.stack,
+      });
+      const detail = error?.message || t('diagnostics.reportError');
+      toast.error(detail === t('diagnostics.reportError') ? detail : `${t('diagnostics.reportError')}: ${detail}`);
     } finally {
       setIsGeneratingReport(false);
     }
