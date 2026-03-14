@@ -26,8 +26,10 @@ const TRUCK_MAKES = {
   'Western Star': ['4900', '5700', '6900'],
   'Ford': ['F-150', 'F-250', 'F-350', 'F-450', 'F-550', 'F-650'],
   'Chevrolet': ['Silverado 1500', 'Silverado 2500HD', 'Silverado 3500HD'],
+  'Dodge': ['Ram 1500', 'Ram 2500', 'Ram 3500', 'Ram 4500', 'Ram 5500'],
   'RAM': ['1500', '2500', '3500', '4500', '5500'],
-  'GMC': ['Sierra 1500', 'Sierra 2500HD', 'Sierra 3500HD']
+  'GMC': ['Sierra 1500', 'Sierra 2500HD', 'Sierra 3500HD'],
+  'Mercedes': ['Sprinter', 'Metris']
 };
 
 export default function TruckDetailModal({ truck, open, onClose }) {
