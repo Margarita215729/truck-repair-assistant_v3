@@ -239,6 +239,7 @@ export default {
     codesDesc: 'Enter DTC / fault codes',
     symptomsDesc: 'Describe what you notice',
     visualDesc: 'Photo / video of the issue',
+    visualDescGuest: 'Photo analysis (video requires account)',
     selectTruckFirst: 'Please select your truck first using the truck button in the top menu',
     // Chat message UI
     insufficientInfo: 'Insufficient information for quality analysis',
