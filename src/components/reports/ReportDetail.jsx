@@ -19,8 +19,7 @@ import {
   Info,
   FileDown,
   ChevronDown,
-  Printer,
-  Database
+  Printer
 } from 'lucide-react';
 import { format } from 'date-fns';
 
@@ -38,7 +37,6 @@ import {
   getLimitations,
   getEvidence,
   getDisclaimer,
-  getReportMetadata,
   getReportFormat,
 } from '@/utils/reportAdapters';
 import {
@@ -93,8 +91,6 @@ export default function ReportDetail({ report, open, onClose }) {
   const handoff = getMechanicHandoff(report);
   const limitations = getLimitations(report);
   const disclaimer = getDisclaimer(report);
-  const metadata = getReportMetadata(report);
-
   const reportDate = report.created_date || report.created_at || Date.now();
   const fileDate = format(new Date(reportDate), 'yyyy-MM-dd');
 
@@ -344,17 +340,7 @@ export default function ReportDetail({ report, open, onClose }) {
             </Section>
           )}
 
-          {/* 10. Report Metadata */}
-          {metadata.schema_version && (
-            <Section icon={Database} title="Report Metadata">
-              <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-xs text-white/50">
-                {metadata.schema_version && <Detail label="Schema" value={`v${metadata.schema_version}`} />}
-                {metadata.normalization_version && <Detail label="Normalization" value={`v${metadata.normalization_version}`} />}
-                {metadata.model_version && <Detail label="Model" value={metadata.model_version} />}
-                {metadata.generation_timestamp && <Detail label="Generated" value={format(new Date(metadata.generation_timestamp), 'MMM d, yyyy h:mm a')} />}
-              </div>
-            </Section>
-          )}
+          {/* Internal report metadata is intentionally hidden in the user-facing view. */}
 
           {/* LEGACY — old-format issues/recommendations if not covered above */}
           {fmt === 'legacy' && <LegacySections report={report} />}

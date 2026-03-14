@@ -1088,9 +1088,6 @@ Focus on:
         report_data: {
           ...response,
           _metadata: {
-            schema_version: '1.0',
-            normalization_version: '1.0',
-            model_version: 'gpt-4o-roadside-triage',
             generation_timestamp: new Date().toISOString(),
             raw_input_snapshot: { message_count: messages.length, has_truck: !!truck },
             normalized_input_snapshot: normalized,
