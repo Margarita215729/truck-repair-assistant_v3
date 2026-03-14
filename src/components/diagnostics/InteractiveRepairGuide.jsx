@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { entities } from '@/services/entityService';
 import { invokeLLM } from '@/services/aiService';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
@@ -13,6 +13,39 @@ import {
 import { motion, AnimatePresence } from 'framer-motion';
 import { toast } from 'sonner';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+
+const GUIDE_CACHE_PREFIX = 'interactive_repair_guide:v1:';
+const GUIDE_CACHE_TTL_MS = 7 * 24 * 60 * 60 * 1000;
+
+function stableKeyPart(value) {
+  if (Array.isArray(value)) return [...value].map(v => String(v).trim()).sort().join('|');
+  if (value == null) return '';
+  return String(value).trim().toLowerCase();
+}
+
+function readCachedGuide(cacheKey) {
+  try {
+    const raw = localStorage.getItem(cacheKey);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw);
+    if (!parsed?.savedAt || !parsed?.guide) return null;
+    if (Date.now() - parsed.savedAt > GUIDE_CACHE_TTL_MS) {
+      localStorage.removeItem(cacheKey);
+      return null;
+    }
+    return parsed.guide;
+  } catch {
+    return null;
+  }
+}
+
+function writeCachedGuide(cacheKey, guide) {
+  try {
+    localStorage.setItem(cacheKey, JSON.stringify({ savedAt: Date.now(), guide }));
+  } catch {
+    // localStorage may be unavailable or full; skip cache silently
+  }
+}
 
 export default function InteractiveRepairGuide({ 
   open, 
@@ -34,6 +67,11 @@ export default function InteractiveRepairGuide({
   const [flagDetails, setFlagDetails] = useState('');
   const [communitySolutions, setCommunitySolutions] = useState([]);
 
+  const cacheKey = useMemo(() => {
+    const truckKey = [truck?.year, truck?.make, truck?.model].map(stableKeyPart).join('|');
+    return `${GUIDE_CACHE_PREFIX}${stableKeyPart(problem)}::${truckKey}::${stableKeyPart(errorCodes)}::${stableKeyPart(symptoms)}`;
+  }, [problem, truck?.year, truck?.make, truck?.model, errorCodes, symptoms]);
+
   const queryClient = useQueryClient();
 
   // Fetch community solutions
@@ -52,10 +90,15 @@ export default function InteractiveRepairGuide({
   });
 
   useEffect(() => {
-    if (open && problem) {
-      generateGuide();
+    if (!open || !problem) return;
+    const cached = readCachedGuide(cacheKey);
+    if (cached) {
+      setGuide(cached);
+      setLoading(false);
+      return;
     }
-  }, [open, problem]);
+    generateGuide();
+  }, [open, problem, cacheKey]);
 
   useEffect(() => {
     if (communityData) {
@@ -136,7 +179,9 @@ Make it practical and easy to follow for someone with basic mechanical skills.`,
         }
       });
 
-      setGuide({ ...response, id: Date.now().toString() });
+      const nextGuide = { ...response, id: Date.now().toString() };
+      setGuide(nextGuide);
+      writeCachedGuide(cacheKey, nextGuide);
     } catch (error) {
       console.error('Guide generation error:', error);
       toast.error('Failed to generate repair guide');
