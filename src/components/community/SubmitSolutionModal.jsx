@@ -9,7 +9,7 @@ import { Label } from '@/components/ui/label';
 import { Loader2, Upload, X } from 'lucide-react';
 import { toast } from 'sonner';
 
-const TRUCK_MAKES = ['Peterbilt', 'Kenworth', 'Freightliner', 'Volvo', 'Mack', 'International', 'Western Star', 'Ford', 'Chevrolet', 'RAM', 'GMC'];
+const TRUCK_MAKES = ['Peterbilt', 'Kenworth', 'Freightliner', 'Volvo', 'Mack', 'International', 'Western Star', 'Ford', 'Chevrolet', 'Dodge', 'RAM', 'GMC', 'Mercedes'];
 
 export default function SubmitSolutionModal({ open, onClose }) {
   const queryClient = useQueryClient();
