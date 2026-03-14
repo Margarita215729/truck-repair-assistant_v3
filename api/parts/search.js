@@ -40,21 +40,57 @@ function getSupabase() {
 }
 
 // ─── Domain → tier mapping (mirrors client-side VENDOR_INFO) ────────
-const DOMAIN_TIER = {
-  'parts.freightliner.com': 1, 'www.peterbiltparts.com': 1, 'www.kenworth.com': 1,
-  'www.volvotrucks.us': 1, 'www.macktrucks.com': 1, 'parts.cummins.com': 1,
-  'www.fleetpride.com': 2, 'www.truckpro.com': 2, 'www.finditparts.com': 2,
-  'www.rockauto.com': 3,
-  'www.ebay.com': 4, 'www.amazon.com': 4,
-};
+const TIER_RULES = [
+  { suffixes: ['freightliner.com', 'peterbiltparts.com', 'kenworth.com', 'volvotrucks.us', 'macktrucks.com', 'cummins.com', 'detroitdiesel.com', 'internationaltrucks.com', 'westernstartrucks.com'], tier: 1 },
+  { suffixes: ['fleetpride.com', 'truckpro.com', 'finditparts.com', 'rushtruckcenters.com'], tier: 2 },
+  { suffixes: ['rockauto.com', 'heavydutyparts.net', '4statetrucks.com'], tier: 3 },
+  { suffixes: ['ebay.com', 'amazon.com'], tier: 4 },
+];
+
+const BLOCKED_PARTS_HOST_SUFFIXES = [
+  'reddit.com',
+  'youtube.com',
+  'youtu.be',
+  'facebook.com',
+  'instagram.com',
+  'tiktok.com',
+  'x.com',
+  'twitter.com',
+  'truckersreport.com',
+  'truckingtruth.com',
+  'thedieselstop.com',
+];
+
+function hostFromUrl(url) {
+  try {
+    return new URL(url).hostname.toLowerCase().replace(/^www\./, '');
+  } catch {
+    return '';
+  }
+}
+
+function hostMatches(host, suffix) {
+  return host === suffix || host.endsWith(`.${suffix}`);
+}
 
 function tierFromUrl(url) {
-  try { return DOMAIN_TIER[new URL(url).hostname] || 4; } catch { return 4; }
+  const host = hostFromUrl(url);
+  if (!host) return 4;
+  for (const rule of TIER_RULES) {
+    if (rule.suffixes.some(s => hostMatches(host, s))) return rule.tier;
+  }
+  return 4;
+}
+
+function isBlockedPartsSource(url) {
+  const host = hostFromUrl(url);
+  if (!host) return true;
+  return BLOCKED_PARTS_HOST_SUFFIXES.some(s => hostMatches(host, s));
 }
 
 function vendorFromUrl(url) {
   try {
-    const h = new URL(url).hostname.replace(/^www\./, '').replace(/^parts\./, '');
+    const h = new URL(url).hostname.toLowerCase().replace(/^www\./, '').replace(/^parts\./, '');
     const map = {
       'freightliner.com': 'Freightliner', 'peterbiltparts.com': 'Peterbilt',
       'kenworth.com': 'Kenworth', 'volvotrucks.us': 'Volvo Trucks',
@@ -102,7 +138,7 @@ async function searchBrave(query, num = 10) {
     price: null,
     availability: null,
     condition: null,
-  }));
+  })).filter(item => !isBlockedPartsSource(item.link));
 }
 
 // ─── Extract price from text using regex ───────────────────────────
