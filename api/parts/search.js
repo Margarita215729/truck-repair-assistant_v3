@@ -14,6 +14,19 @@
 
 import { createClient } from '@supabase/supabase-js';
 
+const BRAVE_TIMEOUT_MS = 4500;
+const AI_TIMEOUT_MS = 4500;
+
+async function fetchWithTimeout(url, options = {}, timeoutMs = 5000) {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    return await fetch(url, { ...options, signal: controller.signal });
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
 // ─── Supabase singleton ──────────────────────────────────────────────
 let _supabase;
 function getSupabase() {
@@ -66,13 +79,13 @@ async function searchBrave(query, num = 10) {
   url.searchParams.set('q', query);
   url.searchParams.set('count', String(Math.min(num, 20)));
 
-  const resp = await fetch(url.toString(), {
+  const resp = await fetchWithTimeout(url.toString(), {
     headers: {
       Accept: 'application/json',
       'Accept-Encoding': 'gzip',
       'X-Subscription-Token': API_KEY,
     },
-  });
+  }, BRAVE_TIMEOUT_MS);
   if (!resp.ok) {
     const errBody = await resp.text().catch(() => '');
     console.error('Brave search error:', { status: resp.status, body: errBody.slice(0, 300) });
@@ -157,7 +170,7 @@ ${cseResults.map((r, i) => `[${i + 1}] Title: ${r.title}
    Image: ${r.image || 'none'}`).join('\n\n')}`;
 
   try {
-    const resp = await fetch('https://models.github.ai/inference/chat/completions', {
+    const resp = await fetchWithTimeout('https://models.github.ai/inference/chat/completions', {
       method: 'POST',
       headers: {
         Authorization: `Bearer ${GITHUB_TOKEN}`,
@@ -166,14 +179,14 @@ ${cseResults.map((r, i) => `[${i + 1}] Title: ${r.title}
       body: JSON.stringify({
         model: 'openai/gpt-4o-mini',
         temperature: 0.1,
-        max_tokens: 4000,
+        max_tokens: 1200,
         response_format: { type: 'json_object' },
         messages: [
           { role: 'system', content: systemPrompt },
           { role: 'user', content: userPrompt },
         ],
       }),
-    });
+    }, AI_TIMEOUT_MS);
 
     if (!resp.ok) {
       const errBody = await resp.text().catch(() => '');
@@ -209,6 +222,9 @@ ${cseResults.map((r, i) => `[${i + 1}] Title: ${r.title}
         sourceType: 'cse_ai',
       }));
   } catch (err) {
+    if (err?.name === 'AbortError') {
+      throw new Error('AI normalisation timed out');
+    }
     throw new Error(`AI normalisation failed: ${err.message}`);
   }
 }
@@ -257,10 +273,16 @@ export default async function handler(req, res) {
     // Build search string
     const searchParts = [partNumber, query, make, model].filter(Boolean);
     const searchString = searchParts.join(' ') + ' truck part';
-    const maxResults = Math.min(Number(limit) || 10, 10);
+    const maxResults = Math.min(Number(limit) || 8, 8);
 
     // Step 1: Brave Web Search
-    const cseResults = await searchBrave(searchString, maxResults);
+    let cseResults = [];
+    try {
+      cseResults = await searchBrave(searchString, maxResults);
+    } catch (searchErr) {
+      console.warn('Brave search failed, returning empty listings:', searchErr?.message || searchErr);
+      cseResults = [];
+    }
 
     if (cseResults.length === 0) {
       console.warn('Brave search returned 0 results for query:', searchString);
