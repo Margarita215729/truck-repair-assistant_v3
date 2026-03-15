@@ -70,6 +70,90 @@ function haversineMiles(lat1, lon1, lat2, lon2) {
   return Math.round(km * 0.621371 * 10) / 10;
 }
 
+function hasTruckAccess(tags = {}) {
+  const hgv = String(tags.hgv || '').toLowerCase();
+  const access = String(tags.access || '').toLowerCase();
+  const truck = String(tags.truck || '').toLowerCase();
+  return hgv === 'yes' || hgv === 'designated' || hgv === 'destination' || access === 'hgv' || truck === 'yes';
+}
+
+function isTruckRelevantParking(tags = {}) {
+  const amenity = String(tags.amenity || '').toLowerCase();
+  const highway = String(tags.highway || '').toLowerCase();
+
+  if (amenity === 'fuel' || amenity === 'parking') {
+    return hasTruckAccess(tags);
+  }
+
+  if (highway === 'rest_area' || highway === 'services') {
+    if (hasTruckAccess(tags)) return true;
+    const name = String(tags.name || '').toLowerCase();
+    return name.includes('truck') || name.includes('hgv');
+  }
+
+  return false;
+}
+
+function mergeParkingData(osmParking, supabaseParking, originLat, originLng) {
+  const osm = osmParking || [];
+  const supa = supabaseParking || [];
+  if (osm.length === 0) return supa;
+  if (supa.length === 0) return osm;
+
+  const MAX_MATCH_DISTANCE_MILES = 0.8;
+  const usedSupabase = new Set();
+
+  const enriched = osm.map((lot) => {
+    let bestIdx = -1;
+    let bestDistance = Number.POSITIVE_INFINITY;
+
+    for (let i = 0; i < supa.length; i += 1) {
+      if (usedSupabase.has(i)) continue;
+      const candidate = supa[i];
+      const d = haversineMiles(lot.lat, lot.lng, candidate.lat, candidate.lng);
+      if (d < bestDistance) {
+        bestDistance = d;
+        bestIdx = i;
+      }
+    }
+
+    if (bestIdx < 0 || bestDistance > MAX_MATCH_DISTANCE_MILES) {
+      return lot;
+    }
+
+    usedSupabase.add(bestIdx);
+    const sup = supa[bestIdx];
+    const isGenericName = lot.name === 'Rest Area' || lot.name === 'Truck Stop' || lot.name === 'Truck Parking';
+
+    return {
+      ...lot,
+      name: isGenericName && sup.name ? sup.name : lot.name,
+      total_spaces: sup.total_spaces || lot.total_spaces,
+      available_spaces: sup.available_spaces ?? lot.available_spaces,
+      occupancy_pct: sup.occupancy_pct ?? lot.occupancy_pct,
+      occupancy_status: sup.occupancy_status || lot.occupancy_status,
+      occupancy_updated_at: sup.occupancy_updated_at || lot.occupancy_updated_at,
+      parking_type: sup.parking_type || lot.parking_type,
+      amenities: lot.amenities?.length ? lot.amenities : (sup.amenities || []),
+      operator: lot.operator || sup.operator || '',
+      is24_hours: lot.is24_hours || sup.is24_hours || false,
+      phone: lot.phone || sup.phone || '',
+      website: lot.website || sup.website || '',
+      source: 'osm+supabase',
+      source_id: `${lot.source_id}|${sup.source_id || sup.id}`,
+    };
+  });
+
+  const unmatchedSupa = supa
+    .filter((_, idx) => !usedSupabase.has(idx))
+    .map((item) => ({
+      ...item,
+      distance: item.distance ?? haversineMiles(originLat, originLng, item.lat, item.lng),
+    }));
+
+  return [...enriched, ...unmatchedSupa].sort((a, b) => (a.distance || 0) - (b.distance || 0));
+}
+
 // ─── Truck Parking (OSM) ─────────────────────────────────────────────
 
 async function fetchParkingFromOSM(lat, lng, radius) {
@@ -93,6 +177,7 @@ out center 100;`;
     const elLng = el.lon || el.center?.lon;
     if (!elLat || !elLng) return null;
     const tags = el.tags || {};
+    if (!isTruckRelevantParking(tags)) return null;
     const amenities = [];
     if (tags.fuel === 'yes' || tags.amenity === 'fuel') amenities.push('fuel');
     if (tags.shower === 'yes') amenities.push('showers');
@@ -101,9 +186,10 @@ out center 100;`;
 
     const isRestArea = tags.highway === 'rest_area' || tags.highway === 'services';
     const isTruckStop = tags.amenity === 'fuel' && (tags.hgv === 'yes' || tags.hgv === 'designated');
+    const elType = el.type || 'element';
 
     return {
-      id: `osm-${el.id}`,
+      id: `osm-${elType}-${el.id}`,
       name: tags.name || (isRestArea ? 'Rest Area' : isTruckStop ? 'Truck Stop' : 'Truck Parking'),
       address: [tags['addr:street'], tags['addr:city'], tags['addr:state']].filter(Boolean).join(', ') || '',
       latitude: elLat, longitude: elLng, lat: elLat, lng: elLng,
@@ -117,7 +203,7 @@ out center 100;`;
       is24_hours: tags.opening_hours === '24/7',
       phone: tags.phone || tags['contact:phone'] || '',
       website: tags.website || '',
-      source: 'osm', source_id: String(el.id),
+      source: 'osm', source_id: `${elType}:${el.id}`,
       distance: haversineMiles(lat, lng, elLat, elLng),
     };
   }).filter(Boolean).sort((a, b) => a.distance - b.distance);
@@ -142,8 +228,9 @@ out center 100;`;
     const elLng = el.lon || el.center?.lon;
     if (!elLat || !elLng) return null;
     const tags = el.tags || {};
+    const elType = el.type || 'element';
     return {
-      id: `osm-${el.id}`,
+      id: `osm-${elType}-${el.id}`,
       name: tags.name || 'Weigh Station',
       address: [tags['addr:street'], tags['addr:city'], tags['addr:state']].filter(Boolean).join(', ') || '',
       latitude: elLat, longitude: elLng, lat: elLat, lng: elLng,
@@ -156,7 +243,7 @@ out center 100;`;
       has_prepass: false, has_bypass: false,
       hours: tags.opening_hours || '',
       phone: tags.phone || '',
-      source: 'osm', source_id: String(el.id),
+      source: 'osm', source_id: `${elType}:${el.id}`,
       distance: haversineMiles(lat, lng, elLat, elLng),
     };
   }).filter(Boolean).sort((a, b) => a.distance - b.distance);
@@ -199,6 +286,7 @@ out center 100;`;
     const elLng = el.lon || el.center?.lon;
     if (!elLat || !elLng) return null;
     const tags = el.tags || {};
+    const elType = el.type || 'element';
 
     const heightFt = parseMetricToFt(tags.maxheight);
     const weightTons = parseMetricToTons(tags.maxweight);
@@ -216,7 +304,7 @@ out center 100;`;
     const roadName = tags.name || tags.ref || '';
 
     return {
-      id: `osm-${el.id}`,
+      id: `osm-${elType}-${el.id}`,
       name: roadName
         ? `${roadName}${heightFt ? ` — ${heightFt}ft` : ''}`
         : `Restriction${heightFt ? ` ${heightFt}ft` : ''}${weightTons ? ` ${weightTons}t` : ''}`,
@@ -229,7 +317,7 @@ out center 100;`;
       height_ft: heightFt, weight_tons: weightTons, width_ft: widthFt, length_ft: null,
       restriction_type: restrictionType,
       is_active: true, detour_info: '',
-      source: 'osm', source_id: String(el.id),
+      source: 'osm', source_id: `${elType}:${el.id}`,
       distance: haversineMiles(lat, lng, elLat, elLng),
     };
   }).filter(Boolean).sort((a, b) => a.distance - b.distance);
@@ -261,11 +349,22 @@ async function fetchRestrictionsFromSupabase(lat, lng, radius) {
 // ─── Public API ───────────────────────────────────────────────────────
 
 export async function fetchNearbyParking(lat, lng, radius = DEFAULT_RADIUS) {
+  let osm = [];
+  let supa = [];
+
   try {
-    const osm = await fetchParkingFromOSM(lat, lng, radius);
-    if (osm.length > 0) return osm;
-  } catch (e) { console.warn('Overpass parking failed, trying Supabase:', e.message); }
-  return fetchParkingFromSupabase(lat, lng, radius);
+    osm = await fetchParkingFromOSM(lat, lng, radius);
+  } catch (e) {
+    console.warn('Overpass parking failed:', e.message);
+  }
+
+  try {
+    supa = await fetchParkingFromSupabase(lat, lng, radius);
+  } catch (e) {
+    console.warn('Supabase parking failed:', e.message);
+  }
+
+  return mergeParkingData(osm, supa, lat, lng);
 }
 
 export async function fetchNearbyWeighStations(lat, lng, radius = DEFAULT_RADIUS) {
@@ -287,7 +386,12 @@ export async function fetchNearbyRestrictions(lat, lng, radius = DEFAULT_RADIUS)
 export async function fetchAllInfrastructure(lat, lng, radius = DEFAULT_RADIUS) {
   // ── Single combined Overpass query — avoids rate-limiting from 3 parallel requests
   try {
-    return await fetchAllFromOSM(lat, lng, radius);
+    const osmData = await fetchAllFromOSM(lat, lng, radius);
+    const supabaseParking = await fetchParkingFromSupabase(lat, lng, radius);
+    return {
+      ...osmData,
+      parking: mergeParkingData(osmData.parking, supabaseParking, lat, lng),
+    };
   } catch (e) {
     console.warn('Overpass combined query failed, falling back to Supabase:', e.message);
   }
@@ -346,7 +450,8 @@ out center 300;`;
     const elLng = el.lon || el.center?.lon;
     if (!elLat || !elLng) continue;
 
-    const id = `osm-${el.id}`;
+    const elType = el.type || 'element';
+    const id = `osm-${elType}-${el.id}`;
     if (seenIds.has(id)) continue;
     seenIds.add(id);
 
@@ -368,7 +473,7 @@ out center 300;`;
         has_prepass: false, has_bypass: false,
         hours: tags.opening_hours || '',
         phone: tags.phone || '',
-        source: 'osm', source_id: String(el.id),
+        source: 'osm', source_id: `${elType}:${el.id}`,
         distance: haversineMiles(lat, lng, elLat, elLng),
       });
       continue;
@@ -402,13 +507,14 @@ out center 300;`;
         height_ft: heightFt, weight_tons: weightTons, width_ft: widthFt, length_ft: null,
         restriction_type: restrictionType,
         is_active: true, detour_info: '',
-        source: 'osm', source_id: String(el.id),
+        source: 'osm', source_id: `${elType}:${el.id}`,
         distance: haversineMiles(lat, lng, elLat, elLng),
       });
       continue;
     }
 
     // Everything else → truck parking
+    if (!isTruckRelevantParking(tags)) continue;
     const amenities = [];
     if (tags.fuel === 'yes' || tags.amenity === 'fuel') amenities.push('fuel');
     if (tags.shower === 'yes') amenities.push('showers');
@@ -433,7 +539,7 @@ out center 300;`;
       is24_hours: tags.opening_hours === '24/7',
       phone: tags.phone || tags['contact:phone'] || '',
       website: tags.website || '',
-      source: 'osm', source_id: String(el.id),
+      source: 'osm', source_id: `${elType}:${el.id}`,
       distance: haversineMiles(lat, lng, elLat, elLng),
     });
   }

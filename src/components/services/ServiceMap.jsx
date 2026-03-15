@@ -321,6 +321,9 @@ export default function ServiceMap({
             key={`parking-${lot.id}`}
             position={[lot.lat, lot.lng]}
             icon={createParkingIcon(lot.occupancy_status)}
+            eventHandlers={{
+              click: () => onSelectService(lot)
+            }}
           >
             <Popup className="custom-popup">
               <div className="min-w-[220px] p-1">
@@ -368,11 +371,14 @@ export default function ServiceMap({
         ))}
 
         {/* Weigh Stations */}
-        {filters.showWeighStations && weighStations.map((ws) => (
+        {weighStations.map((ws) => (
           <Marker
             key={`weigh-${ws.id}`}
             position={[ws.lat, ws.lng]}
             icon={createWeighIcon()}
+            eventHandlers={{
+              click: () => onSelectService(ws)
+            }}
           >
             <Popup className="custom-popup">
               <div className="min-w-[200px] p-1">
@@ -415,6 +421,9 @@ export default function ServiceMap({
             key={`restrict-${r.id}`}
             position={[r.lat, r.lng]}
             icon={createRestrictionIcon()}
+            eventHandlers={{
+              click: () => onSelectService(r)
+            }}
           >
             <Popup className="custom-popup">
               <div className="min-w-[200px] p-1">
