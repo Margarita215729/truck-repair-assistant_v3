@@ -145,34 +145,62 @@ export default function ServiceFinder() {
       }
     } catch (err) {
       console.warn('Geocoding failed:', err);
-      toast.error(err?.message || t('services.locationFailed'));
     }
     return null;
   };
 
+  const getCurrentCoords = useCallback(() => new Promise((resolve) => {
+    if (!navigator.geolocation) {
+      resolve(null);
+      return;
+    }
+    navigator.geolocation.getCurrentPosition(
+      (position) => resolve([position.coords.latitude, position.coords.longitude]),
+      () => resolve(null),
+      { enableHighAccuracy: false, timeout: 10000, maximumAge: 300000 }
+    );
+  }), []);
+
   const searchServices = async (searchLocation, overrideCoords = null, overrideFilters = null) => {
     const activeFilters = overrideFilters || filters;
     let coords = overrideCoords || null;
+    let queryTerm = '';
 
     const hasTypedLocation = !!searchLocation?.trim();
+    const typedSearch = hasTypedLocation ? searchLocation.trim() : '';
 
     // Precedence: override coords > typed location > existing user coords
     if (!coords && hasTypedLocation) {
-      const geo = await geocodeAddress(searchLocation.trim());
-      if (!geo) {
-        toast.error(t('services.locationFailed'));
-        return;
+      const geo = await geocodeAddress(typedSearch);
+      if (geo) {
+        coords = [geo.lat, geo.lng];
+        setUserCoords(coords);
+      } else {
+        // If the text is not a geocodable address, treat it as a keyword query
+        queryTerm = typedSearch;
       }
-      coords = [geo.lat, geo.lng];
-      setUserCoords(coords);
     }
 
     if (!coords) {
       coords = userCoords;
     }
 
+    // No coords yet: try browser geolocation once, then fail with actionable guidance.
+    if (!coords && queryTerm) {
+      const liveCoords = await getCurrentCoords();
+      if (liveCoords) {
+        coords = liveCoords;
+        setUserCoords(liveCoords);
+      }
+    }
+
+    // When caller explicitly passes coords (refresh/map actions), typed text acts as search keyword.
+    if (coords && typedSearch) {
+      queryTerm = queryTerm || typedSearch;
+    }
+
     if (!coords) {
-      toast.error(t('services.locationRequired'));
+      toast.error(queryTerm ? (t('services.keywordNeedsLocation') || 'Use "My Location" first, then search by keyword (e.g., Freightliner dealer).') : t('services.locationRequired'));
       return;
     }
 
@@ -210,8 +238,7 @@ export default function ServiceFinder() {
         body: JSON.stringify({
           lat: coords[0],
           lng: coords[1],
-          // Geography is resolved via coords; do not overload with free-text location query
-          query: undefined,
+          query: queryTerm || undefined,
           types,
           serviceTypes: activeFilters.serviceTypes?.length > 0 ? activeFilters.serviceTypes : undefined,
           radius: 40000,

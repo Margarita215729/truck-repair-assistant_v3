@@ -386,6 +386,7 @@ export default {
     searchFailed: 'Failed to search services. Please try again.',
     aiDisclaimer: 'Results are auto-suggested — verify addresses & phone numbers before calling.',
     locationFailed: 'Could not get your location. Please enter a location manually.',
+    keywordNeedsLocation: 'Use "My Location" first, then search by keyword (e.g., Freightliner dealer).',
     locationDenied: 'Location access denied. Please enable location in your browser settings.',
     locationDeniedReset: 'Location is blocked for this site. Click the lock/settings icon in the address bar → reset location permission → reload the page.',
     locationTimeout: 'Location request timed out. Please try again or enter an address.',
