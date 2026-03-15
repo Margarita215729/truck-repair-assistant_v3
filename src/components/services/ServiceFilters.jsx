@@ -4,14 +4,11 @@ import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { 
   Wrench, 
-  Zap, 
   Gauge, 
   Car,
-  Sun,
   Moon,
   Star,
   X,
-  Settings,
   ParkingCircle,
   Scale,
   AlertTriangle,
@@ -24,7 +21,6 @@ const SERVICE_TYPES = [
   { id: 'semi_truck_service', labelKey: 'semiTruckService', icon: Wrench },
   { id: 'tires', labelKey: 'tires', icon: Gauge },
   { id: 'truck_wash', labelKey: 'truckWash', icon: Car },
-  { id: 'oil_change', labelKey: 'oilChange', icon: Settings },
 ];
 
 export default function ServiceFilters({ filters, onFilterChange, onResetFilters, infraCounts = {} }) {
