@@ -54,6 +54,7 @@ export default function PartsCatalog() {
   const [searchModel, setSearchModel] = useState('');
   const [searchYear, setSearchYear] = useState('');
   const [searchPartNumber, setSearchPartNumber] = useState('');
+  const [searchVinLast6, setSearchVinLast6] = useState('');
 
   const [showFilters, setShowFilters] = useState(false);
   const [selectedPart, setSelectedPart] = useState(null);
@@ -76,9 +77,17 @@ export default function PartsCatalog() {
 
   // ─── Search tab: live vendor search ────────────────────────────────
   const { data: vendorResults, isLoading: searchLoading, error: searchError } = useQuery({
-    queryKey: vendorKeys.search(searchSubmitted, { partNumber: searchPartNumber, make: searchMake, model: searchModel, year: searchYear, condition: searchFilters.condition }),
+    queryKey: vendorKeys.search(searchSubmitted, {
+      partNumber: searchPartNumber,
+      vinLast6: searchVinLast6,
+      make: searchMake,
+      model: searchModel,
+      year: searchYear,
+      condition: searchFilters.condition,
+    }),
     queryFn: () => searchVendors(searchSubmitted, {
       partNumber: searchPartNumber,
+      vinLast6: searchVinLast6,
       make: searchMake,
       model: searchModel,
       year: searchYear,
@@ -358,11 +367,19 @@ export default function PartsCatalog() {
               </div>
 
               {/* Truck context inputs */}
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                <Input value={searchMake} onChange={(e) => setSearchMake(e.target.value)} placeholder="Make (e.g., Freightliner)" className="bg-white/5 border-white/10 text-white placeholder:text-white/40 text-sm" />
-                <Input value={searchModel} onChange={(e) => setSearchModel(e.target.value)} placeholder="Model (e.g., Cascadia)" className="bg-white/5 border-white/10 text-white placeholder:text-white/40 text-sm" />
-                <Input value={searchYear} onChange={(e) => setSearchYear(e.target.value)} placeholder="Year (e.g., 2019)" className="bg-white/5 border-white/10 text-white placeholder:text-white/40 text-sm" />
-                <Input value={searchPartNumber} onChange={(e) => setSearchPartNumber(e.target.value)} placeholder="Part Number (OEM)" className="bg-white/5 border-white/10 text-white placeholder:text-white/40 text-sm" />
+              <div className="grid grid-cols-1 md:grid-cols-5 gap-3">
+                <Input value={searchMake} onChange={(e) => setSearchMake(e.target.value)} placeholder={t('parts.makePlaceholder') || 'Make (e.g., Freightliner)'} className="bg-white/5 border-white/10 text-white placeholder:text-white/40 text-sm" />
+                <Input value={searchModel} onChange={(e) => setSearchModel(e.target.value)} placeholder={t('parts.modelPlaceholder') || 'Model (e.g., Cascadia)'} className="bg-white/5 border-white/10 text-white placeholder:text-white/40 text-sm" />
+                <Input value={searchYear} onChange={(e) => setSearchYear(e.target.value)} placeholder={t('parts.yearPlaceholder') || 'Year (e.g., 2019)'} className="bg-white/5 border-white/10 text-white placeholder:text-white/40 text-sm" />
+                <Input
+                  value={searchVinLast6}
+                  onChange={(e) => setSearchVinLast6(e.target.value.replace(/\D/g, '').slice(-6))}
+                  placeholder={t('parts.vinLast6Placeholder') || 'VIN last 6 (optional)'}
+                  maxLength={6}
+                  inputMode="numeric"
+                  className="bg-white/5 border-white/10 text-white placeholder:text-white/40 text-sm font-mono"
+                />
+                <Input value={searchPartNumber} onChange={(e) => setSearchPartNumber(e.target.value)} placeholder={t('parts.partNumberOptionalPlaceholder') || 'Part number (optional)'} className="bg-white/5 border-white/10 text-white placeholder:text-white/40 text-sm" />
               </div>
 
               <AnimatePresence>

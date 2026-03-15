@@ -23,7 +23,7 @@ export const SOURCE_TIER_LABELS = {
  * Returns unified listings from the AI-powered search pipeline.
  *
  * @param {string} query - Part name or description
- * @param {Object} options - { partNumber, make, model, year, condition, limit }
+ * @param {Object} options - { partNumber, vinLast6, make, model, year, condition, limit }
  * @returns {{ listings: VendorListing[], meta: Object }}
  */
 export async function searchVendors(query, options = {}) {
@@ -42,6 +42,7 @@ export async function searchVendors(query, options = {}) {
       body: JSON.stringify({
         query: query || '',
         partNumber: options.partNumber || '',
+        vinLast6: options.vinLast6 || '',
         make: options.make || '',
         model: options.model || '',
         year: options.year || '',

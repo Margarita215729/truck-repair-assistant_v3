@@ -8,7 +8,7 @@
  * If any step fails, the API returns an error — no degraded/synthetic data.
  *
  * POST /api/parts/search
- * Body: { query, partNumber, make, model, year, condition, limit }
+ * Body: { query, partNumber, vinLast6, make, model, year, condition, limit }
  * Returns: { listings: VendorListing[], meta }
  */
 
@@ -173,7 +173,7 @@ function extractAvailability(text) {
 }
 
 // ─── AI normalisation via GPT-4o-mini ───────────────────────────────
-async function normaliseWithAI(cseResults, query, partNumber, make, model, year) {
+async function normaliseWithAI(cseResults, query, partNumber, vinLast6, make, model, year) {
   const GITHUB_TOKEN = process.env.GITHUB_TOKEN;
   if (!GITHUB_TOKEN || cseResults.length === 0) {
     throw new Error('AI normalisation is not configured (missing GITHUB_TOKEN) or no CSE results.');
@@ -194,7 +194,7 @@ Return a JSON array of objects with these exact fields:
 
 Return ONLY the JSON array, no markdown, no explanation.`;
 
-  const userPrompt = `Search context: "${query}"${partNumber ? `, Part Number: ${partNumber}` : ''}${make ? `, Truck: ${make} ${model || ''} ${year || ''}` : ''}
+  const userPrompt = `Search context: "${query}"${partNumber ? `, Part Number: ${partNumber}` : ''}${vinLast6 ? `, VIN last 6: ${vinLast6}` : ''}${make ? `, Truck: ${make} ${model || ''} ${year || ''}` : ''}
 
 Raw search results:
 ${cseResults.map((r, i) => `[${i + 1}] Title: ${r.title}
@@ -300,14 +300,16 @@ export default async function handler(req, res) {
   }
 
   try {
-    const { query, partNumber, make, model, year, limit } = req.body || {};
+    const { query, partNumber, vinLast6, make, model, year, limit } = req.body || {};
+
+    const vinSuffix = String(vinLast6 || '').replace(/\D/g, '').slice(-6);
 
     if (!query && !partNumber) {
       return res.status(400).json({ error: 'Either query or partNumber is required' });
     }
 
     // Build search string
-    const searchParts = [partNumber, query, make, model].filter(Boolean);
+    const searchParts = [partNumber, query, make, model, vinSuffix ? `VIN ${vinSuffix}` : ''].filter(Boolean);
     const searchString = searchParts.join(' ') + ' truck part';
     const maxResults = Math.min(Number(limit) || 8, 8);
 
@@ -338,7 +340,7 @@ export default async function handler(req, res) {
     // Step 2: AI normalisation
     let listings;
     try {
-      listings = await normaliseWithAI(cseResults, query, partNumber, make, model, year);
+      listings = await normaliseWithAI(cseResults, query, partNumber, vinSuffix, make, model, year);
       console.log(`AI normalisation succeeded: ${listings.length} listings from ${cseResults.length} results`);
     } catch (aiErr) {
       console.warn('AI normalisation failed, falling back to regex extraction:', aiErr.message);
@@ -373,6 +375,7 @@ export default async function handler(req, res) {
       meta: {
         query: query || '',
         partNumber: partNumber || '',
+        vinLast6: vinSuffix || '',
         searchQuery: searchString,
         totalResults: listings.length,
         livePricingAvailable: listings.length > 0,
