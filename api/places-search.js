@@ -70,15 +70,18 @@ export default async function handler(req, res) {
       semi_truck_service: 'semi truck service',
       tires: 'truck tire service',
       truck_wash: 'truck wash',
-      oil_change: 'truck oil change lube',
     };
+
+    const selectedServiceTypes = Array.isArray(serviceTypes)
+      ? serviceTypes.filter((st) => Object.prototype.hasOwnProperty.call(SERVICE_TYPE_KEYWORDS, st))
+      : [];
 
     // Build search profiles with explicit semantics and fallback variants
     const searches = [];
 
     if (types.includes('repair')) {
-      if (serviceTypes.length > 0) {
-        for (const st of serviceTypes) {
+      if (selectedServiceTypes.length > 0) {
+        for (const st of selectedServiceTypes) {
           const kw = SERVICE_TYPE_KEYWORDS[st] || st.replace(/_/g, ' ');
           searches.push({
             type: 'repair',
