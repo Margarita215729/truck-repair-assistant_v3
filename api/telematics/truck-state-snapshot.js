@@ -99,6 +99,7 @@ export default async function handler(req, res) {
           const provider = await import(`./lib/providers/${connection.provider}.js`);
           const syncPayload = await provider.syncNow({
             accessToken: tokens.access_token,
+            tokenData: tokens,
             vehicleId: connection.provider_vehicle_id,
           });
 
