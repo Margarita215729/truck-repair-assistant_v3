@@ -84,7 +84,13 @@ export default function VisualDiagnostics({ open, onClose, onDiagnosisComplete, 
     }
 
     const isVideo = file.type.startsWith('video/') || /\.(mp4|mov|webm|avi|mkv)$/i.test(file.name);
-    const isImage = file.type.startsWith('image/') || /\.(jpg|jpeg|png|gif|webp|heic)$/i.test(file.name);
+    const isHeicLike = /\.(heic|heif)$/i.test(file.name) || ['image/heic', 'image/heif'].includes(file.type);
+    const isImage = file.type.startsWith('image/') || /\.(jpg|jpeg|png|gif|webp)$/i.test(file.name);
+
+    if (isHeicLike) {
+      toast.error('HEIC/HEIF is not supported. Please convert to JPG or PNG and try again.');
+      return;
+    }
     if (!isVideo && !isImage) {
       toast.error(t('visualDiagnostics.unsupportedFormat') || 'Unsupported file format');
       return;

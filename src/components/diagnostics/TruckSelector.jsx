@@ -31,12 +31,16 @@ const US_TRUCK_DATA = {
 
 const YEARS = Array.from({ length: 27 }, (_, i) => 2026 - i);
 
+function normalizeVinSuffix(value) {
+  return (value || '').replace(/\D/g, '').slice(-6);
+}
+
 export default function TruckSelector({ open, onClose, onSelect, currentTruck }) {
   const [mode, setMode] = useState('saved');
   const [make, setMake] = useState(currentTruck?.make || '');
   const [model, setModel] = useState(currentTruck?.model || '');
   const [year, setYear] = useState(currentTruck?.year?.toString() || '');
-  const [vin, setVin] = useState(currentTruck?.vin || '');
+  const [vin, setVin] = useState(normalizeVinSuffix(currentTruck?.vin || ''));
 
   const { data: savedTrucks = [] } = useQuery({
     queryKey: ['trucks'],
@@ -59,7 +63,8 @@ export default function TruckSelector({ open, onClose, onSelect, currentTruck })
 
   const handleSelectManual = () => {
     if (make && model && year) {
-      onSelect({ make, model, year: parseInt(year), ...(vin ? { vin } : {}) });
+      const vinSuffix = normalizeVinSuffix(vin);
+      onSelect({ make, model, year: parseInt(year), ...(vinSuffix ? { vin: vinSuffix } : {}) });
       onClose();
     }
   };
@@ -70,12 +75,13 @@ export default function TruckSelector({ open, onClose, onSelect, currentTruck })
       return;
     }
     try {
+      const vinSuffix = normalizeVinSuffix(vin);
       const savedTruck = await entities.Truck.create({
         make,
         model,
         year: parseInt(year),
         nickname: `${make} ${model}`,
-        ...(vin ? { vin } : {})
+        ...(vinSuffix ? { vin: vinSuffix } : {})
       });
       onSelect({
         id: savedTruck.id,
@@ -234,9 +240,9 @@ export default function TruckSelector({ open, onClose, onSelect, currentTruck })
               </label>
               <Input
                 value={vin}
-                onChange={(e) => setVin(e.target.value.toUpperCase())}
-                placeholder="e.g., 1XKAD49X0XJ000000"
-                maxLength={17}
+                onChange={(e) => setVin(normalizeVinSuffix(e.target.value))}
+                placeholder="Last 6 VIN digits (e.g., 215307)"
+                maxLength={6}
                 className="bg-white/5 border-white/10 text-white h-12 font-mono tracking-wide"
               />
             </div>

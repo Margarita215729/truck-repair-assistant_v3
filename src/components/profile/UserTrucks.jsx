@@ -31,6 +31,10 @@ const US_TRUCK_DATA = {
 
 const YEARS = Array.from({ length: 27 }, (_, i) => 2000 + i).reverse();
 
+function normalizeVinSuffix(value) {
+  return (value || '').replace(/\D/g, '').slice(-6);
+}
+
 export default function UserTrucks({ trucks = [], onUpdate }) {
   const { t } = useLanguage();
   const [showForm, setShowForm] = useState(false);
@@ -58,7 +62,7 @@ export default function UserTrucks({ trucks = [], onUpdate }) {
       make: truck.make || '',
       model: truck.model || '',
       year: truck.year?.toString() || '',
-      vin: truck.vin || '',
+      vin: normalizeVinSuffix(truck.vin || ''),
       nickname: truck.nickname || '',
       mileage: truck.mileage?.toString() || ''
     });
@@ -71,7 +75,7 @@ export default function UserTrucks({ trucks = [], onUpdate }) {
       make: formData.make,
       model: formData.model,
       year: parseInt(formData.year),
-      vin: formData.vin,
+      vin: normalizeVinSuffix(formData.vin),
       nickname: formData.nickname,
       mileage: formData.mileage ? parseInt(formData.mileage) : null
     };
@@ -281,10 +285,10 @@ export default function UserTrucks({ trucks = [], onUpdate }) {
               <label className="text-sm text-white/60">{t('trucks.vin')}</label>
               <Input
                 value={formData.vin}
-                onChange={(e) => setFormData({ ...formData, vin: e.target.value.toUpperCase() })}
-                placeholder="1XPWD40X1ED215307"
+                onChange={(e) => setFormData({ ...formData, vin: normalizeVinSuffix(e.target.value) })}
+                placeholder="Last 6 VIN digits"
                 className="bg-white/5 border-white/10 text-white font-mono"
-                maxLength={17}
+                maxLength={6}
               />
             </div>
 
