@@ -180,7 +180,7 @@ export const OEM_LINKS = {
   freightliner: {
     label: 'Freightliner (Daimler)',
     partsPortal: 'https://dtna.com/parts-and-service',
-    dealerLocator: 'https://www.freightliner.com/find-a-dealer/',
+    dealerLocator: 'https://www.freightliner.com/dealer-search/',
     techDocs: null,
     recallLookup: 'https://www.nhtsa.gov/recalls?nhtsaId=&query=freightliner',
   },
