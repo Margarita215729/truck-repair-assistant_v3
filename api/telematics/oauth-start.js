@@ -38,7 +38,8 @@ const PROVIDERS = {
   },
   omnitracs: {
     authType: 'credentials',
-    requiredFields: ['apiKey', 'apiSecret'],
+    requiredFields: ['username', 'password'],
+    optionalFields: ['baseUrl'],
     connectEndpoint: '/api/telematics/credential-connect',
   },
 };

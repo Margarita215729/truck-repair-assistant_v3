@@ -63,9 +63,15 @@ const PROVIDERS = {
     authType: 'credentials',
     refresh: async (currentTokens) => {
       const { authenticate } = await import('./lib/providers/omnitracs.js');
-      const result = await authenticate(currentTokens.apiKey, currentTokens.apiSecret);
+      const result = await authenticate(
+        currentTokens.username,
+        currentTokens.password,
+        currentTokens.base_url
+      );
       return {
         ...currentTokens,
+        base_url: result.base_url || currentTokens.base_url,
+        customer_identifier: result.customer_identifier || currentTokens.customer_identifier,
         access_token: result.access_token,
         expires_at: result.expires_at,
       };

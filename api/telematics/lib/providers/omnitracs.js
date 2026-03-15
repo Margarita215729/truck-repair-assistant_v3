@@ -8,54 +8,65 @@
  *   structurally complete and follows the known XRS REST API patterns.
  *   Field mappings may require adjustment once real API access is granted.
  *
- * Auth: API key + secret → Bearer token
- * Docs: https://developer.omnitracs.com (restricted / unavailable)
+ * Auth: username + password -> POST /integration/v1/login -> Bearer token
+ * Docs: Omnitracs REST Web Services OpenAPI (Roadnet integration docs)
  */
 import crypto from 'node:crypto';
 import { CANONICAL_SIGNALS } from '../providerCapabilityMatrix.js';
 
-const OMNITRACS_API = 'https://api.omnitracs.com/v1';
-const TOKEN_URL = 'https://api.omnitracs.com/oauth/token';
+const DEFAULT_OMNITRACS_BASE_URL = 'https://apex-prod-integration.aws.roadnet.com/integration/v1';
+
+function resolveBaseUrl(baseUrl) {
+  const resolved = baseUrl || process.env.OMNITRACS_BASE_URL || DEFAULT_OMNITRACS_BASE_URL;
+  return String(resolved).replace(/\/+$/, '');
+}
 
 // ─── Authentication ──────────────────────────────────────────────────
 
 /**
- * Authenticate with Omnitracs using client_credentials grant.
+ * Authenticate with Omnitracs using /login (username/password).
  *
- * @param {string} apiKey - API Key / Client ID
- * @param {string} apiSecret - API Secret / Client Secret
- * @returns {{ access_token, expires_at }}
+ * @param {string} username
+ * @param {string} password
+ * @param {string} [baseUrl] - Optional base URL (defaults to OMNITRACS_BASE_URL env)
+ * @returns {{ access_token, expires_at, customer_identifier, base_url }}
  */
-export async function authenticate(apiKey, apiSecret) {
-  const resp = await fetch(TOKEN_URL, {
+export async function authenticate(username, password, baseUrl) {
+  const apiBase = resolveBaseUrl(baseUrl);
+  const resp = await fetch(`${apiBase}/login`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-    body: new URLSearchParams({
-      grant_type: 'client_credentials',
-      client_id: apiKey,
-      client_secret: apiSecret,
-    }),
+    headers: {
+      'Content-Type': 'application/json',
+      'Accept': 'application/json, text/plain; q=0.9, text/html;q=0.8',
+    },
+    body: JSON.stringify({ username, password }),
   });
 
   if (!resp.ok) {
     const text = await resp.text();
-    throw new Error(`Omnitracs auth failed (${resp.status}): ${text}`);
+    throw new Error(`Omnitracs /login failed (${resp.status}): ${text}`);
   }
 
   const data = await resp.json();
+  const expiresAt = new Date(Date.now() + 12 * 60 * 60 * 1000).toISOString();
   return {
-    access_token: data.access_token,
-    expires_at: data.expires_in
-      ? new Date(Date.now() + data.expires_in * 1000).toISOString()
-      : null,
-    token_type: data.token_type || 'Bearer',
+    access_token: data.token,
+    customer_identifier: data.customerIdentifier || null,
+    expires_at: expiresAt,
+    token_type: 'Bearer',
+    base_url: apiBase,
   };
 }
 
 // ─── API Helper ──────────────────────────────────────────────────────
 
-async function omnitracsFetch(path, accessToken, opts = {}) {
-  const url = `${OMNITRACS_API}${path}`;
+async function omnitracsFetch(path, tokenData, opts = {}) {
+  const accessToken = tokenData?.access_token || tokenData?.accessToken;
+  const baseUrl = resolveBaseUrl(tokenData?.base_url || tokenData?.baseUrl);
+  if (!accessToken) throw new Error('Missing Omnitracs access token');
+
+  const normalizedPath = path.startsWith('/') ? path : `/${path}`;
+  const url = `${baseUrl}${normalizedPath}`;
   const resp = await fetch(url, {
     ...opts,
     headers: {
@@ -260,8 +271,9 @@ export function normalizeWebhook(payload) {
 // ─── REST API Calls ─────────────────────────────────────────────────
 
 /** Fetch all vehicles. */
-export async function fetchVehicles({ accessToken }) {
-  const resp = await omnitracsFetch('/vehicles', accessToken);
+export async function fetchVehicles({ accessToken, baseUrl, tokenData }) {
+  const auth = tokenData || { access_token: accessToken, base_url: baseUrl };
+  const resp = await omnitracsFetch('/vehicles', auth);
   const vehicles = resp.vehicles || resp.data || resp.items || [];
   return vehicles.map(v => ({
     id: v.id || v.vehicleId || v.unitId,
@@ -275,28 +287,31 @@ export async function fetchVehicles({ accessToken }) {
 }
 
 /** Fetch current fault codes / diagnostics. */
-export async function fetchCurrentFaults({ accessToken, providerVehicleId }) {
+export async function fetchCurrentFaults({ accessToken, providerVehicleId, baseUrl, tokenData }) {
+  const auth = tokenData || { access_token: accessToken, base_url: baseUrl };
   const resp = await omnitracsFetch(
     `/vehicles/${providerVehicleId}/diagnostics`,
-    accessToken
+    auth
   );
   return resp.diagnostics || resp.faults || resp.data || [];
 }
 
 /** Fetch current engine data / signals. */
-export async function fetchCurrentSignals({ accessToken, providerVehicleId }) {
+export async function fetchCurrentSignals({ accessToken, providerVehicleId, baseUrl, tokenData }) {
+  const auth = tokenData || { access_token: accessToken, base_url: baseUrl };
   const resp = await omnitracsFetch(
     `/vehicles/${providerVehicleId}/engine-data`,
-    accessToken
+    auth
   );
   return resp.data || resp.engineData || resp;
 }
 
 /** Fetch current location. */
-export async function fetchCurrentLocation({ accessToken, providerVehicleId }) {
+export async function fetchCurrentLocation({ accessToken, providerVehicleId, baseUrl, tokenData }) {
+  const auth = tokenData || { access_token: accessToken, base_url: baseUrl };
   const resp = await omnitracsFetch(
     `/vehicles/${providerVehicleId}/location`,
-    accessToken
+    auth
   );
   const loc = resp.location || resp.data || resp;
   if (!loc) return null;
@@ -310,11 +325,12 @@ export async function fetchCurrentLocation({ accessToken, providerVehicleId }) {
 }
 
 /** Fetch inspection defects (DVIR). */
-export async function fetchInspectionDefects({ accessToken, providerVehicleId }) {
+export async function fetchInspectionDefects({ accessToken, providerVehicleId, baseUrl, tokenData }) {
+  const auth = tokenData || { access_token: accessToken, base_url: baseUrl };
   try {
     const resp = await omnitracsFetch(
       `/vehicles/${providerVehicleId}/inspections?limit=25`,
-      accessToken
+      auth
     );
     return (resp.inspections || resp.data || []).flatMap(dvir =>
       (dvir.defects || []).map(d => ({
@@ -335,17 +351,24 @@ export async function fetchInspectionDefects({ accessToken, providerVehicleId })
  * Full "sync now" for Omnitracs.
  * Fetches all available data and returns normalized events.
  */
-export async function syncNow({ accessToken, providerVehicleId }) {
+export async function syncNow({ accessToken, providerVehicleId, vehicleId, baseUrl, tokenData }) {
+  const resolvedVehicleId = providerVehicleId || vehicleId;
+  const auth = tokenData || { access_token: accessToken, base_url: baseUrl };
+
+  if (!resolvedVehicleId) {
+    return { faults: [], signals: [], operationalEvents: [], defects: [], vehicleId: null, timestamp: new Date().toISOString() };
+  }
+
   const [faults, engineData, location, defects] = await Promise.all([
-    fetchCurrentFaults({ accessToken, providerVehicleId }).catch(() => []),
-    fetchCurrentSignals({ accessToken, providerVehicleId }).catch(() => []),
-    fetchCurrentLocation({ accessToken, providerVehicleId }).catch(() => null),
-    fetchInspectionDefects({ accessToken, providerVehicleId }).catch(() => []),
+    fetchCurrentFaults({ tokenData: auth, providerVehicleId: resolvedVehicleId }).catch(() => []),
+    fetchCurrentSignals({ tokenData: auth, providerVehicleId: resolvedVehicleId }).catch(() => []),
+    fetchCurrentLocation({ tokenData: auth, providerVehicleId: resolvedVehicleId }).catch(() => null),
+    fetchInspectionDefects({ tokenData: auth, providerVehicleId: resolvedVehicleId }).catch(() => []),
   ]);
 
   const syntheticPayload = {
     data: {
-      vehicleId: providerVehicleId,
+      vehicleId: resolvedVehicleId,
       timestamp: new Date().toISOString(),
       diagnostics: faults,
       engineData,

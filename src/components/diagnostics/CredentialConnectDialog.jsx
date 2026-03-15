@@ -17,8 +17,10 @@ import { connectProviderWithCredentials } from '@/services/telematics/telematics
 const FIELD_LABELS = {
   database: 'Database',
   userName: 'Username',
+  username: 'Username',
   password: 'Password',
   server: 'Server (optional)',
+  baseUrl: 'Base URL (optional)',
   apiKey: 'API Key',
   apiSecret: 'API Secret',
 };

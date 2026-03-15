@@ -3,7 +3,7 @@
  *
  * POST /api/telematics/credential-connect
  *
- * For providers that use API key/secret or username/password auth
+ * For providers that use credential auth
  * (Geotab, Verizon Connect, Omnitracs) instead of OAuth.
  *
  * 1. Validates user auth (JWT)
@@ -59,14 +59,17 @@ const CREDENTIAL_PROVIDERS = {
     },
   },
   omnitracs: {
-    requiredFields: ['apiKey', 'apiSecret'],
+    requiredFields: ['username', 'password'],
+    optionalFields: ['baseUrl'],
     authenticate: async (creds) => {
       const { authenticate } = await import('./lib/providers/omnitracs.js');
-      const result = await authenticate(creds.apiKey, creds.apiSecret);
+      const result = await authenticate(creds.username, creds.password, creds.baseUrl);
       return {
         tokensToStore: {
-          apiKey: creds.apiKey,
-          apiSecret: creds.apiSecret,
+          username: creds.username,
+          password: creds.password,
+          base_url: result.base_url,
+          customer_identifier: result.customer_identifier,
           access_token: result.access_token,
           expires_at: result.expires_at,
         },
@@ -75,7 +78,7 @@ const CREDENTIAL_PROVIDERS = {
     },
     fetchVehicles: async (tokenData) => {
       const { fetchVehicles } = await import('./lib/providers/omnitracs.js');
-      return fetchVehicles({ accessToken: tokenData.access_token });
+      return fetchVehicles({ tokenData });
     },
   },
 };
