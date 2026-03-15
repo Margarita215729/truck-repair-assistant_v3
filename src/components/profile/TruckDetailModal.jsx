@@ -32,9 +32,16 @@ const TRUCK_MAKES = {
   'Mercedes': ['Sprinter', 'Metris']
 };
 
+function normalizeVinSuffix(value) {
+  return (value || '').replace(/\D/g, '').slice(-6);
+}
+
 export default function TruckDetailModal({ truck, open, onClose }) {
   const queryClient = useQueryClient();
-  const [formData, setFormData] = useState(truck || {
+  const [formData, setFormData] = useState(truck ? {
+    ...truck,
+    vin: normalizeVinSuffix(truck.vin || ''),
+  } : {
     nickname: '',
     make: '',
     model: '',
@@ -123,7 +130,10 @@ export default function TruckDetailModal({ truck, open, onClose }) {
 
   const handleSubmit = (e) => {
     e.preventDefault();
-    saveMutation.mutate(formData);
+    saveMutation.mutate({
+      ...formData,
+      vin: normalizeVinSuffix(formData.vin || ''),
+    });
   };
 
   return (
@@ -192,9 +202,9 @@ export default function TruckDetailModal({ truck, open, onClose }) {
                 <Label className="text-white/70">VIN</Label>
                 <Input
                   value={formData.vin || ''}
-                  onChange={(e) => setFormData(prev => ({ ...prev, vin: e.target.value.toUpperCase() }))}
-                  placeholder="17-character VIN"
-                  maxLength={17}
+                  onChange={(e) => setFormData(prev => ({ ...prev, vin: normalizeVinSuffix(e.target.value) }))}
+                  placeholder="Last 6 VIN digits"
+                  maxLength={6}
                   className="bg-white/5 border-white/10 text-white font-mono"
                 />
               </div>

@@ -224,7 +224,7 @@ export async function invokeGeminiVision({ media, prompt, truck_context }) {
   const guessMimeType = (file) => {
     if (file.type) return file.type;
     const ext = file.name?.split('.').pop()?.toLowerCase();
-    const map = { mp4: 'video/mp4', mov: 'video/quicktime', webm: 'video/webm', avi: 'video/mp4', jpg: 'image/jpeg', jpeg: 'image/jpeg', png: 'image/png', gif: 'image/gif', webp: 'image/webp', heic: 'image/heic' };
+    const map = { mp4: 'video/mp4', mov: 'video/quicktime', webm: 'video/webm', avi: 'video/mp4', jpg: 'image/jpeg', jpeg: 'image/jpeg', png: 'image/png', gif: 'image/gif', webp: 'image/webp' };
     return map[ext] || 'application/octet-stream';
   };
 
@@ -238,7 +238,7 @@ export async function invokeGeminiVision({ media, prompt, truck_context }) {
   }
 
   // Dev fallback: convert to base64 and call Gemini directly (no Vercel limit in local dev)
-  const devKey = env.GOOGLE_MAPS_API_KEY;
+  const devKey = env.GEMINI_API_KEY || env.GOOGLE_MAPS_API_KEY;
   if (devKey) {
     const mediaPayload = await Promise.all(
       media.map(async ({ file }) => {
