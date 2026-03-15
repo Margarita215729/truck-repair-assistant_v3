@@ -21,13 +21,13 @@ import { motion } from 'framer-motion';
 import { useLanguage } from '@/lib/LanguageContext';
 
 const SERVICE_TYPES = [
-  { id: 'semi_truck_service', label: 'Semi-Truck Service', icon: Wrench },
-  { id: 'tires', label: 'Tires', icon: Gauge },
-  { id: 'truck_wash', label: 'Truck Wash', icon: Car },
-  { id: 'oil_change', label: 'Oil Change', icon: Settings },
+  { id: 'semi_truck_service', labelKey: 'semiTruckService', icon: Wrench },
+  { id: 'tires', labelKey: 'tires', icon: Gauge },
+  { id: 'truck_wash', labelKey: 'truckWash', icon: Car },
+  { id: 'oil_change', labelKey: 'oilChange', icon: Settings },
 ];
 
-export default function ServiceFilters({ filters, onFilterChange, infraCounts = {} }) {
+export default function ServiceFilters({ filters, onFilterChange, onResetFilters, infraCounts = {} }) {
   const { t } = useLanguage();
 
   const toggleServiceType = (typeId) => {
@@ -43,11 +43,20 @@ export default function ServiceFilters({ filters, onFilterChange, infraCounts = 
   };
 
   const clearFilters = () => {
+    if (onResetFilters) {
+      onResetFilters();
+      return;
+    }
     onFilterChange({ 
-      ...filters,
+      repair: true,
+      parking: false,
+      towing: false,
       serviceTypes: [], 
       is24Hours: false, 
-      minRating: 0 
+      minRating: 0,
+      showTruckParking: false,
+      showWeighStations: false,
+      showRestrictions: false,
     });
   };
 
@@ -61,7 +70,7 @@ export default function ServiceFilters({ filters, onFilterChange, infraCounts = 
       <div className="flex items-center justify-between mb-4">
         <h3 className="text-sm font-semibold text-white flex items-center gap-2">
           <Wrench className="w-4 h-4 text-orange-500" />
-          Filters
+          {t('services.filtersTitle')}
         </h3>
         {hasActiveFilters && (
           <Button
@@ -71,14 +80,14 @@ export default function ServiceFilters({ filters, onFilterChange, infraCounts = 
             className="h-7 text-xs text-white/60 hover:text-white"
           >
             <X className="w-3 h-3 mr-1" />
-            Clear
+            {t('common.clear')}
           </Button>
         )}
       </div>
 
       {/* Service Types */}
       <div className="space-y-3">
-        <label className="text-xs text-white/60 font-medium">Service Type</label>
+        <label className="text-xs text-white/60 font-medium">{t('services.serviceType')}</label>
         <div className="flex flex-wrap gap-2">
           {SERVICE_TYPES.map((type) => {
             const Icon = type.icon;
@@ -95,7 +104,7 @@ export default function ServiceFilters({ filters, onFilterChange, infraCounts = 
                 }`}
               >
                 <Icon className="w-3.5 h-3.5" />
-                {type.label}
+                {t(`services.${type.labelKey}`)}
               </motion.button>
             );
           })}
