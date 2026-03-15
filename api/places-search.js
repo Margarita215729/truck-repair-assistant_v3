@@ -260,8 +260,8 @@ export default async function handler(req, res) {
       }
     }
 
-    // Sort by weighted score first, then distance as tie-breaker
-    allResults.sort((a, b) => (b.weightedScore - a.weightedScore) || (a.distance - b.distance));
+    // Sort strictly by distance so nearest services are always first
+    allResults.sort((a, b) => a.distance - b.distance);
 
     console.log(`Places search total: ${allResults.length} results for coords [${lat}, ${lng}], types: ${types.join(',')}`);
 
