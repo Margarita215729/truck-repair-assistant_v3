@@ -10,7 +10,6 @@ import {
   Star,
   X,
   ParkingCircle,
-  Scale,
   AlertTriangle,
   Layers
 } from 'lucide-react';
@@ -51,7 +50,7 @@ export default function ServiceFilters({ filters, onFilterChange, onResetFilters
       is24Hours: false, 
       minRating: 0,
       showTruckParking: false,
-      showWeighStations: false,
+      showWeighStations: true,
       showRestrictions: false,
     });
   };
@@ -165,19 +164,10 @@ export default function ServiceFilters({ filters, onFilterChange, onResetFilters
             {infraCounts.truckParking > 0 && <span className="ml-1 text-[10px] opacity-70">({infraCounts.truckParking})</span>}
           </motion.button>
           
-          <motion.button
-            whileTap={{ scale: 0.95 }}
-            onClick={() => toggleLayer('showWeighStations')}
-            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
-              filters.showWeighStations
-                ? 'bg-purple-500/20 text-purple-400 border border-purple-500/30'
-                : 'bg-white/5 text-white/60 hover:bg-white/10 hover:text-white border border-transparent'
-            }`}
-          >
-            <Scale className="w-3.5 h-3.5" />
+          <span className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-purple-500/20 text-purple-400 border border-purple-500/30">
             {t('services.weighStations')}
             {infraCounts.weighStations > 0 && <span className="ml-1 text-[10px] opacity-70">({infraCounts.weighStations})</span>}
-          </motion.button>
+          </span>
           
           <motion.button
             whileTap={{ scale: 0.95 }}

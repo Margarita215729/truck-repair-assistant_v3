@@ -13,11 +13,7 @@ import {
   Wrench, 
   ParkingCircle, 
   Truck, 
-  List, 
-  Map as MapIcon,
   RefreshCw,
-  Scale,
-  AlertTriangle,
   Filter
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -54,7 +50,7 @@ export default function ServiceFinder() {
     minRating: 0,
     // Infrastructure layers
     showTruckParking: false,
-    showWeighStations: false,
+    showWeighStations: true,
     showRestrictions: false,
   });
 
@@ -349,7 +345,7 @@ export default function ServiceFinder() {
       is24Hours: false,
       minRating: 0,
       showTruckParking: false,
-      showWeighStations: false,
+      showWeighStations: true,
       showRestrictions: false,
     });
   };
@@ -377,7 +373,7 @@ export default function ServiceFinder() {
   const listItems = [
     ...filteredServices.map(s => ({ ...s, _listType: 'service' })),
     ...(filters.showTruckParking ? infraData.parking.map(p => ({ ...p, _listType: 'truck_parking' })) : []),
-    ...(filters.showWeighStations ? infraData.weighStations.map(w => ({ ...w, _listType: 'weigh_station' })) : []),
+    ...infraData.weighStations.map(w => ({ ...w, _listType: 'weigh_station' })),
     ...(filters.showRestrictions ? infraData.restrictions.map(r => ({ ...r, _listType: 'truck_restriction' })) : []),
   ];
 
@@ -441,7 +437,7 @@ export default function ServiceFinder() {
                 onClick={() => setViewMode('list')}
                 className={`h-7 px-2 ${viewMode === 'list' ? 'bg-white/10 text-white' : 'text-white/60'}`}
               >
-                <List className="w-4 h-4" />
+                {t('services.viewList')}
               </Button>
               <Button
                 variant="ghost"
@@ -449,7 +445,7 @@ export default function ServiceFinder() {
                 onClick={() => setViewMode('split')}
                 className={`h-7 px-2 ${viewMode === 'split' ? 'bg-white/10 text-white' : 'text-white/60'}`}
               >
-                {t('services.split')}
+                {t('services.viewSplit')}
               </Button>
               <Button
                 variant="ghost"
@@ -457,7 +453,7 @@ export default function ServiceFinder() {
                 onClick={() => setViewMode('map')}
                 className={`h-7 px-2 ${viewMode === 'map' ? 'bg-white/10 text-white' : 'text-white/60'}`}
               >
-                <MapIcon className="w-4 h-4" />
+                {t('services.viewMap')}
               </Button>
             </div>
           </div>
