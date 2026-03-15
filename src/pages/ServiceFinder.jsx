@@ -62,12 +62,29 @@ export default function ServiceFinder() {
   const [infraData, setInfraData] = useState({ parking: [], weighStations: [], restrictions: [] });
   const [infraLoading, setInfraLoading] = useState(false);
   const infraCoordsRef = useRef(null); // tracks coords we last fetched infra for
+  const [activeSearchCenter, setActiveSearchCenter] = useState(null);
 
   const { data: allReviews = [] } = useQuery({
     queryKey: ['service-reviews'],
     queryFn: () => entities.ServiceReview.list(),
     enabled: services.length > 0,
   });
+
+  const normalize = (value) => (value || '')
+    .toString()
+    .toLowerCase()
+    .replace(/\s+/g, ' ')
+    .trim();
+
+  const getServiceReviews = (serviceItem) => {
+    const name = normalize(serviceItem?.name);
+    const address = normalize(serviceItem?.address);
+    return allReviews.filter((r) => {
+      const byPlaceId = r.service_place_id && serviceItem?.id && r.service_place_id === serviceItem.id;
+      if (byPlaceId) return true;
+      return normalize(r.service_name) === name && normalize(r.service_address) === address;
+    });
+  };
 
   // No auto-geolocation on mount — request only on explicit user action
   // to avoid consuming the browser permission prompt before the user is ready.
@@ -102,37 +119,62 @@ export default function ServiceFinder() {
   /** Geocode a text address to { lat, lng } via server-side proxy */
   const geocodeAddress = async (address) => {
     try {
+      const { data: { session } } = await supabase.auth.getSession();
+      const token = session?.access_token;
+      if (!token) {
+        throw new Error(t('services.authRequired') || 'Please sign in to search for services.');
+      }
+
       const res = await fetch('/api/geocode', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
         body: JSON.stringify({ address }),
       });
-      if (!res.ok) return null;
+      if (!res.ok) {
+        let detail = '';
+        try {
+          const errBody = await res.json();
+          detail = errBody?.error || '';
+        } catch {
+          // ignore parse failure
+        }
+        throw new Error(detail || `Geocode failed (HTTP ${res.status})`);
+      }
       const data = await res.json();
       if (data.lat && data.lng) {
         return { lat: data.lat, lng: data.lng };
       }
     } catch (err) {
       console.warn('Geocoding failed:', err);
+      toast.error(err?.message || t('services.locationFailed'));
     }
     return null;
   };
 
   const searchServices = async (searchLocation, overrideCoords = null, overrideFilters = null) => {
     const activeFilters = overrideFilters || filters;
-    let coords = overrideCoords || userCoords;
+    let coords = overrideCoords || null;
 
-    // If user typed an address but we have no coords, geocode it
-    if (searchLocation && !coords) {
-      const geo = await geocodeAddress(searchLocation);
-      if (geo) {
-        coords = [geo.lat, geo.lng];
-        setUserCoords(coords);
-      } else {
+    const hasTypedLocation = !!searchLocation?.trim();
+
+    // Precedence: override coords > typed location > existing user coords
+    if (!coords && hasTypedLocation) {
+      const geo = await geocodeAddress(searchLocation.trim());
+      if (!geo) {
         toast.error(t('services.locationFailed'));
         return;
       }
+      coords = [geo.lat, geo.lng];
+      setUserCoords(coords);
     }
+
+    if (!coords) {
+      coords = userCoords;
+    }
+
     if (!coords) {
       toast.error(t('services.locationRequired'));
       return;
@@ -172,7 +214,8 @@ export default function ServiceFinder() {
         body: JSON.stringify({
           lat: coords[0],
           lng: coords[1],
-          query: searchLocation || undefined,
+          // Geography is resolved via coords; do not overload with free-text location query
+          query: undefined,
           types,
           serviceTypes: activeFilters.serviceTypes?.length > 0 ? activeFilters.serviceTypes : undefined,
           radius: 40000,
@@ -201,12 +244,15 @@ export default function ServiceFinder() {
         if (data.search_center) {
           const newCoords = [data.search_center.lat, data.search_center.lng];
           setUserCoords(newCoords);
+          setActiveSearchCenter(newCoords);
           loadInfrastructure(newCoords);
         } else {
+          setActiveSearchCenter(coords);
           loadInfrastructure(coords);
         }
       } else {
         toast.info(t('services.noServicesFound'));
+        setActiveSearchCenter(coords);
         if (coords) loadInfrastructure(coords);
       }
     } catch (error) {
@@ -292,6 +338,20 @@ export default function ServiceFinder() {
 
   const toggleFilter = (type) => {
     handleFilterChange({ ...filters, [type]: !filters[type] });
+  };
+
+  const handleResetFilters = () => {
+    handleFilterChange({
+      repair: true,
+      parking: false,
+      towing: false,
+      serviceTypes: [],
+      is24Hours: false,
+      minRating: 0,
+      showTruckParking: false,
+      showWeighStations: false,
+      showRestrictions: false,
+    });
   };
 
   const filteredServices = services.filter(s => {
@@ -413,7 +473,12 @@ export default function ServiceFinder() {
                 className="overflow-hidden"
               >
                 <div className="pt-3 space-y-3">
-                  <ServiceFilters filters={filters} onFilterChange={handleFilterChange} infraCounts={serviceCounts} />
+                  <ServiceFilters
+                    filters={filters}
+                    onFilterChange={handleFilterChange}
+                    onResetFilters={handleResetFilters}
+                    infraCounts={serviceCounts}
+                  />
 
                   <div className="flex flex-wrap items-center gap-2">
                     <span className="text-xs text-white/40">{t('services.showLabel')}</span>
@@ -433,7 +498,7 @@ export default function ServiceFinder() {
                       className={`h-8 px-2.5 text-xs ${filters.parking ? 'bg-green-500/20 text-green-400 border-green-500/30' : 'bg-white/5 text-white/60 border-white/10'} border`}
                     >
                       <ParkingCircle className="w-3.5 h-3.5 mr-1.5" />
-                      {t('services.parking') || 'Parking'} ({serviceCounts.parking})
+                      {t('services.truckStops') || 'Truck Stops'} ({serviceCounts.parking})
                     </Toggle>
 
                     <Toggle
@@ -494,7 +559,11 @@ export default function ServiceFinder() {
                   <Button
                     variant="ghost"
                     size="sm"
-                    onClick={() => { searchServices(location); loadInfrastructure(userCoords, true); }}
+                    onClick={() => {
+                      const center = activeSearchCenter || userCoords;
+                      searchServices(location, center);
+                      if (center) loadInfrastructure(center, true);
+                    }}
                     className="text-white/60 hover:text-white"
                   >
                     <RefreshCw className="w-4 h-4 mr-1" />
@@ -542,10 +611,7 @@ export default function ServiceFinder() {
                           service={item}
                           isSelected={selectedService?.id === item.id}
                           onClick={() => setSelectedService(item)}
-                          reviews={allReviews.filter(r => 
-                            r.service_name === item.name && 
-                            r.service_address === item.address
-                          )}
+                          reviews={getServiceReviews(item)}
                         />
                       )}
                       {item._listType === 'truck_parking' && (

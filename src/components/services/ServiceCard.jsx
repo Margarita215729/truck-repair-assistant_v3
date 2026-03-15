@@ -7,26 +7,28 @@ import { motion } from 'framer-motion';
 import ReviewDialog from './ReviewDialog';
 import { useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
+import { useLanguage } from '@/lib/LanguageContext';
 
 const typeConfig = {
   repair: {
     icon: Wrench,
-    label: 'Repair Shop',
+    labelKey: 'repair',
     color: 'bg-orange-500/20 text-orange-400 border-orange-500/30'
   },
   parking: {
     icon: ParkingCircle,
-    label: 'Truck Parking',
+    labelKey: 'truckStops',
     color: 'bg-blue-500/20 text-blue-400 border-blue-500/30'
   },
   towing: {
     icon: Truck,
-    label: 'Towing Service',
+    labelKey: 'towing',
     color: 'bg-red-500/20 text-red-400 border-red-500/30'
-  }
+  },
 };
 
 export default function ServiceCard({ service, isSelected, onClick, reviews = [] }) {
+  const { t } = useLanguage();
   const [showReviewDialog, setShowReviewDialog] = useState(false);
   const queryClient = useQueryClient();
   const config = typeConfig[service.type];
@@ -67,7 +69,7 @@ export default function ServiceCard({ service, isSelected, onClick, reviews = []
               <div className="flex items-start justify-between gap-2">
                 <h3 className="font-semibold text-white truncate">{service.name}</h3>
                 <Badge variant="outline" className={`${config.color} shrink-0 text-xs`}>
-                  {config.label}
+                  {t(`services.${config.labelKey}`)}
                 </Badge>
               </div>
               
@@ -138,7 +140,7 @@ export default function ServiceCard({ service, isSelected, onClick, reviews = []
                     className="h-8 border-white/20 hover:bg-white/10"
                   >
                     <Phone className="w-3 h-3 mr-1" />
-                    Call
+                    {t('shops.call')}
                   </Button>
                 )}
                 <Button
@@ -151,7 +153,7 @@ export default function ServiceCard({ service, isSelected, onClick, reviews = []
                   className="h-8 border-white/20 hover:bg-white/10"
                 >
                   <Navigation className="w-3 h-3 mr-1" />
-                  Directions
+                  {t('shops.directions')}
                 </Button>
                 <Button
                   size="sm"

@@ -197,7 +197,7 @@ export default function ServiceMap({
       <button
         onClick={(e) => { e.stopPropagation(); openExternalNav(lat, lng); }}
         className="flex items-center justify-center gap-1 px-2 py-1.5 text-xs font-medium rounded bg-gray-100 text-gray-700 hover:bg-gray-200 transition"
-        title="Google Maps"
+        title={t('services.routeExternalNav')}
       >
         <Route className="w-3 h-3" />
         Maps
@@ -229,13 +229,14 @@ export default function ServiceMap({
                   }
                 </span>
               </div>
+              <p className="text-[11px] text-amber-700 mt-1">{t('services.routeNotTruckSafe')}</p>
             </div>
           </div>
           <div className="flex items-center gap-1 flex-shrink-0">
             <button
               onClick={() => openExternalNav(routeTarget.lat, routeTarget.lng)}
               className="p-1.5 rounded-md text-xs font-medium bg-blue-600 text-white hover:bg-blue-700 transition"
-              title="Google Maps"
+              title={t('services.routeExternalNav')}
             >
               <Route className="w-4 h-4" />
             </button>
@@ -276,7 +277,7 @@ export default function ServiceMap({
         {userLocation && (
           <Marker position={userLocation} icon={icons.user}>
             <Popup className="custom-popup">
-              <div className="text-sm font-medium">Your Location</div>
+              <div className="text-sm font-medium">{t('services.yourLocation')}</div>
             </Popup>
           </Marker>
         )}
@@ -297,7 +298,7 @@ export default function ServiceMap({
                 <div className="flex items-center gap-1 mt-1">
                   <Star className="w-3 h-3 fill-yellow-400 text-yellow-400" />
                   <span className="text-sm text-gray-600">{service.rating}</span>
-                  <span className="text-xs text-gray-400">({service.reviews} reviews)</span>
+                  <span className="text-xs text-gray-400">({service.reviews} {t('services.reviewsLabel')})</span>
                 </div>
                 <p className="text-xs text-gray-500 mt-1">{service.address}</p>
                 {service.phone && (
