@@ -76,7 +76,6 @@ export const AuthProvider = ({ children }) => {
     const unsubscribe = authService.onAuthStateChange((event, session) => {
       if (event === 'SIGNED_IN' && session?.user) {
         setIsAuthenticated(true);
-        // Load full profile to hydrate role and preferences correctly.
         authService.me().then((profile) => {
           if (profile) {
             setUser(profile);
@@ -166,13 +165,12 @@ export const AuthProvider = ({ children }) => {
       setSupabaseReachable(alive);
       if (!alive) {
         console.warn('Supabase is unreachable — project may be paused or URL is misconfigured');
-        setIsAuthenticated(false);
-        return;
       }
 
       const currentUser = await withTimeout(authService.me(), AUTH_TIMEOUT, 'authService.me');
 
       if (currentUser) {
+        if (!alive) setSupabaseReachable(true);
         setUser(currentUser);
         setIsAuthenticated(true);
         // Load subscription — don't block auth for it

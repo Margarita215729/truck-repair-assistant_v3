@@ -1,46 +1,41 @@
 import { supabase, hasSupabaseConfig } from '@/api/supabaseClient';
 
-const SESSION_KEY = 'tra_session_id';
-const ANON_KEY = 'tra_anon_id';
+const SESSION_KEY = 'tra_marketing_session_id';
+const ANON_KEY = 'tra_marketing_anon_id';
 
-function randomId(prefix) {
+function buildId(prefix) {
   return `${prefix}_${Math.random().toString(36).slice(2)}_${Date.now().toString(36)}`;
 }
 
-function getOrCreateStorageId(key, prefix) {
+function getStorageId(key, prefix) {
   try {
     const existing = localStorage.getItem(key);
     if (existing) return existing;
-    const created = randomId(prefix);
+    const created = buildId(prefix);
     localStorage.setItem(key, created);
     return created;
   } catch {
-    return randomId(prefix);
+    return buildId(prefix);
   }
 }
 
-export function getAnalyticsSessionId() {
-  return getOrCreateStorageId(SESSION_KEY, 'sess');
+export function getSessionId() {
+  return getStorageId(SESSION_KEY, 'sess');
 }
 
-export function getAnalyticsAnonId() {
-  return getOrCreateStorageId(ANON_KEY, 'anon');
+export function getAnonId() {
+  return getStorageId(ANON_KEY, 'anon');
 }
 
-/**
- * Track an analytics event into Supabase for funnel/retention dashboards.
- * Returns true when insert succeeds, false otherwise.
- */
 export async function trackEvent(eventName, options = {}) {
-  if (!hasSupabaseConfig || !supabase || !eventName) return false;
+  if (!eventName || !hasSupabaseConfig || !supabase) return false;
 
   try {
     const { data: { session } } = await supabase.auth.getSession();
-    const userId = session?.user?.id || null;
     const payload = {
-      user_id: userId,
-      session_id: getAnalyticsSessionId(),
-      anon_id: getAnalyticsAnonId(),
+      user_id: session?.user?.id || null,
+      session_id: getSessionId(),
+      anon_id: getAnonId(),
       event_name: eventName,
       event_category: options.category || 'product',
       source: options.source || 'webapp',
@@ -55,16 +50,15 @@ export async function trackEvent(eventName, options = {}) {
       return false;
     }
     return true;
-  } catch (err) {
-    console.warn('trackEvent exception:', err?.message || err);
+  } catch (error) {
+    console.warn('trackEvent exception:', error?.message || error);
     return false;
   }
 }
 
-export async function trackPageView(pathname, extraProps = {}) {
+export async function trackPageView(pathname) {
   return trackEvent('page_view', {
     category: 'engagement',
     path: pathname,
-    props: extraProps,
   });
 }
