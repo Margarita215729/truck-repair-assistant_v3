@@ -811,7 +811,6 @@ User: ${messageText}${audioUrl ? '\n[User has attached an audio recording of eng
       trackEvent('diagnostic_completed', {
         category: 'engagement',
         props: {
-          messages_total: allMessages.length,
           has_dtc_analysis: (assistantMessage.dtc_analysis || []).length > 0,
           has_suggested_parts: (assistantMessage.suggested_parts || []).length > 0,
           has_repair_instructions: (assistantMessage.repair_instructions || []).length > 0,

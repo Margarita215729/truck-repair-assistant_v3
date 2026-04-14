@@ -34,16 +34,26 @@ export default supabase;
  */
 export async function checkSupabaseHealth() {
   if (!hasSupabaseConfig || !supabase) return false;
+
+  // Prefer a real SDK call first to avoid false negatives from strict CORS/proxy rules.
+  try {
+    const { error } = await supabase.auth.getSession();
+    if (!error) return true;
+  } catch {
+    // Fallback to HTTP probe below.
+  }
+
   try {
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), 5000);
-    const res = await fetch(`${supabaseUrl}/rest/v1/`, {
-      method: 'HEAD',
+    const res = await fetch(`${supabaseUrl}/auth/v1/health`, {
+      method: 'GET',
       headers: { apikey: supabaseAnonKey },
       signal: controller.signal,
     });
     clearTimeout(timer);
-    return res.ok || res.status === 400; // 400 = alive but no table, still reachable
+    // Any non-5xx response means the service is reachable.
+    return res.status > 0 && res.status < 500;
   } catch {
     return false;
   }
