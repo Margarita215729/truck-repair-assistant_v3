@@ -15,6 +15,7 @@ import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { Loader2, Upload, X, FileText } from 'lucide-react';
 import { toast } from 'sonner';
+import { trackEvent } from '@/services/analyticsService';
 
 const TRUCK_MAKES = {
   'Peterbilt': ['389', '579', '567', '520'],
@@ -72,6 +73,16 @@ export default function TruckDetailModal({ truck, open, onClose }) {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['trucks'] });
+      if (!truck?.id) {
+        trackEvent('truck_added', {
+          category: 'onboarding',
+          props: {
+            make: formData.make || null,
+            model: formData.model || null,
+            year: formData.year || null,
+          },
+        });
+      }
       toast.success(truck ? 'Truck updated' : 'Truck added');
       onClose();
     }

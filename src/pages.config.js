@@ -5,6 +5,7 @@ import PoliciesPage from './pages/PoliciesPage';
 import Profile from './pages/Profile';
 import Reports from './pages/Reports';
 import ServiceFinder from './pages/ServiceFinder';
+import AdminDashboard from './pages/AdminDashboard';
 import __Layout from './Layout.jsx';
 
 export const PAGES = {
@@ -15,6 +16,7 @@ export const PAGES = {
   "Profile": Profile,
   "Reports": Reports,
   "ServiceFinder": ServiceFinder,
+  "Admin": AdminDashboard,
 };
 
 export const pagesConfig = {

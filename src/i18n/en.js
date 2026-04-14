@@ -35,6 +35,7 @@ export default {
     findServices: 'Get Help',
     getHelpNow: 'Get Help Now',
     reports: 'Reports',
+    admin: 'Admin',
     policies: 'Policies',
     profile: 'Profile',
     pricing: 'Pricing',

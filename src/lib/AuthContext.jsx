@@ -75,14 +75,32 @@ export const AuthProvider = ({ children }) => {
 
     const unsubscribe = authService.onAuthStateChange((event, session) => {
       if (event === 'SIGNED_IN' && session?.user) {
-        setUser({
-          id: session.user.id,
-          email: session.user.email,
-          email_confirmed_at: session.user.email_confirmed_at,
-          full_name: session.user.user_metadata?.display_name || session.user.email?.split('@')[0],
-          avatar_url: session.user.user_metadata?.avatar_url,
-        });
         setIsAuthenticated(true);
+        // Load full profile to hydrate role and preferences correctly.
+        authService.me().then((profile) => {
+          if (profile) {
+            setUser(profile);
+          } else {
+            setUser({
+              id: session.user.id,
+              email: session.user.email,
+              email_confirmed_at: session.user.email_confirmed_at,
+              full_name: session.user.user_metadata?.display_name || session.user.email?.split('@')[0],
+              avatar_url: session.user.user_metadata?.avatar_url,
+              role: session.user.user_metadata?.role || 'technician',
+            });
+          }
+        }).catch(() => {
+          setUser({
+            id: session.user.id,
+            email: session.user.email,
+            email_confirmed_at: session.user.email_confirmed_at,
+            full_name: session.user.user_metadata?.display_name || session.user.email?.split('@')[0],
+            avatar_url: session.user.user_metadata?.avatar_url,
+            role: session.user.user_metadata?.role || 'technician',
+          });
+        });
+
         // Load subscription after sign-in (non-blocking)
         loadSubscription();
       } else if (event === 'SIGNED_OUT') {

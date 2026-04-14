@@ -4,6 +4,7 @@ import { createPageUrl } from './utils';
 import { useAuth } from '@/lib/AuthContext';
 import { useLanguage } from '@/lib/LanguageContext';
 import { useTruck } from '@/lib/TruckContext';
+import { isAdminRole } from '@/lib/adminAccess';
 import { MessageSquare, MapPin, FileText, Menu, X, User, LogIn, LogOut, Package, Globe, Crown, Zap, Truck } from 'lucide-react';
 import TruckSelector from '@/components/diagnostics/TruckSelector';
 import { Button } from '@/components/ui/button';
@@ -27,6 +28,9 @@ export default function Layout({ children, currentPageName }) {
     { name: t('nav.partsCatalog'), page: 'PartsCatalog', icon: Package },
     { name: t('nav.findServices'), page: 'ServiceFinder', icon: MapPin },
     { name: t('nav.reports'), page: 'Reports', icon: FileText },
+    ...(isAuthenticated && isAdminRole(user?.role)
+      ? [{ name: t('nav.admin'), page: 'Admin', icon: Zap }]
+      : []),
     { name: t('nav.profile'), page: 'Profile', icon: User },
   ];
 
