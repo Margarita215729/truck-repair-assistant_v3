@@ -1,0 +1,25 @@
+{
+  "name": "Truck Repair Assistant",
+  "short_name": "Truck Repair",
+  "description": "Truck diagnostics, repair guidance, parts lookup, and roadside support.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#0b1012",
+  "theme_color": "#0b1012",
+  "orientation": "portrait-primary",
+  "lang": "en",
+  "icons": [
+    {
+      "src": "/favicon.svg",
+      "type": "image/svg+xml",
+      "sizes": "any",
+      "purpose": "any"
+    },
+    {
+      "src": "/logo.svg",
+      "type": "image/svg+xml",
+      "sizes": "any",
+      "purpose": "any maskable"
+    }
+  ]
+}
