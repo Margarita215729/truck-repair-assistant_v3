@@ -14,6 +14,7 @@ import {
 import { toast } from 'sonner';
 import { motion } from 'framer-motion';
 import { useSearchParams } from 'react-router-dom';
+import { trackEvent } from '@/services/analyticsService';
 
 export default function PricingPage() {
   const { t, language } = useLanguage();
@@ -31,7 +32,17 @@ export default function PricingPage() {
 
   // Clear search params after displaying banners (avoids stale state on refresh)
   React.useEffect(() => {
+    trackEvent('pricing_viewed', {
+      category: 'conversion',
+      props: { billingPeriod },
+    });
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  React.useEffect(() => {
     if (isSuccess || isCanceled) {
+      if (isSuccess) {
+        trackEvent('checkout_completed', { category: 'conversion', props: { source: 'stripe_redirect' } });
+      }
       const timeout = setTimeout(() => {
         setSearchParams({}, { replace: true });
       }, 5000);
@@ -52,6 +63,10 @@ export default function PricingPage() {
       return;
     }
     setIsCheckingOut(true);
+    trackEvent('checkout_started', {
+      category: 'conversion',
+      props: { priceId, billingPeriod },
+    });
     try {
       const url = await subscriptionService.createCheckoutSession(priceId);
       if (url) {

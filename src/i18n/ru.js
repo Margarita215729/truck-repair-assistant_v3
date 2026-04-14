@@ -35,6 +35,7 @@ export default {
     findServices: 'Получить помощь',
     getHelpNow: 'Помощь сейчас',
     reports: 'Отчёты',
+    admin: 'Админка',
     policies: 'Политики',
     profile: 'Профиль',
     pricing: 'Тарифы',

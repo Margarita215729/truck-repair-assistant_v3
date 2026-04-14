@@ -7,6 +7,7 @@ import { useNavigate } from 'react-router-dom';
 import { useLanguage } from '@/lib/LanguageContext';
 import { authService } from '@/services/authService';
 import { useAuth } from '@/lib/AuthContext';
+import { trackEvent } from '@/services/analyticsService';
 
 export default function LoginPage({ onLogin }) {
   const navigate = useNavigate();
@@ -37,6 +38,10 @@ export default function LoginPage({ onLogin }) {
     try {
       if (mode === 'forgot') {
         await authService.resetPassword(email);
+        trackEvent('auth_password_reset_requested', {
+          category: 'onboarding',
+          props: { email_domain: email.split('@')[1] || null },
+        });
         setMode('check-email');
         setLoading(false);
         return;
@@ -54,6 +59,10 @@ export default function LoginPage({ onLogin }) {
           return;
         }
         const result = await onLogin('signup', { email, password, name });
+        trackEvent('auth_signup_completed', {
+          category: 'onboarding',
+          props: { email_domain: email.split('@')[1] || null },
+        });
         // If Supabase requires email confirmation, user.identities will be empty
         if (result?.user && !result.user.email_confirmed_at) {
           setMode('check-email');
@@ -64,6 +73,10 @@ export default function LoginPage({ onLogin }) {
         }
       } else {
         await onLogin('signin', { email, password });
+        trackEvent('auth_signin_completed', {
+          category: 'onboarding',
+          props: { email_domain: email.split('@')[1] || null },
+        });
         // Navigate after successful sign-in
         navigate('/', { replace: true });
       }
