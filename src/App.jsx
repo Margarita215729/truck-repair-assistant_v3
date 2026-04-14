@@ -3,7 +3,8 @@ import { Toaster as SonnerToaster } from 'sonner'
 import { QueryClientProvider } from '@tanstack/react-query'
 import { queryClientInstance } from '@/lib/query-client'
 import { pagesConfig } from './pages.config'
-import { BrowserRouter as Router, Route, Routes } from 'react-router-dom';
+import { BrowserRouter as Router, Route, Routes, useLocation } from 'react-router-dom';
+import { useEffect } from 'react';
 import PageNotFound from './lib/PageNotFound';
 import { AuthProvider, useAuth } from '@/lib/AuthContext';
 import { LanguageProvider, useLanguage } from '@/lib/LanguageContext';
@@ -14,6 +15,8 @@ import AuthCallbackPage from '@/pages/AuthCallbackPage';
 import PricingPage from '@/pages/PricingPage';
 import PoliciesPage from '@/pages/PoliciesPage';
 import ProtectedRoute from '@/lib/ProtectedRoute';
+import AdminRoute from '@/lib/AdminRoute';
+import { trackPageView } from '@/services/analyticsService';
 
 const { Pages, Layout, mainPage } = pagesConfig;
 const mainPageKey = mainPage ?? Object.keys(Pages)[0];
@@ -28,6 +31,16 @@ const PUBLIC_PAGE_KEYS = new Set(['Diagnostics', 'Policies']);
 
 /** Pages that require authentication */
 const PROTECTED_PAGE_KEYS = new Set(['Reports', 'Profile', 'Community', 'PartsCatalog', 'ServiceFinder']);
+
+function RouteTracking() {
+  const location = useLocation();
+
+  useEffect(() => {
+    trackPageView(location.pathname);
+  }, [location.pathname]);
+
+  return null;
+}
 
 const AppRoutes = () => {
   const { isLoadingAuth, authError, login } = useAuth();
@@ -52,7 +65,9 @@ const AppRoutes = () => {
   }
 
   return (
-    <Routes>
+    <>
+      <RouteTracking />
+      <Routes>
       {/* Auth callback */}
       <Route path="/auth/confirm" element={<AuthCallbackPage />} />
 
@@ -81,6 +96,20 @@ const AppRoutes = () => {
       {/* Per-page routes with appropriate gating */}
       {Object.entries(Pages).map(([path, Page]) => {
         if (path === 'Policies') return null; // handled above
+        if (path === 'Admin') {
+          const adminElement = (
+            <LayoutWrapper currentPageName={path}>
+              <Page />
+            </LayoutWrapper>
+          );
+          return (
+            <Route
+              key={path}
+              path={`/${path}`}
+              element={<AdminRoute>{adminElement}</AdminRoute>}
+            />
+          );
+        }
         const isProtected = PROTECTED_PAGE_KEYS.has(path);
         const element = (
           <LayoutWrapper currentPageName={path}>
@@ -96,8 +125,9 @@ const AppRoutes = () => {
         );
       })}
 
-      <Route path="*" element={<PageNotFound />} />
-    </Routes>
+        <Route path="*" element={<PageNotFound />} />
+      </Routes>
+    </>
   );
 };
 

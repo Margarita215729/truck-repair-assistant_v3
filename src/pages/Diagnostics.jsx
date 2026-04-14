@@ -38,6 +38,7 @@ import ScanTruckButton from '@/components/diagnostics/ScanTruckButton';
 import CredentialConnectDialog from '@/components/diagnostics/CredentialConnectDialog';
 import { GUEST_CHAT_MESSAGE_LIMIT, canGuestUseVideo, canGuestUseTelematicsScan } from '@/lib/guestAccess';
 import { useNavigate } from 'react-router-dom';
+import { trackEvent } from '@/services/analyticsService';
 
 export default function Diagnostics() {
   const { t } = useLanguage();
@@ -301,6 +302,14 @@ export default function Diagnostics() {
 
   /** SCAN TRUCK — fetch live telematics data and inject into chat */
   const handleScanComplete = ({ snapshot, interpretation }) => {
+    trackEvent('telematics_scan_completed', {
+      category: 'engagement',
+      props: {
+        summary_status: snapshot?.summary_status || 'unknown',
+        active_faults: snapshot?.stats?.total_active_faults || 0,
+      },
+    });
+
     setTruckStateSnapshot(snapshot);
     setTruckStateInterpretation(interpretation);
 
@@ -412,6 +421,28 @@ export default function Diagnostics() {
     };
     
     setMessages(prev => [...prev, userMessage]);
+
+    if (messages.length === 0) {
+      trackEvent('diagnostic_started', {
+        category: 'onboarding',
+        props: {
+          has_truck_selected: !!truck,
+          has_error_codes: errorCodes.length > 0,
+          has_symptoms: symptoms.length > 0,
+          is_guest: isGuest,
+        },
+      });
+    }
+
+    trackEvent('diagnostic_message_sent', {
+      category: 'engagement',
+      props: {
+        is_audio: !!audioUrl,
+        message_length: messageText?.length || 0,
+        message_index: messages.length + 1,
+      },
+    });
+
     setInput('');
     setIsLoading(true);
 
@@ -776,6 +807,18 @@ User: ${messageText}${audioUrl ? '\n[User has attached an audio recording of eng
       }
 
       const allMessages = [...messages, userMessage, assistantMessage];
+
+      trackEvent('diagnostic_completed', {
+        category: 'engagement',
+        props: {
+          messages_total: allMessages.length,
+          has_dtc_analysis: (assistantMessage.dtc_analysis || []).length > 0,
+          has_suggested_parts: (assistantMessage.suggested_parts || []).length > 0,
+          has_repair_instructions: (assistantMessage.repair_instructions || []).length > 0,
+          insufficient_info: !!assistantMessage.insufficient_info,
+        },
+      });
+
       setMessages(prev => {
         // Use prev (latest state) for the save, not the stale outer `messages`
         const latestAll = [...prev, assistantMessage];
@@ -1108,6 +1151,15 @@ Focus on:
         recommendations: (response.conclusions || []).map(c => c.recommended_action_now),
         estimated_costs: null,
         sources: [],
+      });
+
+      trackEvent('report_saved', {
+        category: 'retention',
+        props: {
+          has_truck_info: !!truck,
+          message_count: messages.length,
+          report_type: 'INTAKE_Triage_Roadside',
+        },
       });
 
       toast.success(t('diagnostics.reportGenerated'));
