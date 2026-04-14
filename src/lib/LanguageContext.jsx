@@ -1,9 +1,10 @@
 import React, { createContext, useContext, useState, useCallback, useMemo } from 'react';
-import { en, ru } from '@/i18n';
+import { en, ru, es } from '@/i18n';
 
 const STORAGE_KEY = 'truck_repair_language';
-const LANGUAGES = { en, ru };
-const LANGUAGE_LABELS = { en: 'English', ru: 'Русский' };
+const LANGUAGES = { en, ru, es };
+const LANGUAGE_LABELS = { en: 'English', ru: 'Русский', es: 'Español' };
+const LANGUAGE_ORDER = ['en', 'ru', 'es'];
 
 function getInitialLanguage() {
   try {
@@ -12,7 +13,9 @@ function getInitialLanguage() {
   } catch {}
   // Auto-detect from browser
   const browserLang = navigator.language?.slice(0, 2);
-  return browserLang === 'ru' ? 'ru' : 'en';
+  if (browserLang === 'ru') return 'ru';
+  if (browserLang === 'es') return 'es';
+  return 'en';
 }
 
 function getNestedValue(obj, path) {
@@ -31,6 +34,12 @@ export function LanguageProvider({ children }) {
     }
   }, []);
 
+  const getNextLanguage = useCallback(() => {
+    const idx = LANGUAGE_ORDER.indexOf(language);
+    const nextIdx = idx === -1 ? 0 : (idx + 1) % LANGUAGE_ORDER.length;
+    return LANGUAGE_ORDER[nextIdx];
+  }, [language]);
+
   const t = useCallback((key, params) => {
     let value = getNestedValue(LANGUAGES[language], key);
     if (value === undefined) {
@@ -48,8 +57,8 @@ export function LanguageProvider({ children }) {
   }, [language]);
 
   const contextValue = useMemo(
-    () => ({ language, setLanguage, t, languages: LANGUAGE_LABELS }),
-    [language, setLanguage, t]
+    () => ({ language, setLanguage, getNextLanguage, t, languages: LANGUAGE_LABELS }),
+    [language, setLanguage, getNextLanguage, t]
   );
 
   return (

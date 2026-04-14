@@ -32,7 +32,7 @@ const PUBLIC_PAGE_KEYS = new Set(['Diagnostics', 'Policies']);
 /** Pages that require authentication */
 const PROTECTED_PAGE_KEYS = new Set(['Reports', 'Profile', 'Community', 'PartsCatalog', 'ServiceFinder']);
 
-function RouteTracking() {
+const RouteTracking = () => {
   const location = useLocation();
 
   useEffect(() => {
@@ -40,7 +40,7 @@ function RouteTracking() {
   }, [location.pathname]);
 
   return null;
-}
+};
 
 const AppRoutes = () => {
   const { isLoadingAuth, authError, login } = useAuth();
@@ -125,7 +125,7 @@ const AppRoutes = () => {
         );
       })}
 
-        <Route path="*" element={<PageNotFound />} />
+      <Route path="*" element={<PageNotFound />} />
       </Routes>
     </>
   );

@@ -19,7 +19,7 @@ import {
 export default function Layout({ children, currentPageName }) {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const { user, isAuthenticated, isLoadingAuth, logout, subscription, isProUser } = useAuth();
-  const { t, language, setLanguage, languages } = useLanguage();
+  const { t, language, setLanguage } = useLanguage();
   const { truck, setTruck, showTruckSelector, setShowTruckSelector } = useTruck();
 
   const navItems = [
@@ -80,14 +80,23 @@ export default function Layout({ children, currentPageName }) {
                 </span>
               </button>
               {/* Language Switcher */}
-              <button
-                onClick={() => setLanguage(language === 'en' ? 'ru' : 'en')}
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm text-white/60 hover:text-white hover:bg-white/5 transition-all"
-                title={languages[language === 'en' ? 'ru' : 'en']}
-              >
-                <Globe className="w-4 h-4" />
-                {language.toUpperCase()}
-              </button>
+              <div className="flex items-center gap-1 px-2 py-1 rounded-lg bg-white/5 border border-white/10">
+                <Globe className="w-4 h-4 text-white/60" />
+                {['en', 'ru', 'es'].map((code) => (
+                  <button
+                    key={code}
+                    onClick={() => setLanguage(code)}
+                    className={`px-2 py-1 rounded text-xs font-semibold transition-all ${
+                      language === code
+                        ? 'bg-brand-orange text-white'
+                        : 'text-white/60 hover:text-white hover:bg-white/10'
+                    }`}
+                    title={code.toUpperCase()}
+                  >
+                    {code.toUpperCase()}
+                  </button>
+                ))}
+              </div>
               {/* User Menu */}
               {!isLoadingAuth && (isAuthenticated && user ? (
                 <DropdownMenu>
@@ -151,7 +160,7 @@ export default function Layout({ children, currentPageName }) {
               onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
             >
               {mobileMenuOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
-              <span>{mobileMenuOpen ? (language === 'ru' ? 'Закрыть' : 'Close') : (language === 'ru' ? 'Меню' : 'Menu')}</span>
+              <span>{mobileMenuOpen ? t('common.close') : t('common.menu')}</span>
             </button>
           </div>
         </div>
@@ -228,13 +237,24 @@ export default function Layout({ children, currentPageName }) {
                 {/* Divider + Language + Auth action */}
                 <div className="pt-2 mt-2 border-t border-white/10 space-y-2">
                   {/* Language Switcher */}
-                  <button
-                    onClick={() => setLanguage(language === 'en' ? 'ru' : 'en')}
-                    className="flex items-center gap-3 w-full px-4 py-3 rounded-lg text-sm font-medium text-white/60 hover:text-white hover:bg-white/5 transition-all"
-                  >
-                    <Globe className="w-5 h-5" />
-                    {languages[language === 'en' ? 'ru' : 'en']}
-                  </button>
+                  <div className="flex items-center gap-2 px-4 py-2 rounded-lg bg-white/5 border border-white/10">
+                    <Globe className="w-5 h-5 text-white/60" />
+                    <div className="flex items-center gap-1">
+                      {['en', 'ru', 'es'].map((code) => (
+                        <button
+                          key={code}
+                          onClick={() => setLanguage(code)}
+                          className={`px-2.5 py-1 rounded text-xs font-semibold transition-all ${
+                            language === code
+                              ? 'bg-brand-orange text-white'
+                              : 'text-white/60 hover:text-white hover:bg-white/10'
+                          }`}
+                        >
+                          {code.toUpperCase()}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
 
                   {!isLoadingAuth && !isAuthenticated && (
                     <Link to="/Login" onClick={() => setMobileMenuOpen(false)}>

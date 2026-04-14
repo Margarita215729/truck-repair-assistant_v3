@@ -30,7 +30,6 @@ export default function PricingPage() {
   const isSuccess = searchParams.get('success') === 'true';
   const isCanceled = searchParams.get('canceled') === 'true';
 
-  // Clear search params after displaying banners (avoids stale state on refresh)
   React.useEffect(() => {
     trackEvent('pricing_viewed', {
       category: 'conversion',
@@ -38,10 +37,14 @@ export default function PricingPage() {
     });
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
+  // Clear search params after displaying banners (avoids stale state on refresh)
   React.useEffect(() => {
     if (isSuccess || isCanceled) {
       if (isSuccess) {
-        trackEvent('checkout_completed', { category: 'conversion', props: { source: 'stripe_redirect' } });
+        trackEvent('checkout_completed', {
+          category: 'conversion',
+          props: { billingPeriod },
+        });
       }
       const timeout = setTimeout(() => {
         setSearchParams({}, { replace: true });
