@@ -83,7 +83,8 @@ export default async function handler(req, res) {
 
     // 3. Verify signature
     const sigValid = secret ? verifyWebhookSignature(rawString, req.headers, secret) : false;
-    if (secret && !sigValid) {
+    if (!sigValid) {
+      console.warn('Motive webhook rejected: signature verification failed (secret configured:', !!secret, ')');
       return res.status(401).json({ error: 'Invalid webhook signature' });
     }
 

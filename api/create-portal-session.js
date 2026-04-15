@@ -1,6 +1,9 @@
 import Stripe from 'stripe';
 import { createClient } from '@supabase/supabase-js';
 
+if (!process.env.STRIPE_SECRET_KEY) {
+  console.error('STRIPE_SECRET_KEY environment variable is not set');
+}
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || 'sk_missing');
 
 let _supabase;
@@ -19,6 +22,10 @@ function getSupabase() {
 export default async function handler(req, res) {
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Method not allowed' });
+  }
+
+  if (!process.env.STRIPE_SECRET_KEY) {
+    return res.status(500).json({ error: 'Payment service not configured' });
   }
 
   try {

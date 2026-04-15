@@ -36,6 +36,13 @@ function getSupabase() {
 
 const VALID_TABLES = ['truck_parking', 'weigh_stations', 'truck_restrictions'];
 
+// Allowed columns per table to prevent arbitrary field injection
+const ALLOWED_COLUMNS = {
+  truck_parking: new Set(['source_id', 'name', 'lat', 'lng', 'state', 'city', 'address', 'total_spaces', 'available_spaces', 'occupancy_pct', 'occupancy_status', 'amenities', 'source', 'source_url']),
+  weigh_stations: new Set(['source_id', 'name', 'lat', 'lng', 'state', 'city', 'highway', 'direction', 'status', 'source', 'source_url']),
+  truck_restrictions: new Set(['source_id', 'name', 'lat', 'lng', 'state', 'city', 'restriction_type', 'description', 'height_ft', 'weight_lbs', 'source', 'source_url']),
+};
+
 export default async function handler(req, res) {
   // Only POST
   if (req.method !== 'POST') {
@@ -87,19 +94,23 @@ export default async function handler(req, res) {
     }
 
     // Upsert by source_id to avoid duplicates
+    const allowedCols = ALLOWED_COLUMNS[type];
     const { data, error } = await getSupabase()
       .from(type)
       .upsert(
-        records.map(r => ({
-          ...r,
-          updated_at: new Date().toISOString(),
-        })),
+        records.map(r => {
+          const sanitized = { updated_at: new Date().toISOString() };
+          for (const [k, v] of Object.entries(r)) {
+            if (allowedCols.has(k)) sanitized[k] = v;
+          }
+          return sanitized;
+        }),
         { onConflict: 'source_id', ignoreDuplicates: false }
       );
 
     if (error) {
       console.error('Upsert error:', error);
-      return res.status(500).json({ error: error.message });
+      return res.status(500).json({ error: 'Database operation failed' });
     }
 
     return res.status(200).json({ 
@@ -109,6 +120,6 @@ export default async function handler(req, res) {
 
   } catch (err) {
     console.error('Ingest error:', err);
-    return res.status(500).json({ error: err.message });
+    return res.status(500).json({ error: 'Internal server error' });
   }
 }

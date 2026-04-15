@@ -89,7 +89,10 @@ function getSupabase() {
 function verifyCronAuth(req) {
   // Vercel Cron sends Authorization: Bearer <CRON_SECRET>
   const cronSecret = process.env.CRON_SECRET;
-  if (!cronSecret) return true; // No secret configured — allow (dev mode)
+  if (!cronSecret) {
+    console.error('CRON_SECRET not configured — rejecting cron request');
+    return false;
+  }
   const authHeader = req.headers?.authorization || '';
   return authHeader === `Bearer ${cronSecret}`;
 }

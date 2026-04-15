@@ -79,6 +79,12 @@ async function handleListVehicles(req, res, sb, user) {
           continue;
         }
 
+        const VALID_PROVIDERS = new Set(['samsara', 'motive', 'geotab', 'verizonconnect', 'omnitracs']);
+        if (!VALID_PROVIDERS.has(conn.provider)) {
+          allVehicles.push({ connectionId: conn.id, provider: conn.provider, status: 'unknown_provider', vehicles: [] });
+          continue;
+        }
+
         const { fetchVehicles } = await import(`./lib/providers/${conn.provider}.js`);
         const vehicles = await fetchVehicles({ accessToken: tokens.access_token });
 
