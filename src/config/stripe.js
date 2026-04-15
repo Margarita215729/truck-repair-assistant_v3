@@ -16,7 +16,7 @@ export const PLANS = {
       { key: 'ai_requests', value: '10 requests/day', valueRu: '10 запросов/день', valueEs: '10 solicitudes/día' },
       { key: 'trucks', value: '3 trucks', valueRu: '3 грузовика', valueEs: '3 camiones' },
       { key: 'diagnostics', value: 'Basic diagnostics', valueRu: 'Базовая диагностика', valueEs: 'Diagnóstico básico' },
-      { key: 'community', value: 'Community access', valueRu: 'Доступ к сообществу', valueEs: 'Acceso а la comunidad' },
+      { key: 'community', value: 'Community access', valueRu: 'Доступ к сообществу', valueEs: 'Acceso a la comunidad' },
       { key: 'reports', value: 'Basic reports', valueRu: 'Базовые отчёты', valueEs: 'Informes básicos' },
       { key: 'parts', value: 'Parts catalog', valueRu: 'Каталог запчастей', valueEs: 'Catálogo de piezas' },
     ],

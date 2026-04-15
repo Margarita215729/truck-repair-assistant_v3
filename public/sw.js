@@ -1,32 +1,41 @@
-const CACHE_NAME = 'tra-cache-v1';
-const PRECACHE_URLS = ['/', '/index.html', '/logo.svg', '/manifest.json'];
+const CACHE_NAME = 'tra-v1';
+const PRECACHE = ['/', '/logo.svg', '/favicon.svg'];
 
-self.addEventListener('install', (event) => {
-  event.waitUntil(
-    caches.open(CACHE_NAME).then((cache) => cache.addAll(PRECACHE_URLS))
+self.addEventListener('install', (e) => {
+  e.waitUntil(
+    caches.open(CACHE_NAME).then(cache => cache.addAll(PRECACHE))
   );
   self.skipWaiting();
 });
 
-self.addEventListener('activate', (event) => {
-  event.waitUntil(
-    caches.keys().then((keys) =>
-      Promise.all(keys.filter((k) => k !== CACHE_NAME).map((k) => caches.delete(k)))
+self.addEventListener('activate', (e) => {
+  e.waitUntil(
+    caches.keys().then(keys =>
+      Promise.all(keys.filter(k => k !== CACHE_NAME).map(k => caches.delete(k)))
     )
   );
   self.clients.claim();
 });
 
-self.addEventListener('fetch', (event) => {
-  const url = new URL(event.request.url);
+self.addEventListener('fetch', (e) => {
+  if (e.request.method !== 'GET') return;
 
-  // Skip API calls — always go to network
+  const url = new URL(e.request.url);
+
+  // API calls — network only
   if (url.pathname.startsWith('/api/')) return;
 
-  // Same-origin non-API: cache-first
-  if (url.origin === self.location.origin) {
-    event.respondWith(
-      caches.match(event.request).then((cached) => cached || fetch(event.request))
-    );
-  }
+  e.respondWith(
+    caches.match(e.request).then(cached => {
+      const fetchPromise = fetch(e.request).then(response => {
+        if (response && response.status === 200 && response.type === 'basic') {
+          const clone = response.clone();
+          caches.open(CACHE_NAME).then(cache => cache.put(e.request, clone));
+        }
+        return response;
+      }).catch(() => cached);
+
+      return cached || fetchPromise;
+    })
+  );
 });
