@@ -1,15 +1,19 @@
 {
   "name": "Truck Repair Assistant",
   "short_name": "TRA",
+  "description": "AI-powered diagnostics for commercial trucks",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#0b1012",
   "theme_color": "#0b1012",
+  "orientation": "portrait-primary",
   "icons": [
     {
       "src": "/logo.svg",
       "sizes": "any",
-      "type": "image/svg+xml"
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
     }
-  ]
+  ],
+  "categories": ["utilities", "business"]
 }
