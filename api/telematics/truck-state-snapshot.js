@@ -96,6 +96,10 @@ export default async function handler(req, res) {
         const tokens = await loadTokens(connection.token_ref);
 
         if (tokens?.access_token) {
+          const VALID_PROVIDERS = new Set(['samsara', 'motive', 'geotab', 'verizonconnect', 'omnitracs']);
+          if (!VALID_PROVIDERS.has(connection.provider)) {
+            throw new Error(`Unknown telematics provider: ${connection.provider}`);
+          }
           const provider = await import(`./lib/providers/${connection.provider}.js`);
           const syncPayload = await provider.syncNow({
             accessToken: tokens.access_token,

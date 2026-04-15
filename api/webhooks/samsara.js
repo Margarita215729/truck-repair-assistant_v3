@@ -92,8 +92,9 @@ export default async function handler(req, res) {
     // 3. Verify signature (if secret available)
     const sigValid = secret ? verifyWebhookSignature(rawString, req.headers, secret) : false;
 
-    // If we have a secret but signature is invalid, reject
-    if (secret && !sigValid) {
+    // Reject if signature verification fails or no secret is configured
+    if (!sigValid) {
+      console.warn('Samsara webhook rejected: signature verification failed (secret configured:', !!secret, ')');
       return res.status(401).json({ error: 'Invalid webhook signature' });
     }
 

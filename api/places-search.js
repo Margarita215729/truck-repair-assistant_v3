@@ -32,11 +32,12 @@ export default async function handler(req, res) {
     process.env.NEXT_PUBLIC_BASE_URL,
     process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : '',
   ].filter(Boolean);
-  // For same-origin requests (SPA on Vercel) origin may be empty — allow it
-  const corsOrigin = !origin || allowedOrigins.includes(origin) ? origin || '*' : allowedOrigins[0] || '*';
+  const corsOrigin = allowedOrigins.includes(origin) ? origin : allowedOrigins[0];
   res.setHeader('Access-Control-Allow-Origin', corsOrigin);
   res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+  res.setHeader('Vary', 'Origin');
+  res.setHeader('X-Content-Type-Options', 'nosniff');
   if (req.method === 'OPTIONS') return res.status(200).end();
 
   if (req.method !== 'POST') {

@@ -76,6 +76,21 @@ export default async function handler(req, res) {
       return res.status(400).json({ error: `Too many messages (max ${MAX_MESSAGES})` });
     }
 
+    // Sanitize message roles — only allow 'user' and 'assistant' from client
+    const ALLOWED_ROLES = new Set(['user', 'assistant']);
+    const sanitizedMessages = messages
+      .filter(m => m && typeof m === 'object' && ALLOWED_ROLES.has(m.role) && m.content != null)
+      .map(m => ({ role: m.role, content: m.content }));
+
+    if (sanitizedMessages.length === 0) {
+      return res.status(400).json({ error: 'No valid messages after sanitization' });
+    }
+
+    // Validate response_format — only allow known types
+    const ALLOWED_RESPONSE_FORMATS = new Set(['json_object', 'text']);
+    const safeResponseFormat = response_format && ALLOWED_RESPONSE_FORMATS.has(response_format?.type)
+      ? { type: response_format.type } : undefined;
+
     // Validate model against allowlist
     const safeModel = (model && ALLOWED_MODELS.has(model)) ? model : DEFAULT_MODEL;
     const safeMaxTokens = Math.min(Number(max_tokens) || 4000, MAX_TOKENS_LIMIT);
@@ -95,11 +110,11 @@ export default async function handler(req, res) {
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        messages,
+        messages: sanitizedMessages,
         model: safeModel,
         temperature: safeTemperature,
         max_tokens: safeMaxTokens,
-        ...(response_format ? { response_format } : {}),
+        ...(safeResponseFormat ? { response_format: safeResponseFormat } : {}),
       }),
     });
 
