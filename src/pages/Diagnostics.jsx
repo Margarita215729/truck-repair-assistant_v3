@@ -30,7 +30,7 @@ import { useLanguage } from '@/lib/LanguageContext';
 import { useTruck } from '@/lib/TruckContext';
 import { buildNormalizedPayload } from '@/utils/normalizeIntake';
 import { saveAIPartRecommendations } from '@/services/partsService';
-import { searchForums, formatForumContext } from '@/services/forumSearchService';
+// forumSearchService removed — forum search deprecated
 import { resolveOfficialLinks } from '@/services/researchService';
 import { getTruckStateSnapshot, connectProvider } from '@/services/telematics/telematicsService';
 import TruckStatePanel from '@/components/diagnostics/TruckStatePanel';
@@ -467,15 +467,17 @@ export default function Diagnostics() {
           }
         })(),
 
-        // Search real truck repair forums (non-blocking, 3s timeout)
-        searchForums({
-          truckMake: truck?.make || activeToolkit?.truck_make,
-          truckModel: truck?.model || activeToolkit?.truck_model,
-          truckYear: truck?.year || activeToolkit?.truck_year,
-          errorCodes,
-          symptoms,
-          freeText: messageText.substring(0, 100),
-        }),
+        // Forum search deprecated — return empty result
+        Promise.resolve({ results: [] }),
+
+
+
+
+
+
+
+
+
 
         // Fetch live truck state from telematics (non-blocking)
         (async () => {
@@ -521,7 +523,7 @@ export default function Diagnostics() {
       }
       
       // Format real forum search results (may be empty if CSE not configured or timed out)
-      const forumContext = formatForumContext(forumSearchResult?.results || []);
+      const forumContext = '';
 
       // Format verified OEM links context for the prompt
       let officialLinksContext = '';
