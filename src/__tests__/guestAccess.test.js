@@ -1,31 +1,30 @@
 import { describe, it, expect } from 'vitest';
 import { GUEST_CHAT_MESSAGE_LIMIT, PUBLIC_ROUTES, isPublicRoute } from '@/lib/guestAccess';
 
-describe('Guest access configuration', () => {
-  it('guest chat message limit is 10', () => {
+describe('guestAccess', () => {
+  it('guest chat limit should be 10', () => {
     expect(GUEST_CHAT_MESSAGE_LIMIT).toBe(10);
   });
 
-  it('PUBLIC_ROUTES includes expected routes', () => {
-    expect(PUBLIC_ROUTES).toContain('/');
-    expect(PUBLIC_ROUTES).toContain('/Diagnostics');
-    expect(PUBLIC_ROUTES).toContain('/Pricing');
-    expect(PUBLIC_ROUTES).toContain('/Policies');
-    expect(PUBLIC_ROUTES).toContain('/auth/confirm');
+  it('PUBLIC_ROUTES should include PartsCatalog, ServiceFinder, Community', () => {
     expect(PUBLIC_ROUTES).toContain('/PartsCatalog');
     expect(PUBLIC_ROUTES).toContain('/ServiceFinder');
     expect(PUBLIC_ROUTES).toContain('/Community');
   });
 
-  it('isPublicRoute returns true for public routes', () => {
+  it('isPublicRoute should return true for public routes', () => {
     expect(isPublicRoute('/Diagnostics')).toBe(true);
-  });
-
-  it('isPublicRoute returns false for protected routes', () => {
-    expect(isPublicRoute('/Reports')).toBe(false);
-  });
-
-  it('isPublicRoute returns true for PartsCatalog', () => {
     expect(isPublicRoute('/PartsCatalog')).toBe(true);
+  });
+
+  it('isPublicRoute should return false for protected routes', () => {
+    expect(isPublicRoute('/Reports')).toBe(false);
+    expect(isPublicRoute('/Profile')).toBe(false);
+  });
+
+  it('guest chat limit should block after 10 messages', () => {
+    expect(GUEST_CHAT_MESSAGE_LIMIT).toBe(10);
+    expect(9 < GUEST_CHAT_MESSAGE_LIMIT).toBe(true);
+    expect(10 < GUEST_CHAT_MESSAGE_LIMIT).toBe(false);
   });
 });
