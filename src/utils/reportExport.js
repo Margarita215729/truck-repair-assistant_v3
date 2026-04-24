@@ -5,7 +5,6 @@
  * Uses reportAdapters so both legacy and new-format reports export cleanly.
  */
 
-import jsPDF from 'jspdf';
 import { format } from 'date-fns';
 import {
   getVehicleInfo,
@@ -199,8 +198,9 @@ export function exportReportTxt(report) {
   downloadBlob(blob, `report-${fileDate(report)}.txt`);
 }
 
-export function exportReportPdf(report) {
+export async function exportReportPdf(report) {
   try {
+    const { default: jsPDF } = await import('jspdf');
     const content = buildTextExport(report);
     const doc = new jsPDF({ unit: 'mm', format: 'a4' });
     const margin = 15;
@@ -245,8 +245,9 @@ export function exportReportPdf(report) {
   }
 }
 
-export function exportMechanicHandoffPdf(report) {
+export async function exportMechanicHandoffPdf(report) {
   try {
+    const { default: jsPDF } = await import('jspdf');
     const doc = new jsPDF({ unit: 'mm', format: 'a4' });
     const margin = 15;
     const maxW = doc.internal.pageSize.getWidth() - margin * 2;

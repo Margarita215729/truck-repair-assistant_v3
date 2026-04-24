@@ -5,7 +5,7 @@ const DEFAULT_MODEL = 'openai/gpt-4o-mini';
 const ALLOWED_MODELS = new Set(['openai/gpt-4o-mini', 'openai/gpt-4o']);
 const MAX_MESSAGES = 50;
 const MAX_TOKENS_LIMIT = 16384;
-const FREE_DAILY_LIMIT = 5;
+const FREE_DAILY_LIMIT = 10;
 
 let _supabase;
 function getSupabase() {
@@ -44,7 +44,7 @@ export default async function handler(req, res) {
       .eq('user_id', user.id)
       .single();
 
-    const isPro = sub && ['pro', 'lifetime', 'owner', 'fleet'].includes(sub.plan)
+    const isPro = sub && ['premium', 'pro', 'lifetime', 'owner', 'fleet'].includes(sub.plan)
       && ['active', 'trialing'].includes(sub.status);
 
     if (!isPro) {

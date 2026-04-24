@@ -9,7 +9,7 @@ import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import {
   Check, Crown, Zap, Loader2, Gift, Sparkles,
-  ArrowRight, Shield, CheckCircle2
+  ArrowRight, Shield, CheckCircle2, Clock
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { motion } from 'framer-motion';
@@ -19,32 +19,23 @@ import { trackEvent } from '@/services/analyticsService';
 export default function PricingPage() {
   const { t, language } = useLanguage();
   const { subscription, isProUser, loadSubscription, user } = useAuth();
-  const [billingPeriod, setBillingPeriod] = useState('monthly'); // 'monthly' | 'annual'
   const [promoCode, setPromoCode] = useState('');
   const [isRedeeming, setIsRedeeming] = useState(false);
   const [isCheckingOut, setIsCheckingOut] = useState(false);
   const [promoResult, setPromoResult] = useState(null);
   const [searchParams, setSearchParams] = useSearchParams();
 
-  const isRu = language === 'ru';
   const isSuccess = searchParams.get('success') === 'true';
   const isCanceled = searchParams.get('canceled') === 'true';
 
   React.useEffect(() => {
-    trackEvent('pricing_viewed', {
-      category: 'conversion',
-      props: { billingPeriod },
-    });
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+    trackEvent('pricing_viewed', { category: 'conversion' });
+  }, []);
 
-  // Clear search params after displaying banners (avoids stale state on refresh)
   React.useEffect(() => {
     if (isSuccess || isCanceled) {
       if (isSuccess) {
-        trackEvent('checkout_completed', {
-          category: 'conversion',
-          props: { billingPeriod },
-        });
+        trackEvent('checkout_completed', { category: 'conversion' });
       }
       const timeout = setTimeout(() => {
         setSearchParams({}, { replace: true });
@@ -54,11 +45,8 @@ export default function PricingPage() {
   }, [isSuccess, isCanceled, setSearchParams]);
 
   const handleCheckout = async (priceId) => {
-    // Auth guard — redirect to login if not authenticated
     if (!user) {
       toast.error(t('pricing.loginRequired') || 'Please log in to subscribe');
-      // No separate /login route — auth is handled by AuthContext showing LoginPage
-      // Just return; the user is already seeing the pricing page layout
       return;
     }
     if (!priceId) {
@@ -68,7 +56,7 @@ export default function PricingPage() {
     setIsCheckingOut(true);
     trackEvent('checkout_started', {
       category: 'conversion',
-      props: { priceId, billingPeriod },
+      props: { priceId },
     });
     try {
       const url = await subscriptionService.createCheckoutSession(priceId);
@@ -114,94 +102,25 @@ export default function PricingPage() {
     }
   };
 
-  const PlanCard = React.memo(function PlanCard({ plan, isCurrent, tier }) {
-    const features = plan.features;
-    const price = billingPeriod === 'annual' ? plan.priceAnnual : plan.price;
-    const priceId = billingPeriod === 'annual' ? plan.stripePriceAnnual : plan.stripePriceMonthly;
-    const planName = isRu ? plan.nameRu : plan.name;
-    const isPaid = plan.price > 0;
-    const isRecommended = tier === 'recommended';
+  const getFeatureValue = (f) => {
+    if (language === 'ru') return f.valueRu || f.value;
+    if (language === 'es') return f.valueEs || f.value;
+    return f.value;
+  };
 
-    return (
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: tier === 'recommended' ? 0.1 : tier === 'fleet' ? 0.2 : 0 }}
-      >
-        <Card className={`relative p-6 h-full ${isRecommended
-          ? 'bg-gradient-to-b from-brand-orange/10 to-[#111718] border-brand-orange/30 shadow-xl shadow-brand-orange/5'
-          : tier === 'fleet'
-            ? 'bg-gradient-to-b from-blue-500/10 to-[#111718] border-blue-500/30'
-            : 'bg-[#111718] border-brand-dark/30'
-        }`}>
-          {isRecommended && (
-            <div className="absolute -top-3 left-1/2 -translate-x-1/2">
-              <Badge className="bg-brand-orange text-white border-0 px-3 py-1">
-                <Crown className="w-3 h-3 mr-1" />
-                {t('pricing.recommended')}
-              </Badge>
-            </div>
-          )}
+  const getPlanName = (plan) => {
+    if (language === 'ru') return plan.nameRu || plan.name;
+    if (language === 'es') return plan.nameEs || plan.name;
+    return plan.name;
+  };
 
-          <div className="text-center mb-6">
-            <h3 className="text-xl font-bold text-white mb-1">{planName}</h3>
-            <div className="flex items-baseline justify-center gap-1">
-              <span className="text-3xl font-bold text-white">
-                ${price === 0 ? '0' : price}
-              </span>
-              {isPaid && (
-                <span className="text-white/50 text-sm">
-                  /{billingPeriod === 'annual' ? t('pricing.year') : t('pricing.month')}
-                </span>
-              )}
-            </div>
-            {billingPeriod === 'annual' && isPaid && (
-              <p className="text-green-400 text-xs mt-1">
-                {t('pricing.saveAnnual')}
-              </p>
-            )}
-          </div>
-
-          <ul className="space-y-3 mb-6">
-            {features.map((f) => (
-              <li key={f.key} className="flex items-start gap-2 text-sm">
-                <Check className={`w-4 h-4 mt-0.5 shrink-0 ${
-                  isRecommended ? 'text-brand-orange' : tier === 'fleet' ? 'text-blue-400' : 'text-green-400'
-                }`} />
-                <span className="text-white/80">{isRu ? f.valueRu : f.value}</span>
-              </li>
-            ))}
-          </ul>
-
-          {isCurrent ? (
-            <Button disabled className="w-full bg-white/10 text-white/50 border-0">
-              <CheckCircle2 className="w-4 h-4 mr-2" />
-              {t('pricing.currentPlan')}
-            </Button>
-          ) : isPaid ? (
-            <Button
-              onClick={() => handleCheckout(priceId)}
-              disabled={isCheckingOut}
-              className={`w-full border-0 text-white ${
-                isRecommended ? 'brand-btn' : tier === 'fleet' ? 'bg-blue-600 hover:bg-blue-500' : ''
-              }`}
-            >
-              {isCheckingOut ? (
-                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-              ) : (
-                <Zap className="w-4 h-4 mr-2" />
-              )}
-              {t('pricing.subscribe')}
-            </Button>
-          ) : null}
-        </Card>
-      </motion.div>
-    );
-  });
+  const currentPlan = subscription?.plan || 'free';
+  const isCurrentFree = currentPlan === 'free';
+  const isCurrentPremium = ['premium', 'pro', 'owner', 'fleet', 'lifetime'].includes(currentPlan);
 
   return (
     <div className="min-h-screen p-4 sm:p-6 pb-20">
-      <div className="max-w-4xl mx-auto">
+      <div className="max-w-3xl mx-auto">
         {/* Success / Cancel banners */}
         {isSuccess && (
           <motion.div
@@ -231,50 +150,95 @@ export default function PricingPage() {
           <p className="text-white/50">{t('pricing.subtitle')}</p>
         </div>
 
-        {/* Billing Toggle */}
-        <div className="flex justify-center mb-8">
-          <div className="bg-[#0b1012] rounded-lg p-1 flex">
-            <button
-              onClick={() => setBillingPeriod('monthly')}
-              className={`px-4 py-2 rounded-md text-sm font-medium transition-all ${
-                billingPeriod === 'monthly'
-                  ? 'bg-brand-orange text-white shadow-lg'
-                  : 'text-white/50 hover:text-white/70'
-              }`}
-            >
-              {t('pricing.monthly')}
-            </button>
-            <button
-              onClick={() => setBillingPeriod('annual')}
-              className={`px-4 py-2 rounded-md text-sm font-medium transition-all ${
-                billingPeriod === 'annual'
-                  ? 'bg-brand-orange text-white shadow-lg'
-                  : 'text-white/50 hover:text-white/70'
-              }`}
-            >
-              {t('pricing.annual')}
-              <Badge className="ml-2 bg-green-500/20 text-green-400 border-0 text-xs">-17%</Badge>
-            </button>
-          </div>
-        </div>
+        {/* Plans — 2-column grid */}
+        <div className="grid md:grid-cols-2 gap-6 mb-10">
+          {/* Free Plan */}
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+          >
+            <Card className="relative p-6 h-full bg-[#111718] border-brand-dark/30">
+              <div className="text-center mb-6">
+                <h3 className="text-xl font-bold text-white mb-1">{getPlanName(PLANS.free)}</h3>
+                <div className="flex items-baseline justify-center gap-1">
+                  <span className="text-3xl font-bold text-white">$0</span>
+                </div>
+                <p className="text-white/40 text-sm mt-1">{t('pricing.freeForever')}</p>
+              </div>
 
-        {/* Plans */}
-        <div className="grid md:grid-cols-3 gap-6 mb-10">
-          <PlanCard
-            plan={PLANS.free}
-            isCurrent={subscription?.plan === 'free' || !subscription?.plan}
-            tier={null}
-          />
-          <PlanCard
-            plan={PLANS.owner}
-            isCurrent={subscription?.plan === 'owner'}
-            tier="recommended"
-          />
-          <PlanCard
-            plan={PLANS.fleet}
-            isCurrent={subscription?.plan === 'fleet' || subscription?.plan === 'lifetime'}
-            tier="fleet"
-          />
+              <ul className="space-y-3 mb-6">
+                {PLANS.free.features.map((f) => (
+                  <li key={f.key} className="flex items-start gap-2 text-sm">
+                    <Check className="w-4 h-4 mt-0.5 shrink-0 text-green-400" />
+                    <span className="text-white/80">{getFeatureValue(f)}</span>
+                  </li>
+                ))}
+              </ul>
+
+              {isCurrentFree && (
+                <Button disabled className="w-full bg-white/10 text-white/50 border-0">
+                  <CheckCircle2 className="w-4 h-4 mr-2" />
+                  {t('pricing.currentPlan')}
+                </Button>
+              )}
+            </Card>
+          </motion.div>
+
+          {/* Premium Plan */}
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.1 }}
+          >
+            <Card className="relative p-6 h-full bg-gradient-to-b from-brand-orange/10 to-[#111718] border-brand-orange/30 shadow-xl shadow-brand-orange/5">
+              {/* Promo badge */}
+              <div className="absolute -top-3 left-1/2 -translate-x-1/2">
+                <Badge className="bg-gradient-to-r from-red-500 to-brand-orange text-white border-0 px-3 py-1 animate-pulse">
+                  <Clock className="w-3 h-3 mr-1" />
+                  {t('pricing.limitedOffer')}
+                </Badge>
+              </div>
+
+              <div className="text-center mb-6">
+                <h3 className="text-xl font-bold text-white mb-1">{getPlanName(PLANS.premium)}</h3>
+                <div className="flex items-baseline justify-center gap-1">
+                  <span className="text-lg text-white/40 line-through mr-2">${PLANS.premium.originalPrice}</span>
+                  <span className="text-3xl font-bold text-white">${PLANS.premium.price}</span>
+                  <span className="text-white/50 text-sm">/{t('pricing.month')}</span>
+                </div>
+                <p className="text-brand-orange text-sm mt-1 font-medium">{t('pricing.promoSave')}</p>
+              </div>
+
+              <ul className="space-y-3 mb-6">
+                {PLANS.premium.features.map((f) => (
+                  <li key={f.key} className="flex items-start gap-2 text-sm">
+                    <Check className="w-4 h-4 mt-0.5 shrink-0 text-brand-orange" />
+                    <span className="text-white/80">{getFeatureValue(f)}</span>
+                  </li>
+                ))}
+              </ul>
+
+              {isCurrentPremium ? (
+                <Button disabled className="w-full bg-white/10 text-white/50 border-0">
+                  <CheckCircle2 className="w-4 h-4 mr-2" />
+                  {t('pricing.currentPlan')}
+                </Button>
+              ) : (
+                <Button
+                  onClick={() => handleCheckout(PLANS.premium.stripePriceMonthly)}
+                  disabled={isCheckingOut}
+                  className="w-full border-0 text-white brand-btn"
+                >
+                  {isCheckingOut ? (
+                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  ) : (
+                    <Crown className="w-4 h-4 mr-2" />
+                  )}
+                  {t('pricing.subscribe')}
+                </Button>
+              )}
+            </Card>
+          </motion.div>
         </div>
 
         {/* Manage Subscription (for Pro users) */}

@@ -4,6 +4,16 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Skeleton } from '@/components/ui/skeleton';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import { 
   FileText, 
   Search, 
@@ -31,6 +41,7 @@ export default function Reports() {
   const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
   const [selectedReport, setSelectedReport] = useState(null);
   const [showDetail, setShowDetail] = useState(false);
+  const [deleteTarget, setDeleteTarget] = useState(null);
 
   const queryClient = useQueryClient();
 
@@ -74,9 +85,7 @@ export default function Reports() {
   };
 
   const handleDeleteReport = (id) => {
-    if (confirm(t('reports.deleteConfirm'))) {
-      deleteMutation.mutate(id);
-    }
+    setDeleteTarget(id);
   };
 
   return (
@@ -191,6 +200,30 @@ export default function Reports() {
         open={showDetail}
         onClose={() => setShowDetail(false)}
       />
+
+      {/* Delete Confirmation Dialog */}
+      <AlertDialog open={!!deleteTarget} onOpenChange={(open) => { if (!open) setDeleteTarget(null); }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>{t('reports.deleteConfirm')}</AlertDialogTitle>
+            <AlertDialogDescription>
+              {t('reports.deleteDescription') || 'This action cannot be undone.'}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>{t('common.cancel') || 'Cancel'}</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-red-600 hover:bg-red-700"
+              onClick={() => {
+                if (deleteTarget) deleteMutation.mutate(deleteTarget);
+                setDeleteTarget(null);
+              }}
+            >
+              {t('common.delete') || 'Delete'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

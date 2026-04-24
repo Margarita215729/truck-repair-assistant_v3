@@ -4,7 +4,7 @@ import { useAuth } from '@/lib/AuthContext';
 
 /**
  * Wraps routes that require authentication.
- * Redirects to /Diagnostics (guest landing) if not logged in.
+ * Redirects to /Login if not logged in.
  */
 export default function ProtectedRoute({ children }) {
   const { isAuthenticated, isLoadingAuth } = useAuth();
@@ -21,7 +21,7 @@ export default function ProtectedRoute({ children }) {
   }
 
   if (!isAuthenticated) {
-    return <Navigate to="/Diagnostics" replace />;
+    return <Navigate to="/Login" replace />;
   }
 
   return children;

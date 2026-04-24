@@ -41,7 +41,7 @@ import { useNavigate } from 'react-router-dom';
 import { trackEvent } from '@/services/analyticsService';
 
 export default function Diagnostics() {
-  const { t } = useLanguage();
+  const { t, language } = useLanguage();
   const { isProUser, isAuthenticated } = useAuth();
   const navigate = useNavigate();
   const isGuest = !isAuthenticated;
@@ -366,7 +366,7 @@ export default function Diagnostics() {
     try {
       const result = await getTruckStateSnapshot(truck?.details?.id || '_auto');
       if (!result) {
-        toast.error('Please log in to scan your truck');
+        toast.error(t('diagnostics.loginToScan'));
         return;
       }
       if (result.meta?.connected === false) {
@@ -374,13 +374,13 @@ export default function Diagnostics() {
         return;
       }
       if (!result.snapshot) {
-        toast.info('Telematics connected but no data yet. Make sure your vehicle is mapped in Profile.');
+        toast.info(t('diagnostics.telematicsNoData'));
         return;
       }
       handleScanComplete({ snapshot: result.snapshot, interpretation: result.interpretation });
     } catch (err) {
       console.error('Inline scan failed:', err);
-      toast.error('Scan failed: ' + (err.message || 'Unknown error'));
+      toast.error(t('diagnostics.scanFailed') + ': ' + (err.message || 'Unknown error'));
     } finally {
       setScanningInline(false);
     }
@@ -391,7 +391,7 @@ export default function Diagnostics() {
 
     // Guest mode: hard-block if message limit reached
     if (isGuest && messages.length >= GUEST_CHAT_MESSAGE_LIMIT) {
-      toast.error('Guest preview limit reached. Create a free account to continue this diagnosis.');
+      toast.error(t('diagnostics.guestLimitReached'));
       return;
     }
 
@@ -563,12 +563,20 @@ export default function Diagnostics() {
         }
       }
 
+      const langMap = { en: 'English', ru: 'Russian', es: 'Spanish' };
+      const responseLanguage = langMap[language] || 'English';
+
       let fullPrompt = `DIAGNOSTIC CONTEXT:
 ${contextPrompt}
 ${communitySolutionsContext}
 ${forumContext}
 ${officialLinksContext}
 ${truckStateContext}
+
+LANGUAGE REQUIREMENT:
+- You MUST respond in ${responseLanguage}. The user's UI language is "${language}".
+- All text in "response", "clarifying_questions", "repair_instructions", "preliminary_suggestions", and "follow_up_questions" MUST be in ${responseLanguage}.
+- Part numbers, DTC codes, and technical abbreviations stay in English.
 
 COMMUNICATION RULES:
 - Keep ALL responses CONCISE — short paragraphs, bullet points, clear headers
@@ -930,11 +938,11 @@ User: ${messageText}${audioUrl ? '\n[User has attached an audio recording of eng
 
   const generateReport = async () => {
     if (isGuest) {
-      toast.error('Saving reports requires an account. Create a free account to export diagnostics.');
+      toast.error(t('diagnostics.saveRequiresAccount'));
       return;
     }
     if (messages.length < 2) {
-      toast.error('Need more conversation to generate a report');
+      toast.error(t('diagnostics.needMoreConversation'));
       return;
     }
 
@@ -1235,7 +1243,7 @@ Focus on:
                     setShowTruckSelector(true);
                   };
                   const handleGuestScanBlocked = () => {
-                    toast.error('Truck computer scan requires an account. Sign up to connect Motive or Samsara.');
+                    toast.error(t('diagnostics.scanRequiresAccount'));
                   };
                   const cards = [
                     // { icon: Mic,            label: t('diagnostics.sound') || 'Sound',    desc: t('diagnostics.soundDesc') || 'Record engine / brake sounds',    color: 'orange', onClick: () => setShowAudioRecorder(true) },
@@ -1720,7 +1728,7 @@ Focus on:
                 ].map(p => (
                   <button
                     key={p.id}
-                    onClick={async () => { setShowProviderPicker(false); try { const res = await connectProvider(p.id); if (res?.authType === 'credentials') { setCredentialMeta(res); setShowCredentialDialog(true); } } catch(e) { toast.error('Authorization failed: ' + e.message); } }}
+                    onClick={async () => { setShowProviderPicker(false); try { const res = await connectProvider(p.id); if (res?.authType === 'credentials') { setCredentialMeta(res); setShowCredentialDialog(true); } } catch(e) { toast.error(t('diagnostics.authFailed') + ': ' + e.message); } }}
                     className={`w-full flex items-center gap-4 p-4 rounded-xl border border-white/10 ${p.hover} bg-white/5 transition-all`}
                   >
                     <div className={`w-10 h-10 rounded-lg bg-gradient-to-br ${p.gradient} flex items-center justify-center`}>
@@ -1745,7 +1753,7 @@ Focus on:
         open={showCredentialDialog}
         onOpenChange={setShowCredentialDialog}
         providerMeta={credentialMeta}
-        onSuccess={() => { toast.success('Provider connected! Try scanning again.'); }}
+        onSuccess={() => { toast.success(t('diagnostics.providerConnected')); }}
       />
     </div>
   );

@@ -20,10 +20,11 @@ export default function Community() {
   const { data: solutions = [], isLoading } = useQuery({
     queryKey: ['knowledge-base', categoryFilter, sortBy],
     queryFn: async () => {
-      let results = await entities.KnowledgeBase.list('-created_date', 100);
-      
+      let results;
       if (categoryFilter !== 'all') {
-        results = results.filter(s => s.category === categoryFilter);
+        results = await entities.KnowledgeBase.filter({ category: categoryFilter });
+      } else {
+        results = await entities.KnowledgeBase.list('-created_date', 100);
       }
       
       if (sortBy === 'trending') {
