@@ -1,7 +1,7 @@
 import React, { createContext, useState, useContext, useEffect, useCallback, useRef } from 'react';
 import { authService } from '@/services/authService';
 import { subscriptionService } from '@/services/subscriptionService';
-import { checkSupabaseHealth } from '@/api/supabaseClient';
+import { checkSupabaseHealth, getSupabaseHealthState } from '@/api/supabaseClient';
 import { LIMITS } from '@/config/stripe';
 
 const AuthContext = createContext();
@@ -53,6 +53,7 @@ export const AuthProvider = ({ children }) => {
   const [subscription, setSubscriptionRaw] = useState(cachedSub);
   const [aiUsage, setAiUsage] = useState({ used: 0, limit: 10, remaining: 10 });
   const [supabaseReachable, setSupabaseReachable] = useState(true);
+  const [authServiceConfigured, setAuthServiceConfigured] = useState(getSupabaseHealthState() === 'configured');
   const authCheckDone = useRef(false);
 
   // Wrappers that also update localStorage
@@ -160,6 +161,16 @@ export const AuthProvider = ({ children }) => {
       setIsLoadingAuth(true);
       setAuthError(null);
 
+      const healthState = getSupabaseHealthState();
+      const configured = healthState === 'configured';
+      setAuthServiceConfigured(configured);
+
+      if (!configured) {
+        setSupabaseReachable(false);
+        setIsAuthenticated(false);
+        return;
+      }
+
       // Quick connectivity check
       const alive = await checkSupabaseHealth();
       setSupabaseReachable(alive);
@@ -232,6 +243,7 @@ export const AuthProvider = ({ children }) => {
       loadSubscription,
       checkAppState: checkUserAuth,
       supabaseReachable,
+      authServiceConfigured,
     }}>
       {children}
     </AuthContext.Provider>
