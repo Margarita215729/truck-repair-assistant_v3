@@ -36,20 +36,28 @@ export async function searchVendors(query, options = {}) {
       }
     }
 
-    const resp = await fetch(API_BASE, {
-      method: 'POST',
-      headers,
-      body: JSON.stringify({
-        query: query || '',
-        partNumber: options.partNumber || '',
-        vinLast6: options.vinLast6 || '',
-        make: options.make || '',
-        model: options.model || '',
-        year: options.year || '',
-        condition: options.condition || 'all',
-        limit: options.limit || 20,
-      }),
-    });
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 30_000);
+    let resp;
+    try {
+      resp = await fetch(API_BASE, {
+        method: 'POST',
+        headers,
+        signal: controller.signal,
+        body: JSON.stringify({
+          query: query || '',
+          partNumber: options.partNumber || '',
+          vinLast6: options.vinLast6 || '',
+          make: options.make || '',
+          model: options.model || '',
+          year: options.year || '',
+          condition: options.condition || 'all',
+          limit: options.limit || 20,
+        }),
+      });
+    } finally {
+      clearTimeout(timeoutId);
+    }
 
     if (!resp.ok) {
       const body = await resp.json().catch(() => ({}));

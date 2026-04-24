@@ -4,12 +4,13 @@ import { QueryClientProvider } from '@tanstack/react-query'
 import { queryClientInstance } from '@/lib/query-client'
 import { pagesConfig } from './pages.config'
 import { BrowserRouter as Router, Route, Routes, useLocation } from 'react-router-dom';
-import { useEffect } from 'react';
+import { useEffect, Suspense, useState } from 'react';
 import PageNotFound from './lib/PageNotFound';
 import { AuthProvider, useAuth } from '@/lib/AuthContext';
 import { LanguageProvider, useLanguage } from '@/lib/LanguageContext';
 import { TruckProvider } from '@/lib/TruckContext';
 import UserNotRegisteredError from '@/components/UserNotRegisteredError';
+import { ErrorBoundary } from '@/components/ErrorBoundary';
 import LoginPage from '@/pages/LoginPage';
 import AuthCallbackPage from '@/pages/AuthCallbackPage';
 import PricingPage from '@/pages/PricingPage';
@@ -17,6 +18,7 @@ import PoliciesPage from '@/pages/PoliciesPage';
 import ProtectedRoute from '@/lib/ProtectedRoute';
 import AdminRoute from '@/lib/AdminRoute';
 import { trackPageView } from '@/services/analyticsService';
+import OnboardingWizard, { useOnboarding } from '@/components/onboarding/OnboardingWizard';
 
 const { Pages, Layout, mainPage } = pagesConfig;
 const mainPageKey = mainPage ?? Object.keys(Pages)[0];
@@ -30,7 +32,7 @@ const LayoutWrapper = ({ children, currentPageName }) => Layout ?
 const PUBLIC_PAGE_KEYS = new Set(['Diagnostics', 'Policies']);
 
 /** Pages that require authentication */
-const PROTECTED_PAGE_KEYS = new Set(['Reports', 'Profile', 'Community', 'PartsCatalog', 'ServiceFinder']);
+const PROTECTED_PAGE_KEYS = new Set(['Reports', 'Profile']);
 
 const RouteTracking = () => {
   const location = useLocation();
@@ -45,6 +47,8 @@ const RouteTracking = () => {
 const AppRoutes = () => {
   const { isLoadingAuth, authError, login } = useAuth();
   const { t } = useLanguage();
+  const { showOnboarding, markDone } = useOnboarding();
+  const [onboardingOpen, setOnboardingOpen] = useState(showOnboarding);
 
   if (isLoadingAuth) {
     return (
@@ -67,6 +71,11 @@ const AppRoutes = () => {
   return (
     <>
       <RouteTracking />
+      <Suspense fallback={
+        <div className="fixed inset-0 flex items-center justify-center">
+          <div className="w-10 h-10 border-4 border-brand-orange/30 border-t-brand-orange rounded-full animate-spin"></div>
+        </div>
+      }>
       <Routes>
       {/* Auth callback */}
       <Route path="/auth/confirm" element={<AuthCallbackPage />} />
@@ -127,6 +136,8 @@ const AppRoutes = () => {
 
       <Route path="*" element={<PageNotFound />} />
       </Routes>
+      </Suspense>
+      <OnboardingWizard open={onboardingOpen} onClose={() => { markDone(); setOnboardingOpen(false); }} />
     </>
   );
 };
@@ -137,9 +148,11 @@ function App() {
       <AuthProvider>
         <TruckProvider>
         <QueryClientProvider client={queryClientInstance}>
+          <ErrorBoundary>
           <Router>
             <AppRoutes />
           </Router>
+          </ErrorBoundary>
           <Toaster />
           <SonnerToaster richColors position="top-right" />
         </QueryClientProvider>
