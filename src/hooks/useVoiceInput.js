@@ -4,27 +4,30 @@ import { useState, useRef, useCallback, useEffect } from 'react';
  * Hook for Web Speech API voice input.
  * Falls back gracefully in unsupported browsers.
  */
-export function useVoiceInput({ language = 'en', onResult }) {
+const LANG_MAP = { en: 'en-US', ru: 'ru-RU', es: 'es-ES' };
+
+export function useVoiceInput({ language = 'en', onResult } = {}) {
   const [listening, setListening] = useState(false);
   const recognitionRef = useRef(null);
-  const supported = typeof window !== 'undefined' &&
-    ('SpeechRecognition' in window || 'webkitSpeechRecognition' in window);
+  const SpeechRecognition =
+    typeof window !== 'undefined'
+      ? window.SpeechRecognition || window.webkitSpeechRecognition
+      : null;
 
-  const langMap = { en: 'en-US', ru: 'ru-RU', es: 'es-ES' };
+  const supported = !!SpeechRecognition;
 
   const start = useCallback(() => {
-    if (!supported || listening) return;
-
-    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (!SpeechRecognition || listening) return;
     const recognition = new SpeechRecognition();
-    recognition.lang = langMap[language] || 'en-US';
+    recognition.lang = LANG_MAP[language] || 'en-US';
     recognition.interimResults = false;
-    recognition.continuous = false;
     recognition.maxAlternatives = 1;
+    recognition.continuous = false;
 
     recognition.onresult = (event) => {
       const transcript = event.results[0]?.[0]?.transcript || '';
       if (transcript && onResult) onResult(transcript);
+      setListening(false);
     };
 
     recognition.onerror = () => setListening(false);
@@ -33,7 +36,8 @@ export function useVoiceInput({ language = 'en', onResult }) {
     recognitionRef.current = recognition;
     recognition.start();
     setListening(true);
-  }, [supported, listening, language, onResult]);
+  }, [SpeechRecognition, listening, language, onResult]);
+  }, [SpeechRecognition, listening, language, onResult]);
 
   const stop = useCallback(() => {
     recognitionRef.current?.stop();
