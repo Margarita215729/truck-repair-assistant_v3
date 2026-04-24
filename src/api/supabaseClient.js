@@ -28,6 +28,14 @@ try {
 export { supabase };
 export default supabase;
 
+export function getSupabaseHealthState() {
+  if (!hasSupabaseConfig || !supabase) {
+    return 'misconfigured';
+  }
+
+  return 'configured';
+}
+
 /**
  * Quick health check — resolves true if Supabase responds, false otherwise.
  * Useful for detecting paused projects / network issues.
