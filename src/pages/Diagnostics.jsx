@@ -30,18 +30,18 @@ import { useLanguage } from '@/lib/LanguageContext';
 import { useTruck } from '@/lib/TruckContext';
 import { buildNormalizedPayload } from '@/utils/normalizeIntake';
 import { saveAIPartRecommendations } from '@/services/partsService';
-// forumSearchService removed — forum search deprecated
-import { resolveOfficialLinks } from '@/services/researchService';
+import { searchForums, formatForumContext, resolveOfficialLinks } from '@/services/researchService';
 import { getTruckStateSnapshot, connectProvider } from '@/services/telematics/telematicsService';
 import TruckStatePanel from '@/components/diagnostics/TruckStatePanel';
 import ScanTruckButton from '@/components/diagnostics/ScanTruckButton';
 import CredentialConnectDialog from '@/components/diagnostics/CredentialConnectDialog';
 import { GUEST_CHAT_MESSAGE_LIMIT, canGuestUseVideo, canGuestUseTelematicsScan } from '@/lib/guestAccess';
+import { useVoiceInput } from '@/hooks/useVoiceInput';
 import { useNavigate } from 'react-router-dom';
 import { trackEvent } from '@/services/analyticsService';
 
 export default function Diagnostics() {
-  const { t } = useLanguage();
+  const { t, language } = useLanguage();
   const { isProUser, isAuthenticated } = useAuth();
   const navigate = useNavigate();
   const isGuest = !isAuthenticated;
@@ -50,6 +50,10 @@ export default function Diagnostics() {
   const queryClient = useQueryClient();
   const { truck, setTruck, showTruckSelector, setShowTruckSelector } = useTruck();
   const [input, setInput] = useState('');
+  const { listening, toggle: toggleVoice, supported: voiceSupported } = useVoiceInput({
+    language,
+    onResult: (transcript) => setInput(prev => prev ? `${prev} ${transcript}` : transcript),
+  });
   const [isLoading, setIsLoading] = useState(false);
   const [conversation, setConversation] = useState(null);
   
@@ -467,8 +471,15 @@ export default function Diagnostics() {
           }
         })(),
 
-        // Forum search deprecated — return empty result
-        Promise.resolve({ results: [] }),
+  // Search real truck repair forums (non-blocking, 3s timeout)
+  searchForums({
+    make: truck?.make || activeToolkit?.truck_make,
+    model: truck?.model || activeToolkit?.truck_model,
+    year: truck?.year || activeToolkit?.truck_year,
+    errorCodes,
+    symptoms,
+    freeText: messageText.substring(0, 100),
+  }),
 
 
 
@@ -600,6 +611,11 @@ TELEMATICS DATA:
 - Correlate telematics fault codes with user-reported symptoms
 - Reference specific signal values (e.g., coolant temp, oil pressure) in your analysis
 - If telematics shows anomalous signals, flag them prominently
+
+LANGUAGE REQUIREMENT:
+- You MUST respond in the user's language: ${language === 'ru' ? 'Russian (Русский)' : language === 'es' ? 'Spanish (Español)' : 'English'}
+- ALL text in "response", "clarifying_questions", "preliminary_suggestions", "repair_instructions" descriptions must be in that language
+- Technical terms (DTC codes, part numbers) can remain in English
 
 INSUFFICIENT INFORMATION HANDLING:
 - If the user's message is too vague, incomplete, or lacks critical details (no truck model, no symptoms described, just "help" or "problem"), set "insufficient_info" to true
@@ -1535,15 +1551,31 @@ Focus on:
                 </a>
               </div>
             )}
-            <Textarea
-              ref={textareaRef}
-              value={input}
-              onChange={(e) => setInput(e.target.value)}
-              onKeyDown={handleKeyDown}
-              placeholder={isGuest && guestLimitReached ? 'Sign up to continue chatting...' : t('diagnostics.inputPlaceholder')}
-              className="w-full min-h-[60px] max-h-[200px] resize-none bg-white/5 border-brand-dark/30 text-white placeholder:text-white/40 rounded-2xl py-4 px-4 focus:ring-2 focus:ring-brand-orange/50 focus:border-brand-orange/50"
-              disabled={isLoading || (isGuest && guestLimitReached)}
-            />
+            <div className="relative">
+              <Textarea
+                ref={textareaRef}
+                value={input}
+                onChange={(e) => setInput(e.target.value)}
+                onKeyDown={handleKeyDown}
+                placeholder={isGuest && guestLimitReached ? 'Sign up to continue chatting...' : t('diagnostics.inputPlaceholder')}
+                className="w-full min-h-[60px] max-h-[200px] resize-none bg-white/5 border-brand-dark/30 text-white placeholder:text-white/40 rounded-2xl py-4 px-4 pr-12 focus:ring-2 focus:ring-brand-orange/50 focus:border-brand-orange/50"
+                disabled={isLoading || (isGuest && guestLimitReached)}
+              />
+              {voiceSupported && (
+                <button
+                  type="button"
+                  onClick={toggleVoice}
+                  className={`absolute right-3 top-3 p-1.5 rounded-full transition-colors ${
+                    listening
+                      ? 'bg-red-500/20 text-red-400 animate-pulse'
+                      : 'text-white/40 hover:text-white/70 hover:bg-white/5'
+                  }`}
+                  title={listening ? t('diagnostics.stopListening') : t('diagnostics.voiceInput')}
+                >
+                  <Mic className="w-5 h-5" />
+                </button>
+              )}
+            </div>
             <Button
               onClick={() => {
                 let messageToSend = input.trim();
