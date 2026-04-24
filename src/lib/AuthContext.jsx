@@ -67,7 +67,7 @@ export const AuthProvider = ({ children }) => {
     if (s) setCachedJSON(CACHE_KEY_SUB, s);
   }, []);
 
-  const isProUser = subscription?.plan === 'pro' || subscription?.plan === 'owner' || subscription?.plan === 'fleet' || subscription?.plan === 'lifetime';
+  const isProUser = subscription?.plan === 'premium' || subscription?.plan === 'pro' || subscription?.plan === 'owner' || subscription?.plan === 'fleet' || subscription?.plan === 'lifetime';
   const planLimits = LIMITS[subscription?.plan] || LIMITS.free;
 
   useEffect(() => {
