@@ -8,7 +8,7 @@ import { Input } from '@/components/ui/input';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import {
-  Check, Crown, Zap, Loader2, Gift, Sparkles,
+  Check, Crown, Loader2, Gift, Sparkles,
   ArrowRight, Shield, CheckCircle2, Clock
 } from 'lucide-react';
 import { toast } from 'sonner';
@@ -25,23 +25,8 @@ export default function PricingPage() {
   const [promoResult, setPromoResult] = useState(null);
   const [searchParams, setSearchParams] = useSearchParams();
 
-  const isRu = language === 'ru';
-  const isEs = language === 'es';
-
   const isSuccess = searchParams.get('success') === 'true';
   const isCanceled = searchParams.get('canceled') === 'true';
-
-  const getPlanName = (plan) => {
-    if (isRu) return plan.nameRu;
-    if (isEs) return plan.nameEs;
-    return plan.name;
-  };
-
-  const getFeatureValue = (feature) => {
-    if (isRu) return feature.valueRu;
-    if (isEs) return feature.valueEs;
-    return feature.value;
-  };
 
   React.useEffect(() => {
     trackEvent('pricing_viewed', { category: 'conversion' });
@@ -69,7 +54,10 @@ export default function PricingPage() {
       return;
     }
     setIsCheckingOut(true);
-    trackEvent('checkout_started', { category: 'conversion', props: { priceId } });
+    trackEvent('checkout_started', {
+      category: 'conversion',
+      props: { priceId },
+    });
     try {
       const url = await subscriptionService.createCheckoutSession(priceId);
       if (url) {
@@ -114,7 +102,21 @@ export default function PricingPage() {
     }
   };
 
-  const isPremiumUser = ['premium', 'pro', 'owner', 'fleet', 'lifetime'].includes(subscription?.plan);
+  const getFeatureValue = (f) => {
+    if (language === 'ru') return f.valueRu || f.value;
+    if (language === 'es') return f.valueEs || f.value;
+    return f.value;
+  };
+
+  const getPlanName = (plan) => {
+    if (language === 'ru') return plan.nameRu || plan.name;
+    if (language === 'es') return plan.nameEs || plan.name;
+    return plan.name;
+  };
+
+  const currentPlan = subscription?.plan || 'free';
+  const isCurrentFree = currentPlan === 'free';
+  const isCurrentPremium = ['premium', 'pro', 'owner', 'fleet', 'lifetime'].includes(currentPlan);
 
   return (
     <div className="min-h-screen p-4 sm:p-6 pb-20">
@@ -151,14 +153,19 @@ export default function PricingPage() {
         {/* Plans — 2-column grid */}
         <div className="grid md:grid-cols-2 gap-6 mb-10">
           {/* Free Plan */}
-          <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}>
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+          >
             <Card className="relative p-6 h-full bg-[#111718] border-brand-dark/30">
               <div className="text-center mb-6">
                 <h3 className="text-xl font-bold text-white mb-1">{getPlanName(PLANS.free)}</h3>
                 <div className="flex items-baseline justify-center gap-1">
                   <span className="text-3xl font-bold text-white">$0</span>
                 </div>
+                <p className="text-white/40 text-sm mt-1">{t('pricing.freeForever')}</p>
               </div>
+
               <ul className="space-y-3 mb-6">
                 {PLANS.free.features.map((f) => (
                   <li key={f.key} className="flex items-start gap-2 text-sm">
@@ -167,7 +174,8 @@ export default function PricingPage() {
                   </li>
                 ))}
               </ul>
-              {(!subscription?.plan || subscription?.plan === 'free') && (
+
+              {isCurrentFree && (
                 <Button disabled className="w-full bg-white/10 text-white/50 border-0">
                   <CheckCircle2 className="w-4 h-4 mr-2" />
                   {t('pricing.currentPlan')}
@@ -177,19 +185,15 @@ export default function PricingPage() {
           </motion.div>
 
           {/* Premium Plan */}
-          <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }}>
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.1 }}
+          >
             <Card className="relative p-6 h-full bg-gradient-to-b from-brand-orange/10 to-[#111718] border-brand-orange/30 shadow-xl shadow-brand-orange/5">
-              {/* Recommended badge */}
+              {/* Promo badge */}
               <div className="absolute -top-3 left-1/2 -translate-x-1/2">
-                <Badge className="bg-brand-orange text-white border-0 px-3 py-1">
-                  <Crown className="w-3 h-3 mr-1" />
-                  {t('pricing.recommended')}
-                </Badge>
-              </div>
-
-              {/* Limited offer pulsing badge */}
-              <div className="flex justify-center mb-4 mt-2">
-                <Badge className="bg-red-500/20 text-red-400 border-red-500/30 px-3 py-1 animate-pulse">
+                <Badge className="bg-gradient-to-r from-red-500 to-brand-orange text-white border-0 px-3 py-1 animate-pulse">
                   <Clock className="w-3 h-3 mr-1" />
                   {t('pricing.limitedOffer')}
                 </Badge>
@@ -198,13 +202,11 @@ export default function PricingPage() {
               <div className="text-center mb-6">
                 <h3 className="text-xl font-bold text-white mb-1">{getPlanName(PLANS.premium)}</h3>
                 <div className="flex items-baseline justify-center gap-1">
-                  <span className="text-lg text-white/40 line-through">${PLANS.premium.originalPrice}</span>
-                  <span className="text-3xl font-bold text-brand-orange">${PLANS.premium.price}</span>
+                  <span className="text-lg text-white/40 line-through mr-2">${PLANS.premium.originalPrice}</span>
+                  <span className="text-3xl font-bold text-white">${PLANS.premium.price}</span>
                   <span className="text-white/50 text-sm">/{t('pricing.month')}</span>
                 </div>
-                <p className="text-xs text-white/40 mt-1">
-                  {t('pricing.wasPrice')} ${PLANS.premium.originalPrice}/{t('pricing.month')}
-                </p>
+                <p className="text-brand-orange text-sm mt-1 font-medium">{t('pricing.promoSave')}</p>
               </div>
 
               <ul className="space-y-3 mb-6">
@@ -216,7 +218,7 @@ export default function PricingPage() {
                 ))}
               </ul>
 
-              {isPremiumUser ? (
+              {isCurrentPremium ? (
                 <Button disabled className="w-full bg-white/10 text-white/50 border-0">
                   <CheckCircle2 className="w-4 h-4 mr-2" />
                   {t('pricing.currentPlan')}
@@ -225,12 +227,12 @@ export default function PricingPage() {
                 <Button
                   onClick={() => handleCheckout(PLANS.premium.stripePriceMonthly)}
                   disabled={isCheckingOut}
-                  className="w-full brand-btn text-white border-0"
+                  className="w-full border-0 text-white brand-btn"
                 >
                   {isCheckingOut ? (
                     <Loader2 className="w-4 h-4 mr-2 animate-spin" />
                   ) : (
-                    <Zap className="w-4 h-4 mr-2" />
+                    <Crown className="w-4 h-4 mr-2" />
                   )}
                   {t('pricing.subscribe')}
                 </Button>

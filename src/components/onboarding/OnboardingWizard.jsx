@@ -67,32 +67,14 @@ export default function OnboardingWizard({ open, onClose }) {
   const [selectedModel, setSelectedModel] = useState('');
   const [selectedYear, setSelectedYear] = useState('');
 
-  const finish = useCallback(() => {
-    if (selectedMake) {
-      const mfr = truckManufacturers.find(m => m.id === selectedMake);
-      const mdl = mfr?.models?.find(m => m.id === selectedModel);
-      setTruck({
-        make: mfr?.name || selectedMake,
-        model: mdl?.name || selectedModel || '',
-        year: selectedYear || '',
-      });
-    }
-    localStorage.setItem(ONBOARDING_KEY, '1');
-    onClose();
-  }, [selectedMake, selectedModel, selectedYear, setTruck, onClose]);
-
   const models = selectedMake
-    ? truckManufacturers.find(m => m.id === selectedMake)?.models || []
+    ? truckManufacturers.find(manufacturer => manufacturer.id === selectedMake)?.models || []
     : [];
 
   const currentYear = new Date().getFullYear();
-  const years = Array.from({ length: 30 }, (_, i) => String(currentYear - i));
+  const years = Array.from({ length: 30 }, (_, index) => String(currentYear - index));
   const canAdvanceFromTruck = Boolean(selectedMake);
-  const progressLabel = t('onboarding.stepLabel', { current: step + 1, total: 3 }) === 'onboarding.stepLabel'
-    ? ONBOARDING_COPY.stepLabel
-        .replace('{current}', String(step + 1))
-        .replace('{total}', '3')
-    : t('onboarding.stepLabel', { current: step + 1, total: 3 });
+  const isLast = step === 2;
 
   const translateOnboarding = useCallback((key, params) => {
     const translated = t(`onboarding.${key}`, params);
@@ -109,6 +91,23 @@ export default function OnboardingWizard({ open, onClose }) {
     return translated;
   }, [t]);
 
+  const progressLabel = translateOnboarding('stepLabel', { current: step + 1, total: 3 });
+
+  const finish = useCallback(() => {
+    if (selectedMake) {
+      const manufacturer = truckManufacturers.find(item => item.id === selectedMake);
+      const model = manufacturer?.models?.find(item => item.id === selectedModel);
+      setTruck({
+        make: manufacturer?.name || selectedMake,
+        model: model?.name || selectedModel || '',
+        year: selectedYear || '',
+      });
+    }
+    try {
+      localStorage.setItem(ONBOARDING_KEY, '1');
+    } catch {}
+    onClose();
+  }, [selectedMake, selectedModel, selectedYear, setTruck, onClose]);
   const goNext = () => {
     if (step === 1 && !canAdvanceFromTruck) return;
     if (isLast) {
@@ -119,7 +118,6 @@ export default function OnboardingWizard({ open, onClose }) {
   };
 
   const steps = [
-    // Step 0: Language
     <div key="lang" className="space-y-5">
       <div className="rounded-3xl border border-white/10 bg-white/[0.04] p-4 shadow-[0_18px_60px_rgba(0,0,0,0.25)]">
         <div className="mb-3 inline-flex h-12 w-12 items-center justify-center rounded-2xl bg-brand-orange/15 text-brand-orange">
@@ -129,28 +127,27 @@ export default function OnboardingWizard({ open, onClose }) {
         <p className="mt-2 text-sm leading-6 text-white/65">{translateOnboarding('languageIntro')}</p>
       </div>
       <div className="grid gap-3">
-        {LANGUAGES.map(l => (
+        {LANGUAGES.map(item => (
           <button
-            key={l.code}
-            onClick={() => setLanguage(l.code)}
+            key={item.code}
+            onClick={() => setLanguage(item.code)}
             className={`flex min-h-16 items-center gap-3 rounded-2xl border px-4 py-4 text-left transition-all ${
-              language === l.code
+              language === item.code
                 ? 'border-brand-orange bg-brand-orange/12 text-white shadow-[0_12px_32px_rgba(249,115,22,0.14)]'
                 : 'border-white/10 bg-white/[0.04] text-white/80 hover:border-white/20 hover:bg-white/[0.07]'
             }`}
           >
-            <span className="text-2xl">{l.flag}</span>
+            <span className="text-2xl">{item.flag}</span>
             <div>
-              <div className="font-semibold">{l.label}</div>
-              <div className="text-xs text-white/50">{l.code.toUpperCase()}</div>
+              <div className="font-semibold">{item.label}</div>
+              <div className="text-xs text-white/50">{item.code.toUpperCase()}</div>
             </div>
-            {language === l.code && <Check className="w-5 h-5 ml-auto text-brand-orange" />}
+            {language === item.code && <Check className="ml-auto h-5 w-5 text-brand-orange" />}
           </button>
         ))}
       </div>
     </div>,
 
-    // Step 1: Truck
     <div key="truck" className="space-y-4">
       <div className="rounded-3xl border border-white/10 bg-white/[0.04] p-4 shadow-[0_18px_60px_rgba(0,0,0,0.25)]">
         <div className="mb-3 inline-flex h-12 w-12 items-center justify-center rounded-2xl bg-brand-orange/15 text-brand-orange">
@@ -159,48 +156,54 @@ export default function OnboardingWizard({ open, onClose }) {
         <h2 className="text-[1.35rem] font-bold leading-tight text-white">{translateOnboarding('selectTruck')}</h2>
         <p className="mt-2 text-sm leading-6 text-white/65">{translateOnboarding('truckIntro')}</p>
       </div>
-      <div className="rounded-2xl border border-brand-orange/15 bg-brand-orange/8 px-4 py-3 text-sm text-white/75">
+      <div className="rounded-2xl border border-brand-orange/15 bg-brand-orange/10 px-4 py-3 text-sm text-white/75">
         {translateOnboarding('truckHint')}
       </div>
       <div className="space-y-3 rounded-3xl border border-white/10 bg-black/10 p-4">
         <select
           value={selectedMake}
-          onChange={e => { setSelectedMake(e.target.value); setSelectedModel(''); }}
+          onChange={event => {
+            setSelectedMake(event.target.value);
+            setSelectedModel('');
+            setSelectedYear('');
+          }}
           className="min-h-12 w-full rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-3 text-white focus:border-brand-orange focus:outline-none"
         >
           <option value="">{translateOnboarding('chooseMake')}</option>
-          {truckManufacturers.map(m => (
-            <option key={m.id} value={m.id}>{m.name}</option>
+          {truckManufacturers.map(manufacturer => (
+            <option key={manufacturer.id} value={manufacturer.id}>{manufacturer.name}</option>
           ))}
         </select>
         {selectedMake && (
           <select
             value={selectedModel}
-            onChange={e => setSelectedModel(e.target.value)}
+            onChange={event => {
+              setSelectedModel(event.target.value);
+              setSelectedYear('');
+            }}
             className="min-h-12 w-full rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-3 text-white focus:border-brand-orange focus:outline-none"
           >
             <option value="">{translateOnboarding('chooseModel')}</option>
-            {models.map(m => (
-              <option key={m.id} value={m.id}>{m.name}</option>
+            {models.map(model => (
+              <option key={model.id} value={model.id}>{model.name}</option>
             ))}
           </select>
         )}
         {selectedMake && (
           <select
             value={selectedYear}
-            onChange={e => setSelectedYear(e.target.value)}
+            onChange={event => setSelectedYear(event.target.value)}
             className="min-h-12 w-full rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-3 text-white focus:border-brand-orange focus:outline-none"
           >
             <option value="">{translateOnboarding('chooseYear')}</option>
-            {years.map(y => (
-              <option key={y} value={y}>{y}</option>
+            {years.map(year => (
+              <option key={year} value={year}>{year}</option>
             ))}
           </select>
         )}
       </div>
     </div>,
 
-    // Step 2: Feature tour
     <div key="features" className="space-y-5">
       <div className="rounded-3xl border border-white/10 bg-white/[0.04] p-4 shadow-[0_18px_60px_rgba(0,0,0,0.25)]">
         <div className="mb-3 inline-flex h-12 w-12 items-center justify-center rounded-2xl bg-brand-orange/15 text-brand-orange">
@@ -210,12 +213,12 @@ export default function OnboardingWizard({ open, onClose }) {
         <p className="mt-2 text-sm leading-6 text-white/65">{translateOnboarding('featuresIntro')}</p>
       </div>
       <div className="grid gap-3">
-        {FEATURES.map(f => (
-          <div key={f.key} className="flex items-start gap-3 rounded-2xl border border-white/10 bg-white/[0.04] p-4">
-            <span className="text-2xl mt-0.5">{f.icon}</span>
+        {FEATURES.map(feature => (
+          <div key={feature.key} className="flex items-start gap-3 rounded-2xl border border-white/10 bg-white/[0.04] p-4">
+            <span className="mt-0.5 text-2xl">{feature.icon}</span>
             <div>
-              <p className="font-medium text-white">{translateOnboarding(`feature_${f.key}`)}</p>
-              <p className="text-sm leading-6 text-white/55">{translateOnboarding(`feature_${f.key}_desc`)}</p>
+              <p className="font-medium text-white">{translateOnboarding(`feature_${feature.key}`)}</p>
+              <p className="text-sm leading-6 text-white/55">{translateOnboarding(`feature_${feature.key}_desc`)}</p>
             </div>
           </div>
         ))}
@@ -225,27 +228,38 @@ export default function OnboardingWizard({ open, onClose }) {
         <p className="text-sm leading-6 text-white/80">{translateOnboarding('promoHint')}</p>
       </div>
     </div>,
+  ];
 
-          {/* Progress bar */}
+  return (
+    <Dialog open={open} onOpenChange={() => {}}>
+      <DialogContent
+        className="flex h-[100dvh] w-[100vw] max-w-none flex-col overflow-hidden border-0 bg-[#111827] p-0 text-white sm:h-auto sm:max-h-[90vh] sm:max-w-md sm:rounded-[28px] sm:border sm:border-white/10 sm:bg-[#1a1f2e] [&>button]:hidden"
+        onPointerDownOutside={event => event.preventDefault()}
+      >
+        <div className="bg-[radial-gradient(circle_at_top,rgba(249,115,22,0.16),transparent_48%)] px-5 pb-4 pt-[max(1.25rem,env(safe-area-inset-top))] sm:px-6 sm:pt-5">
+          <div className="mb-3 flex items-center justify-between text-xs uppercase tracking-[0.24em] text-white/40">
+            <span>Truck Repair Assistant</span>
+            <span>{progressLabel}</span>
+          </div>
           <div className="flex gap-1.5">
-          {steps.map((_, i) => (
-            <div
-              key={i}
-              className={`h-1.5 flex-1 rounded-full transition-colors ${
-                i <= step ? 'bg-brand-orange' : 'bg-white/10'
-              }`}
-            />
-          ))}
+            {steps.map((_, index) => (
+              <div
+                key={index}
+                className={`h-1.5 flex-1 rounded-full transition-colors ${
+                  index <= step ? 'bg-brand-orange' : 'bg-white/10'
+                }`}
+              />
+            ))}
           </div>
         </div>
 
         <div className="min-h-0 flex-1 overflow-y-auto px-5 py-4 pb-28 sm:px-6 sm:pb-6">
           {steps[step]}
         </div>
-        {/* Navigation */}
+
         <div className="absolute inset-x-0 bottom-0 flex items-center justify-between gap-3 border-t border-white/10 bg-[#0f172acc] px-5 pb-[max(1.25rem,env(safe-area-inset-bottom))] pt-4 backdrop-blur-xl sm:static sm:bg-transparent sm:px-6 sm:pb-5 sm:pt-0 sm:backdrop-blur-0">
           {step > 0 ? (
-            <Button variant="ghost" size="sm" onClick={() => setStep(s => s - 1)} className="h-11 rounded-xl px-4 text-white/70">
+            <Button variant="ghost" size="sm" onClick={() => setStep(currentStep => currentStep - 1)} className="h-11 rounded-xl px-4 text-white/70">
               <ChevronLeft className="mr-1 h-4 w-4" /> {translateOnboarding('back')}
             </Button>
           ) : (

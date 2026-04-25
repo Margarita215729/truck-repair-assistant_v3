@@ -37,7 +37,6 @@ export function useVoiceInput({ language = 'en', onResult } = {}) {
     recognition.start();
     setListening(true);
   }, [SpeechRecognition, listening, language, onResult]);
-  }, [SpeechRecognition, listening, language, onResult]);
 
   const stop = useCallback(() => {
     recognitionRef.current?.stop();
