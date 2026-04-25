@@ -28,8 +28,8 @@ export const PLANS = {
     nameEs: 'Premium',
     price: 1,
     originalPrice: 14.99,
-    badge: 'promo',
     stripePriceMonthly: env.PREMIUM_PRICE_MONTHLY,
+    badge: 'promo',
     features: [
       { key: 'ai_requests', value: 'Unlimited requests', valueRu: 'Безлимитные запросы', valueEs: 'Solicitudes ilimitadas' },
       { key: 'trucks', value: 'Unlimited trucks', valueRu: 'Безлимитные грузовики', valueEs: 'Camiones ilimitados' },
@@ -38,9 +38,9 @@ export const PLANS = {
       { key: 'audio', value: 'Audio analysis', valueRu: 'Анализ звука', valueEs: 'Análisis de audio' },
       { key: 'photo', value: 'Part photo analysis', valueRu: 'Анализ фото запчастей', valueEs: 'Análisis de fotos de piezas' },
       { key: 'visual_diagnostics', value: 'Visual diagnostics (photo & video)', valueRu: 'Визуальная диагностика (фото и видео)', valueEs: 'Diagnóstico visual (foto y video)' },
-      { key: 'community', value: 'Priority community support', valueRu: 'Приоритетная поддержка', valueEs: 'Soporte prioritario' },
+      { key: 'toolkit', value: 'Custom toolkits', valueRu: 'Пользовательские наборы', valueEs: 'Kits personalizados' },
+      { key: 'fleet_mgmt', value: 'Fleet management', valueRu: 'Управление автопарком', valueEs: 'Gestión de flota' },
       { key: 'reports', value: 'Detailed PDF reports', valueRu: 'Детальные PDF отчёты', valueEs: 'Informes PDF detallados' },
-      { key: 'fleet_mgmt', value: 'Fleet management dashboard', valueRu: 'Панель управления автопарком', valueEs: 'Panel de gestión de flota' },
       { key: 'priority', value: 'Priority support', valueRu: 'Приоритетная поддержка', valueEs: 'Soporte prioritario' },
     ],
   },
@@ -56,8 +56,20 @@ export const LIMITS = {
     max_trucks: -1, // unlimited
   },
   // Backward compatibility for existing subscribers
-  pro: { ai_requests_per_day: -1, max_trucks: -1 },
-  owner: { ai_requests_per_day: -1, max_trucks: 5 },
-  fleet: { ai_requests_per_day: -1, max_trucks: -1 },
-  lifetime: { ai_requests_per_day: -1, max_trucks: -1 },
+  pro: {
+    ai_requests_per_day: -1,
+    max_trucks: -1,
+  },
+  owner: {
+    ai_requests_per_day: -1,
+    max_trucks: -1,
+  },
+  fleet: {
+    ai_requests_per_day: -1,
+    max_trucks: -1,
+  },
+  lifetime: {
+    ai_requests_per_day: -1,
+    max_trucks: -1,
+  },
 };

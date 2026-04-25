@@ -1,11 +1,13 @@
-import Community from './pages/Community';
-import Diagnostics from './pages/Diagnostics';
-import PartsCatalog from './pages/PartsCatalog';
-import PoliciesPage from './pages/PoliciesPage';
-import Profile from './pages/Profile';
-import Reports from './pages/Reports';
-import ServiceFinder from './pages/ServiceFinder';
-import AdminDashboard from './pages/AdminDashboard';
+import { lazy } from 'react';
+
+const Community = lazy(() => import('./pages/Community'));
+const Diagnostics = lazy(() => import('./pages/Diagnostics'));
+const PartsCatalog = lazy(() => import('./pages/PartsCatalog'));
+const PoliciesPage = lazy(() => import('./pages/PoliciesPage'));
+const Profile = lazy(() => import('./pages/Profile'));
+const Reports = lazy(() => import('./pages/Reports'));
+const ServiceFinder = lazy(() => import('./pages/ServiceFinder'));
+const AdminDashboard = lazy(() => import('./pages/AdminDashboard'));
 import __Layout from './Layout.jsx';
 
 export const PAGES = {

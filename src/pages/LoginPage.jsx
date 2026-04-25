@@ -12,7 +12,7 @@ import { trackEvent } from '@/services/analyticsService';
 export default function LoginPage({ onLogin }) {
   const navigate = useNavigate();
   const { t, language, setLanguage } = useLanguage();
-  const { isAuthenticated, supabaseReachable } = useAuth();
+  const { isAuthenticated, supabaseReachable, authServiceConfigured } = useAuth();
 
   // If already authenticated (or just logged in), redirect to home
   React.useEffect(() => {
@@ -143,7 +143,7 @@ export default function LoginPage({ onLogin }) {
         {/* Card */}
         <div className="brand-card rounded-2xl p-6 shadow-2xl">
           {/* Supabase connectivity warning */}
-          {supabaseReachable === false && (
+          {authServiceConfigured && supabaseReachable === false && (
             <div className="mb-4 p-3 bg-yellow-500/10 border border-yellow-500/20 rounded-lg flex items-start gap-2 text-yellow-400 text-sm">
               <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
               <div>
@@ -151,6 +151,14 @@ export default function LoginPage({ onLogin }) {
                 <p className="text-yellow-400/70 text-xs mt-1">
                   {t('login.serviceDownDesc') || 'The authentication server is not responding. This may be due to scheduled maintenance. Please try again later.'}
                 </p>
+              </div>
+            </div>
+          )}
+          {!authServiceConfigured && (
+            <div className="mb-4 p-3 bg-red-500/10 border border-red-500/20 rounded-lg flex items-start gap-2 text-red-400 text-sm">
+              <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
+              <div>
+                <p className="font-medium">{t('login.serviceUnavailable') || 'Authentication service is not configured. Please contact support.'}</p>
               </div>
             </div>
           )}

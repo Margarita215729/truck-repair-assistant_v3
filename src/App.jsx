@@ -4,12 +4,13 @@ import { QueryClientProvider } from '@tanstack/react-query'
 import { queryClientInstance } from '@/lib/query-client'
 import { pagesConfig } from './pages.config'
 import { BrowserRouter as Router, Route, Routes, useLocation } from 'react-router-dom';
-import { useEffect, useState } from 'react';
+import { useEffect, Suspense, useState } from 'react';
 import PageNotFound from './lib/PageNotFound';
 import { AuthProvider, useAuth } from '@/lib/AuthContext';
 import { LanguageProvider, useLanguage } from '@/lib/LanguageContext';
 import { TruckProvider } from '@/lib/TruckContext';
 import UserNotRegisteredError from '@/components/UserNotRegisteredError';
+import { ErrorBoundary } from '@/components/ErrorBoundary';
 import LoginPage from '@/pages/LoginPage';
 import AuthCallbackPage from '@/pages/AuthCallbackPage';
 import PricingPage from '@/pages/PricingPage';
@@ -70,6 +71,11 @@ const AppRoutes = () => {
   return (
     <>
       <RouteTracking />
+      <Suspense fallback={
+        <div className="fixed inset-0 flex items-center justify-center">
+          <div className="w-10 h-10 border-4 border-brand-orange/30 border-t-brand-orange rounded-full animate-spin"></div>
+        </div>
+      }>
       <Routes>
       {/* Auth callback */}
       <Route path="/auth/confirm" element={<AuthCallbackPage />} />
@@ -130,6 +136,7 @@ const AppRoutes = () => {
 
       <Route path="*" element={<PageNotFound />} />
       </Routes>
+      </Suspense>
       <OnboardingWizard open={onboardingOpen} onClose={() => { markDone(); setOnboardingOpen(false); }} />
     </>
   );
@@ -141,9 +148,11 @@ function App() {
       <AuthProvider>
         <TruckProvider>
         <QueryClientProvider client={queryClientInstance}>
+          <ErrorBoundary>
           <Router>
             <AppRoutes />
           </Router>
+          </ErrorBoundary>
           <Toaster />
           <SonnerToaster richColors position="top-right" />
         </QueryClientProvider>
