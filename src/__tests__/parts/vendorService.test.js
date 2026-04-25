@@ -226,14 +226,15 @@ describe('vendorService — searchVendors', () => {
 
     const result = await searchVendors('turbo', { make: 'Freightliner' });
 
-    expect(fetch).toHaveBeenCalledWith('/api/parts/search', {
+    expect(fetch).toHaveBeenCalledWith('/api/parts/search', expect.objectContaining({
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
         Authorization: 'Bearer test-token',
       },
       body: expect.any(String),
-    });
+      signal: expect.any(AbortSignal),
+    }));
 
     const body = JSON.parse(fetch.mock.calls[0][1].body);
     expect(body.query).toBe('turbo');

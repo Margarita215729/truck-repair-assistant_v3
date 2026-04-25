@@ -8,7 +8,7 @@
  * - getTruckStateSnapshot(vehicleProfileId) — fetches truck state with AI interpretation
  * - disconnectProvider(provider) — deactivates a connection via DELETE /api/telematics/vehicles
  */
-import { env } from '@/config/env';
+import { supabase, hasSupabaseConfig } from '@/api/supabaseClient';
 
 const API_BASE = '/api/telematics';
 
@@ -18,8 +18,7 @@ const API_BASE = '/api/telematics';
  */
 async function getAuthToken() {
   try {
-    const { createClient } = await import('@supabase/supabase-js');
-    const supabase = createClient(env.SUPABASE_URL, env.SUPABASE_ANON_KEY);
+    if (!hasSupabaseConfig || !supabase) return null;
     const { data } = await supabase.auth.getSession();
     return data?.session?.access_token || null;
   } catch {

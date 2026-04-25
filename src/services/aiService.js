@@ -95,63 +95,77 @@ export async function invokeLLM({
 }
 
 async function callViaProxy(messages, schema, accessToken, model) {
-  const response = await fetch(AI_PROXY_URL, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'Authorization': `Bearer ${accessToken}`,
-    },
-    body: JSON.stringify({
-      messages,
-      model: model || DEFAULT_MODEL,
-      temperature: 0.2,
-      max_tokens: 16384,
-      ...(schema ? { response_format: { type: 'json_object' } } : {}),
-    }),
-  });
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 60_000);
+  try {
+    const response = await fetch(AI_PROXY_URL, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${accessToken}`,
+      },
+      signal: controller.signal,
+      body: JSON.stringify({
+        messages,
+        model: model || DEFAULT_MODEL,
+        temperature: 0.2,
+        max_tokens: 16384,
+        ...(schema ? { response_format: { type: 'json_object' } } : {}),
+      }),
+    });
 
-  if (response.status === 429) {
-    const err = await response.json().catch(() => ({}));
-    const error = new Error(err.error || 'Daily request limit reached');
-    error.status = 429;
-    error.limit = err.limit;
-    throw error;
+    if (response.status === 429) {
+      const err = await response.json().catch(() => ({}));
+      const error = new Error(err.error || 'Daily request limit reached');
+      error.status = 429;
+      error.limit = err.limit;
+      throw error;
+    }
+
+    if (!response.ok) {
+      const errBody = await response.json().catch(() => null);
+      const detail = errBody?.error || `Proxy error ${response.status}`;
+      console.error('Diagnostic proxy responded with error:', response.status, detail);
+      const err = new Error(detail);
+      err.status = response.status;
+      throw err;
+    }
+
+    return response.json();
+  } finally {
+    clearTimeout(timeoutId);
   }
-
-  if (!response.ok) {
-    const errBody = await response.json().catch(() => null);
-    const detail = errBody?.error || `Proxy error ${response.status}`;
-    console.error('Diagnostic proxy responded with error:', response.status, detail);
-    const err = new Error(detail);
-    err.status = response.status;
-    throw err;
-  }
-
-  return response.json();
 }
 
 async function callDirect(messages, schema, token, model) {
-  const response = await fetch(GITHUB_MODELS_URL, {
-    method: 'POST',
-    headers: {
-      Authorization: `Bearer ${token}`,
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({
-      messages,
-      model: model || DEFAULT_MODEL,
-      temperature: 0.2,
-      max_tokens: 16384,
-      ...(schema ? { response_format: { type: 'json_object' } } : {}),
-    }),
-  });
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 60_000);
+  try {
+    const response = await fetch(GITHUB_MODELS_URL, {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${token}`,
+        'Content-Type': 'application/json',
+      },
+      signal: controller.signal,
+      body: JSON.stringify({
+        messages,
+        model: model || DEFAULT_MODEL,
+        temperature: 0.2,
+        max_tokens: 16384,
+        ...(schema ? { response_format: { type: 'json_object' } } : {}),
+      }),
+    });
 
-  if (!response.ok) {
-    const errorText = await response.text();
-    throw new Error(`GitHub Models API error: ${response.status} - ${errorText}`);
+    if (!response.ok) {
+      const errorText = await response.text();
+      throw new Error(`GitHub Models API error: ${response.status} - ${errorText}`);
+    }
+
+    return response.json();
+  } finally {
+    clearTimeout(timeoutId);
   }
-
-  return response.json();
 }
 
 function parseResponse(data, schema) {
