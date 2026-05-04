@@ -85,7 +85,20 @@ export default async function handler(req, res) {
               cancel_at_period_end: false,
             })
             .eq('user_id', userId);
-          if (dbError) console.error('DB update failed (checkout.session.completed):', dbError);
+          if (dbError) {
+            console.error('DB update failed (checkout.session.completed):', dbError);
+          } else {
+            const { error: evtError } = await getSupabase()
+              .from('marketing_events')
+              .insert({
+                user_id: userId,
+                event_name: 'checkout_completed',
+                event_category: 'conversion',
+                source: 'stripe_webhook',
+                event_props: { plan, subscription_id: subscriptionId },
+              });
+            if (evtError) console.error('Event insert failed (checkout_completed):', evtError);
+          }
         }
         break;
       }
@@ -134,7 +147,20 @@ export default async function handler(req, res) {
               cancel_at_period_end: false,
             })
             .eq('user_id', userId);
-          if (dbError) console.error('DB update failed (subscription.deleted):', dbError);
+          if (dbError) {
+            console.error('DB update failed (subscription.deleted):', dbError);
+          } else {
+            const { error: evtError } = await getSupabase()
+              .from('marketing_events')
+              .insert({
+                user_id: userId,
+                event_name: 'subscription_canceled',
+                event_category: 'conversion',
+                source: 'stripe_webhook',
+                event_props: {},
+              });
+            if (evtError) console.error('Event insert failed (subscription_canceled):', evtError);
+          }
         }
         break;
       }
