@@ -32,17 +32,6 @@ function pct(value) {
   return `${value.toFixed(1)}%`;
 }
 
-function createManagerForm(initial) {
-  return {
-    ...initial,
-    reset() {
-      Object.keys(initial).forEach((k) => {
-        this[k] = initial[k];
-      });
-    },
-  };
-}
-
 export default function AdminDashboard() {
   const { t } = useLanguage();
   const queryClient = useQueryClient();
@@ -88,9 +77,41 @@ export default function AdminDashboard() {
     lookback_days: '7',
   });
 
+  const [bizInputs, setBizInputs] = useState({
+    marketingSpend: '',
+    monthlyPrice: '',
+    infraCost: '',
+  });
+
+  const [selectedUserId, setSelectedUserId] = useState(null);
+
   const { data: events = [], isLoading: eventsLoading } = useQuery({
     queryKey: ['marketing-events-recent'],
     queryFn: () => marketingService.getRecentEvents(45),
+    staleTime: 5 * 60 * 1000,
+    refetchOnWindowFocus: false,
+  });
+
+  const { data: subStats = null } = useQuery({
+    queryKey: ['subscription-stats'],
+    queryFn: marketingService.getSubscriptionStats,
+    staleTime: 5 * 60 * 1000,
+    refetchOnWindowFocus: false,
+  });
+
+  const { data: userActivity = [] } = useQuery({
+    queryKey: ['user-activity-summary'],
+    queryFn: marketingService.getUserActivitySummary,
+    staleTime: 5 * 60 * 1000,
+    refetchOnWindowFocus: false,
+  });
+
+  const { data: userEvents = [], isFetching: userEventsFetching } = useQuery({
+    queryKey: ['user-events', selectedUserId],
+    queryFn: () => marketingService.getUserEvents(selectedUserId),
+    enabled: !!selectedUserId,
+    staleTime: 2 * 60 * 1000,
+    refetchOnWindowFocus: false,
   });
 
   const { data: strategies = [] } = useQuery({
@@ -226,7 +247,7 @@ export default function AdminDashboard() {
       if (ts >= d14 && ts < d7) usersPrev7.add(uid);
       if (ts >= d7 && event.event_name === 'checkout_completed') paid7.add(uid);
 
-      if (stepUsers[event.event_name] && ts >= d30) {
+      if (stepUsers[event.event_name] !== undefined && ts >= d30) {
         stepUsers[event.event_name].add(uid);
       }
     }
@@ -236,15 +257,27 @@ export default function AdminDashboard() {
       .slice(-30)
       .map(([day, set]) => ({ day: day.slice(5), activeUsers: set.size }));
 
-    const funnel = funnelSteps.map((s, idx) => {
-      const users = stepUsers[s.key].size;
-      const prevUsers = idx === 0 ? users : stepUsers[funnelSteps[idx - 1].key].size;
-      return {
-        step: s.label,
-        users,
-        conversion: prevUsers ? Number(((users / prevUsers) * 100).toFixed(1)) : 100,
-      };
+    // Cohort-based funnel: step N counts only users who also completed all prior steps
+    const funnelCohortSets = funnelSteps.map((_, idx) => {
+      if (idx === 0) return stepUsers[funnelSteps[0].key];
+      const required = funnelSteps.slice(0, idx).map((s) => s.key);
+      return new Set(
+        [...stepUsers[funnelSteps[idx].key]].filter((uid) =>
+          required.every((k) => stepUsers[k].has(uid)),
+        ),
+      );
     });
+
+    const funnel = funnelSteps.map((s, idx) => ({
+      step: s.label,
+      users: funnelCohortSets[idx].size,
+      conversion:
+        idx === 0
+          ? 100
+          : funnelCohortSets[idx - 1].size
+          ? Number(((funnelCohortSets[idx].size / funnelCohortSets[idx - 1].size) * 100).toFixed(1))
+          : 0,
+    }));
 
     const newCohortUsers = Array.from(firstSeen.entries()).filter(([, ts]) => ts >= d30);
     const retentionCheck = { D1: 0, D7: 0, D30: 0, total: newCohortUsers.length };
@@ -281,6 +314,31 @@ export default function AdminDashboard() {
       trend,
     };
   }, [events]);
+
+  const businessMetrics = useMemo(() => {
+    const paying   = subStats?.paying    ?? 0;
+    const trialing = subStats?.trialing  ?? 0;
+    const canceled = subStats?.canceled  ?? 0;
+
+    const monthlyPrice = parseFloat(bizInputs.monthlyPrice) || 0;
+    const spend        = parseFloat(bizInputs.marketingSpend) || 0;
+    const infraCost    = parseFloat(bizInputs.infraCost) || 0;
+
+    const mrr             = paying * monthlyPrice;
+    const arpu            = paying > 0 ? mrr / paying : 0;
+    const grossMargin     = mrr - infraCost;
+    const grossMarginPct  = mrr > 0 ? grossMargin / mrr : 0;
+    const acquired        = paying + trialing;
+    const cac             = acquired > 0 ? spend / acquired : 0;
+    const monthlyChurn    = (paying + canceled) > 0 ? canceled / (paying + canceled) : 0;
+    const ltv             = monthlyChurn > 0 ? (arpu * grossMarginPct) / monthlyChurn : 0;
+    const monthlyGP       = arpu * grossMarginPct;
+    const payback         = monthlyGP > 0 ? cac / monthlyGP : 0;
+    const trialConversion = trialing > 0 ? paying / trialing : 0;
+    const churn           = monthlyChurn;
+
+    return { mrr, cac, ltv, payback, grossMargin, grossMarginPct, trialConversion, churn, paying, trialing, canceled, arpu };
+  }, [bizInputs, subStats]);
 
   const submitStrategy = (e) => {
     e.preventDefault();
@@ -365,12 +423,14 @@ export default function AdminDashboard() {
     <div className="max-w-7xl mx-auto px-4 py-8 space-y-6">
       <div className="flex flex-wrap gap-2">
         {[
-          ['overview', t('admin.tabs.overview')],
-          ['strategies', t('admin.tabs.strategies')],
-          ['segments', t('admin.tabs.segments')],
-          ['campaigns', t('admin.tabs.campaigns')],
+          ['overview',    t('admin.tabs.overview')],
+          ['metrics',     t('admin.tabs.metrics')],
+          ['users',       t('admin.tabs.users')],
+          ['strategies',  t('admin.tabs.strategies')],
+          ['segments',    t('admin.tabs.segments')],
+          ['campaigns',   t('admin.tabs.campaigns')],
           ['experiments', t('admin.tabs.experiments')],
-          ['alerts', t('admin.tabs.alerts')],
+          ['alerts',      t('admin.tabs.alerts')],
         ].map(([key, label]) => (
           <Button
             key={key}
@@ -617,6 +677,201 @@ export default function AdminDashboard() {
               ))}
               {alerts.length === 0 && <p className="text-white/50 text-sm">{t('admin.empty.alerts')}</p>}
             </div>
+          </Card>
+        </div>
+      )}
+
+      {/* ─── Business Metrics tab ───────────────────────────── */}
+      {activeTab === 'metrics' && (
+        <div className="space-y-6">
+          {/* Manual cost/price inputs */}
+          <Card className="p-4 bg-white/5 border-white/10">
+            <h3 className="text-white font-semibold mb-3">{t('admin.bizMetrics.inputsTitle')}</h3>
+            <div className="grid sm:grid-cols-3 gap-4">
+              <div>
+                <p className="text-white/50 text-xs mb-1">{t('admin.bizMetrics.marketingSpend')}</p>
+                <Input
+                  type="number"
+                  placeholder="0"
+                  value={bizInputs.marketingSpend}
+                  onChange={(e) => setBizInputs((p) => ({ ...p, marketingSpend: e.target.value }))}
+                  className="bg-white/5 border-white/10 text-white"
+                />
+              </div>
+              <div>
+                <p className="text-white/50 text-xs mb-1">{t('admin.bizMetrics.monthlyPrice')}</p>
+                <Input
+                  type="number"
+                  placeholder="0"
+                  value={bizInputs.monthlyPrice}
+                  onChange={(e) => setBizInputs((p) => ({ ...p, monthlyPrice: e.target.value }))}
+                  className="bg-white/5 border-white/10 text-white"
+                />
+              </div>
+              <div>
+                <p className="text-white/50 text-xs mb-1">{t('admin.bizMetrics.infraCost')}</p>
+                <Input
+                  type="number"
+                  placeholder="0"
+                  value={bizInputs.infraCost}
+                  onChange={(e) => setBizInputs((p) => ({ ...p, infraCost: e.target.value }))}
+                  className="bg-white/5 border-white/10 text-white"
+                />
+              </div>
+            </div>
+          </Card>
+
+          {/* Subscription counts */}
+          <div className="grid sm:grid-cols-3 gap-4">
+            <Card className="p-4 bg-white/5 border-white/10">
+              <p className="text-white/50 text-sm">{t('admin.bizMetrics.payingUsers')}</p>
+              <p className="text-3xl text-white font-bold mt-2">{businessMetrics.paying}</p>
+            </Card>
+            <Card className="p-4 bg-white/5 border-white/10">
+              <p className="text-white/50 text-sm">{t('admin.bizMetrics.trialingUsers')}</p>
+              <p className="text-3xl text-white font-bold mt-2">{businessMetrics.trialing}</p>
+            </Card>
+            <Card className="p-4 bg-white/5 border-white/10">
+              <p className="text-white/50 text-sm">{t('admin.bizMetrics.canceledUsers')}</p>
+              <p className="text-3xl text-white font-bold mt-2">{businessMetrics.canceled}</p>
+            </Card>
+          </div>
+
+          {/* Computed metrics grid */}
+          <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            <Card className="p-4 bg-white/5 border-white/10">
+              <p className="text-white/50 text-xs">{t('admin.bizMetrics.mrrLabel')}</p>
+              <p className="text-xs text-white/30 mb-2">{t('admin.bizMetrics.mrrFormula')}</p>
+              <p className="text-2xl text-white font-bold">${businessMetrics.mrr.toFixed(0)}</p>
+            </Card>
+            <Card className="p-4 bg-white/5 border-white/10">
+              <p className="text-white/50 text-xs">{t('admin.bizMetrics.cacLabel')}</p>
+              <p className="text-xs text-white/30 mb-2">{t('admin.bizMetrics.cacFormula')}</p>
+              <p className="text-2xl text-white font-bold">${businessMetrics.cac.toFixed(2)}</p>
+            </Card>
+            <Card className="p-4 bg-white/5 border-white/10">
+              <p className="text-white/50 text-xs">{t('admin.bizMetrics.ltvLabel')}</p>
+              <p className="text-xs text-white/30 mb-2">{t('admin.bizMetrics.ltvFormula')}</p>
+              <p className="text-2xl text-white font-bold">${businessMetrics.ltv.toFixed(2)}</p>
+            </Card>
+            <Card className="p-4 bg-white/5 border-white/10">
+              <p className="text-white/50 text-xs">{t('admin.bizMetrics.paybackLabel')}</p>
+              <p className="text-xs text-white/30 mb-2">{t('admin.bizMetrics.paybackFormula')}</p>
+              <p className="text-2xl text-white font-bold">
+                {businessMetrics.payback > 0 ? `${businessMetrics.payback.toFixed(1)}mo` : '—'}
+              </p>
+            </Card>
+            <Card className="p-4 bg-white/5 border-white/10">
+              <p className="text-white/50 text-xs">{t('admin.bizMetrics.grossMarginLabel')}</p>
+              <p className="text-xs text-white/30 mb-2">{t('admin.bizMetrics.grossMarginFormula')}</p>
+              <p className="text-2xl text-white font-bold">
+                ${businessMetrics.grossMargin.toFixed(0)}
+                <span className="text-sm text-white/40 ml-1">({pct(businessMetrics.grossMarginPct * 100)})</span>
+              </p>
+            </Card>
+            <Card className="p-4 bg-white/5 border-white/10">
+              <p className="text-white/50 text-xs">{t('admin.bizMetrics.trialConversionLabel')}</p>
+              <p className="text-xs text-white/30 mb-2">{t('admin.bizMetrics.trialConversionFormula')}</p>
+              <p className="text-2xl text-white font-bold">{pct(businessMetrics.trialConversion * 100)}</p>
+            </Card>
+            <Card className="p-4 bg-white/5 border-white/10">
+              <p className="text-white/50 text-xs">{t('admin.bizMetrics.churnLabel')}</p>
+              <p className="text-xs text-white/30 mb-2">{t('admin.bizMetrics.churnFormula')}</p>
+              <p className="text-2xl text-white font-bold">{pct(businessMetrics.churn * 100)}</p>
+            </Card>
+            <Card className="p-4 bg-white/5 border-white/10">
+              <p className="text-white/50 text-xs">ARPU</p>
+              <p className="text-xs text-white/30 mb-2">MRR / paying users</p>
+              <p className="text-2xl text-white font-bold">${businessMetrics.arpu.toFixed(2)}</p>
+            </Card>
+          </div>
+        </div>
+      )}
+
+      {/* ─── User Activity tab ──────────────────────────────── */}
+      {activeTab === 'users' && (
+        <div className="grid lg:grid-cols-2 gap-6">
+          <Card className="p-4 bg-white/5 border-white/10">
+            <h3 className="text-white font-semibold mb-3">{t('admin.userActivity.listTitle')}</h3>
+            <div className="overflow-auto max-h-[560px]">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="text-white/40 text-left border-b border-white/10">
+                    <th className="pb-2 pr-4">{t('admin.userActivity.colEmail')}</th>
+                    <th className="pb-2 pr-4 text-right">{t('admin.userActivity.colEvents')}</th>
+                    <th className="pb-2 text-right">{t('admin.userActivity.colLastActive')}</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {userActivity.map((u) => (
+                    <tr
+                      key={u.user_id}
+                      onClick={() => setSelectedUserId(u.user_id === selectedUserId ? null : u.user_id)}
+                      className={`border-b border-white/5 cursor-pointer transition-colors ${
+                        u.user_id === selectedUserId ? 'bg-brand-orange/10' : 'hover:bg-white/5'
+                      }`}
+                    >
+                      <td className="py-2 pr-4 text-white/70 truncate max-w-[200px]">
+                        {u.email ?? u.user_id.slice(0, 8) + '…'}
+                      </td>
+                      <td className="py-2 pr-4 text-white text-right font-medium">{u.event_count}</td>
+                      <td className="py-2 text-white/40 text-right whitespace-nowrap">
+                        {u.last_active ? new Date(u.last_active).toLocaleDateString() : '—'}
+                      </td>
+                    </tr>
+                  ))}
+                  {userActivity.length === 0 && (
+                    <tr>
+                      <td colSpan={3} className="py-4 text-white/40 text-center">{t('admin.userActivity.empty')}</td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </Card>
+
+          <Card className="p-4 bg-white/5 border-white/10">
+            <h3 className="text-white font-semibold mb-3">
+              {selectedUserId
+                ? `${t('admin.userActivity.timelineTitle')}: ${
+                    userActivity.find((u) => u.user_id === selectedUserId)?.email ??
+                    selectedUserId.slice(0, 8) + '…'
+                  }`
+                : t('admin.userActivity.selectPrompt')}
+            </h3>
+            {userEventsFetching && (
+              <div className="space-y-2">
+                {[1, 2, 3, 4].map((i) => <Skeleton key={i} className="h-10 rounded bg-white/5" />)}
+              </div>
+            )}
+            {!userEventsFetching && selectedUserId && (
+              <div className="overflow-auto max-h-[520px] space-y-1">
+                {userEvents.map((ev, i) => (
+                  <div key={i} className="flex items-start gap-3 p-2 rounded-lg hover:bg-white/5">
+                    <span className="text-white/30 text-xs whitespace-nowrap pt-0.5">
+                      {new Date(ev.happened_at).toLocaleString()}
+                    </span>
+                    <div className="min-w-0">
+                      <span className="text-white/90 text-sm font-medium">{ev.event_name}</span>
+                      {ev.event_category && (
+                        <span className="ml-2 text-xs text-brand-orange/70">{ev.event_category}</span>
+                      )}
+                      {ev.event_props && Object.keys(ev.event_props).length > 0 && (
+                        <p className="text-white/30 text-xs mt-0.5 truncate">
+                          {JSON.stringify(ev.event_props)}
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                ))}
+                {userEvents.length === 0 && (
+                  <p className="text-white/40 text-sm">{t('admin.userActivity.noEvents')}</p>
+                )}
+              </div>
+            )}
+            {!selectedUserId && !userEventsFetching && (
+              <p className="text-white/30 text-sm">{t('admin.userActivity.selectPrompt')}</p>
+            )}
           </Card>
         </div>
       )}
