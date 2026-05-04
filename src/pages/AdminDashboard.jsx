@@ -99,21 +99,21 @@ export default function AdminDashboard() {
     refetchOnWindowFocus: false,
   });
 
-  const { data: userActivity = [] } = useQuery({
+  const { data: userActivity = [], isLoading: activityLoading } = useQuery({
     queryKey: ['user-activity-summary'],
     queryFn: marketingService.getUserActivitySummary,
     staleTime: 5 * 60 * 1000,
     refetchOnWindowFocus: false,
   });
 
-  const { data: allAccounts = [] } = useQuery({
+  const { data: allAccounts = [], isLoading: accountsLoading } = useQuery({
     queryKey: ['admin-all-accounts'],
     queryFn: () => marketingService.getAllAccounts(),
     staleTime: 5 * 60 * 1000,
     refetchOnWindowFocus: false,
   });
 
-  const { data: loginSessions = [] } = useQuery({
+  const { data: loginSessions = [], isLoading: sessionsLoading } = useQuery({
     queryKey: ['admin-login-sessions'],
     queryFn: () => marketingService.getLoginSessions(),
     staleTime: 5 * 60 * 1000,
@@ -293,25 +293,38 @@ export default function AdminDashboard() {
           : 0,
     }));
 
-    const newCohortUsers = Array.from(firstSeen.entries()).filter(([, ts]) => ts >= d30);
-    const retentionCheck = { D1: 0, D7: 0, D30: 0, total: newCohortUsers.length };
-    for (const [uid, ts] of newCohortUsers) {
+    // Retention: each Dx cohort uses only users who first appeared >= x days ago
+    // so users who haven't reached day x yet don't dilute the denominator.
+    const retentionCheck = { D1: 0, D7: 0, D30: 0 };
+    const retentionTotals = { D1: 0, D7: 0, D30: 0 };
+    const d1Cutoff = now - 1 * 24 * 60 * 60 * 1000;
+    const d7Cutoff = now - 7 * 24 * 60 * 60 * 1000;
+    const d30Cutoff = now - 30 * 24 * 60 * 60 * 1000;
+    for (const [uid, ts] of firstSeen.entries()) {
       const start = new Date(ts);
       start.setHours(0, 0, 0, 0);
       const days = eventsByUserByDay.get(uid) || new Set();
-      const day1 = new Date(start); day1.setDate(start.getDate() + 1);
-      const day7 = new Date(start); day7.setDate(start.getDate() + 7);
-      const day30 = new Date(start); day30.setDate(start.getDate() + 30);
-
-      if (days.has(day1.toISOString().slice(0, 10))) retentionCheck.D1 += 1;
-      if (days.has(day7.toISOString().slice(0, 10))) retentionCheck.D7 += 1;
-      if (days.has(day30.toISOString().slice(0, 10))) retentionCheck.D30 += 1;
+      if (ts <= d1Cutoff) {
+        retentionTotals.D1 += 1;
+        const day1 = new Date(start); day1.setDate(start.getDate() + 1);
+        if (days.has(day1.toISOString().slice(0, 10))) retentionCheck.D1 += 1;
+      }
+      if (ts <= d7Cutoff) {
+        retentionTotals.D7 += 1;
+        const day7 = new Date(start); day7.setDate(start.getDate() + 7);
+        if (days.has(day7.toISOString().slice(0, 10))) retentionCheck.D7 += 1;
+      }
+      if (ts <= d30Cutoff) {
+        retentionTotals.D30 += 1;
+        const day30 = new Date(start); day30.setDate(start.getDate() + 30);
+        if (days.has(day30.toISOString().slice(0, 10))) retentionCheck.D30 += 1;
+      }
     }
 
     const retention = [
-      { day: 'D1', value: retentionCheck.total ? Number(((retentionCheck.D1 / retentionCheck.total) * 100).toFixed(1)) : 0 },
-      { day: 'D7', value: retentionCheck.total ? Number(((retentionCheck.D7 / retentionCheck.total) * 100).toFixed(1)) : 0 },
-      { day: 'D30', value: retentionCheck.total ? Number(((retentionCheck.D30 / retentionCheck.total) * 100).toFixed(1)) : 0 },
+      { day: 'D1', value: retentionTotals.D1 ? Number(((retentionCheck.D1 / retentionTotals.D1) * 100).toFixed(1)) : 0 },
+      { day: 'D7', value: retentionTotals.D7 ? Number(((retentionCheck.D7 / retentionTotals.D7) * 100).toFixed(1)) : 0 },
+      { day: 'D30', value: retentionTotals.D30 ? Number(((retentionCheck.D30 / retentionTotals.D30) * 100).toFixed(1)) : 0 },
     ];
 
     const wauDelta = usersPrev7.size ? ((users7.size - usersPrev7.size) / usersPrev7.size) * 100 : 0;
@@ -348,7 +361,8 @@ export default function AdminDashboard() {
     const ltv             = monthlyChurn > 0 ? (arpu * grossMarginPct) / monthlyChurn : 0;
     const monthlyGP       = arpu * grossMarginPct;
     const payback         = monthlyGP > 0 ? cac / monthlyGP : 0;
-    const trialConversion = trialing > 0 ? paying / trialing : 0;
+    // trialConversion = fraction of active paid+trial accounts that are paid
+    const trialConversion = (paying + trialing) > 0 ? paying / (paying + trialing) : 0;
     const churn           = monthlyChurn;
 
     return { mrr, cac, ltv, payback, grossMargin, grossMarginPct, trialConversion, churn, paying, trialing, canceled, arpu };
@@ -794,8 +808,8 @@ export default function AdminDashboard() {
               <p className="text-2xl text-white font-bold">{pct(businessMetrics.churn * 100)}</p>
             </Card>
             <Card className="p-4 bg-white/5 border-white/10">
-              <p className="text-white/50 text-xs">ARPU</p>
-              <p className="text-xs text-white/30 mb-2">MRR / paying users</p>
+              <p className="text-white/50 text-xs">{t('admin.bizMetrics.arpuLabel')}</p>
+              <p className="text-xs text-white/30 mb-2">{t('admin.bizMetrics.arpuFormula')}</p>
               <p className="text-2xl text-white font-bold">${businessMetrics.arpu.toFixed(2)}</p>
             </Card>
           </div>
@@ -818,28 +832,41 @@ export default function AdminDashboard() {
                   </tr>
                 </thead>
                 <tbody>
-                  {userActivity.map((u) => (
-                    <tr
-                      key={u.user_id}
-                      onClick={() => setSelectedUserId(u.user_id === selectedUserId ? null : u.user_id)}
-                      className={`border-b border-white/5 cursor-pointer transition-colors ${
-                        u.user_id === selectedUserId ? 'bg-brand-orange/10' : 'hover:bg-white/5'
-                      }`}
-                    >
-                      <td className="py-2 pr-4 text-white/70 truncate max-w-[200px]">
-                        {u.email ?? u.user_id.slice(0, 8) + '…'}
-                      </td>
-                      <td className="py-2 pr-4 text-white text-right font-medium">{u.event_count}</td>
-                      <td className="py-2 text-white/40 text-right whitespace-nowrap">
-                        {u.last_active ? new Date(u.last_active).toLocaleDateString() : '—'}
-                      </td>
-                    </tr>
-                  ))}
-                  {userActivity.length === 0 && (
-                    <tr>
-                      <td colSpan={3} className="py-4 text-white/40 text-center">{t('admin.userActivity.empty')}</td>
-                    </tr>
-                  )}
+                  {activityLoading
+                    ? [1, 2, 3, 4].map((i) => (
+                        <tr key={i} className="border-b border-white/5">
+                          <td className="py-2 pr-4"><Skeleton className="h-4 w-36 bg-white/5" /></td>
+                          <td className="py-2 pr-4"><Skeleton className="h-4 w-8 bg-white/5 ml-auto" /></td>
+                          <td className="py-2"><Skeleton className="h-4 w-20 bg-white/5 ml-auto" /></td>
+                        </tr>
+                      ))
+                    : (
+                      <>
+                        {userActivity.map((u) => (
+                          <tr
+                            key={u.user_id}
+                            onClick={() => setSelectedUserId(u.user_id === selectedUserId ? null : u.user_id)}
+                            className={`border-b border-white/5 cursor-pointer transition-colors ${
+                              u.user_id === selectedUserId ? 'bg-brand-orange/10' : 'hover:bg-white/5'
+                            }`}
+                          >
+                            <td className="py-2 pr-4 text-white/70 truncate max-w-[200px]">
+                              {u.email ?? u.user_id.slice(0, 8) + '…'}
+                            </td>
+                            <td className="py-2 pr-4 text-white text-right font-medium">{u.event_count}</td>
+                            <td className="py-2 text-white/40 text-right whitespace-nowrap">
+                              {u.last_active ? new Date(u.last_active).toLocaleDateString() : '—'}
+                            </td>
+                          </tr>
+                        ))}
+                        {userActivity.length === 0 && (
+                          <tr>
+                            <td colSpan={3} className="py-4 text-white/40 text-center">{t('admin.userActivity.empty')}</td>
+                          </tr>
+                        )}
+                      </>
+                    )
+                  }
                 </tbody>
               </table>
             </div>
@@ -905,6 +932,18 @@ export default function AdminDashboard() {
                 </tr>
               </thead>
               <tbody>
+                {accountsLoading
+                  ? [1, 2, 3, 4].map((i) => (
+                      <tr key={i} className="border-b border-white/5">
+                        <td className="py-2 pr-4"><Skeleton className="h-4 w-40 bg-white/5" /></td>
+                        <td className="py-2 pr-4"><Skeleton className="h-4 w-12 bg-white/5" /></td>
+                        <td className="py-2 pr-4"><Skeleton className="h-4 w-14 bg-white/5" /></td>
+                        <td className="py-2 pr-4"><Skeleton className="h-4 w-20 bg-white/5 ml-auto" /></td>
+                        <td className="py-2"><Skeleton className="h-4 w-20 bg-white/5 ml-auto" /></td>
+                      </tr>
+                    ))
+                  : (
+                    <>
                 {allAccounts.map((a) => (
                   <tr key={a.user_id} className="border-b border-white/5 hover:bg-white/5">
                     <td className="py-2 pr-4 text-white/70 truncate max-w-[200px]">{a.email ?? '—'}</td>
@@ -912,6 +951,8 @@ export default function AdminDashboard() {
                       <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${
                         a.plan === 'lifetime' ? 'bg-yellow-500/20 text-yellow-300' :
                         a.plan === 'pro' ? 'bg-brand-orange/20 text-brand-orange' :
+                        a.plan === 'owner' ? 'bg-purple-500/20 text-purple-300' :
+                        a.plan === 'fleet' ? 'bg-cyan-500/20 text-cyan-300' :
                         'bg-white/10 text-white/50'
                       }`}>{a.plan}</span>
                     </td>
@@ -935,6 +976,9 @@ export default function AdminDashboard() {
                     <td colSpan={5} className="py-4 text-white/40 text-center">{t('admin.accounts.empty')}</td>
                   </tr>
                 )}
+                    </>
+                  )
+                }
               </tbody>
             </table>
           </div>
@@ -954,6 +998,17 @@ export default function AdminDashboard() {
                 </tr>
               </thead>
               <tbody>
+                {sessionsLoading
+                  ? [1, 2, 3, 4].map((i) => (
+                      <tr key={i} className="border-b border-white/5">
+                        <td className="py-2 pr-4"><Skeleton className="h-4 w-40 bg-white/5" /></td>
+                        <td className="py-2 pr-4"><Skeleton className="h-4 w-28 bg-white/5 ml-auto" /></td>
+                        <td className="py-2 pr-4"><Skeleton className="h-4 w-28 bg-white/5 ml-auto" /></td>
+                        <td className="py-2"><Skeleton className="h-4 w-20 bg-white/5 ml-auto" /></td>
+                      </tr>
+                    ))
+                  : (
+                    <>
                 {loginSessions.map((s) => (
                   <tr key={s.session_id} className="border-b border-white/5 hover:bg-white/5">
                     <td className="py-2 pr-4 text-white/70 truncate max-w-[200px]">{s.email ?? '—'}</td>
@@ -971,6 +1026,9 @@ export default function AdminDashboard() {
                     <td colSpan={4} className="py-4 text-white/40 text-center">{t('admin.loginSessions.empty')}</td>
                   </tr>
                 )}
+                    </>
+                  )
+                }
               </tbody>
             </table>
           </div>

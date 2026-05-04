@@ -827,9 +827,11 @@ export default {
       grossMarginLabel: 'Валовая маржа',
       grossMarginFormula: 'выручка − инфраструктура/поддержка',
       trialConversionLabel: 'Конверсия из пробных',
-      trialConversionFormula: 'платящие / пробные',
-      churnLabel: 'Отток',
+      trialConversionFormula: 'платящие / (платящие + пробные)',
+      churnLabel: 'Показатель оттока (исторический)',
       churnFormula: 'отменили / (платят + отменили)',
+      arpuLabel: 'ARPU',
+      arpuFormula: 'MRR / платящие пользователи',
     },
     userActivity: {
       listTitle: 'Все пользователи',
