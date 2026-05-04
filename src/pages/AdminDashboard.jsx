@@ -108,14 +108,14 @@ export default function AdminDashboard() {
 
   const { data: allAccounts = [] } = useQuery({
     queryKey: ['admin-all-accounts'],
-    queryFn: marketingService.getAllAccounts,
+    queryFn: () => marketingService.getAllAccounts(),
     staleTime: 5 * 60 * 1000,
     refetchOnWindowFocus: false,
   });
 
   const { data: loginSessions = [] } = useQuery({
     queryKey: ['admin-login-sessions'],
-    queryFn: marketingService.getLoginSessions,
+    queryFn: () => marketingService.getLoginSessions(),
     staleTime: 5 * 60 * 1000,
     refetchOnWindowFocus: false,
   });
