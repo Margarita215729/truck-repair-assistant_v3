@@ -831,7 +831,7 @@ export default {
       churnLabel: 'Churn Rate (historical)',
       churnFormula: 'canceled / (paying + canceled)',
       arpuLabel: 'ARPU',
-      arpuFormula: 'MRR / paying users',,
+      arpuFormula: 'MRR / paying users',
     },
     userActivity: {
       listTitle: 'All Users',
