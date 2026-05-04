@@ -719,7 +719,8 @@ export default {
     metrics: {
       wau: 'WAU (7д)',
       mau: 'MAU (30д)',
-      paid: 'Платные конверсии (7д)',
+      paid: 'Платящие пользователи',
+      new7d: 'Новых (7д)',
       delta: 'Изменение',
     },
     sections: {

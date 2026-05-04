@@ -476,8 +476,8 @@ export default function AdminDashboard() {
               </Card>
               <Card className="p-4 bg-white/5 border-white/10">
                 <p className="text-white/50 text-sm">{t('admin.metrics.paid')}</p>
-                <p className="text-3xl text-white font-bold mt-2">{analytics.paid7}</p>
-                <p className="text-xs text-white/40 mt-1">CR: {pct(analytics.paidCr)}</p>
+                <p className="text-3xl text-white font-bold mt-2">{subStats?.paying ?? 0}</p>
+                <p className="text-xs text-white/40 mt-1">{t('admin.metrics.new7d')}: {analytics.paid7} · CR: {pct(analytics.paidCr)}</p>
               </Card>
             </div>
           )}

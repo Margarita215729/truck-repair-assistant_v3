@@ -719,7 +719,8 @@ export default {
     metrics: {
       wau: 'WAU (7d)',
       mau: 'MAU (30d)',
-      paid: 'Paid Conversions (7d)',
+      paid: 'Paying Users',
+      new7d: 'New (7d)',
       delta: 'Delta',
     },
     sections: {
