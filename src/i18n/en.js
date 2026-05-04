@@ -840,6 +840,23 @@ export default {
       empty: 'No user activity recorded yet.',
       noEvents: 'No events found for this user.',
     },
+    accounts: {
+      listTitle: 'All Accounts',
+      colEmail: 'Email',
+      colPlan: 'Plan',
+      colStatus: 'Status',
+      colLastSignIn: 'Last sign-in',
+      colSignedUp: 'Signed up',
+      empty: 'No accounts found.',
+    },
+    loginSessions: {
+      listTitle: 'Login Sessions',
+      colEmail: 'Email',
+      colSignedIn: 'Signed in',
+      colRefreshed: 'Last active',
+      colIp: 'IP',
+      empty: 'No sessions recorded.',
+    },
   },
 
   // ─── Guidance ───

@@ -175,4 +175,18 @@ export const marketingService = {
     if (error) throw new Error(error.message);
     return data || [];
   },
+
+  async getAllAccounts(limit = 500) {
+    ensureClient();
+    const { data, error } = await supabase.rpc('get_all_accounts', { p_limit: limit });
+    if (error) throw new Error(error.message);
+    return data || [];
+  },
+
+  async getLoginSessions(limit = 200) {
+    ensureClient();
+    const { data, error } = await supabase.rpc('get_login_sessions', { p_limit: limit });
+    if (error) throw new Error(error.message);
+    return data || [];
+  },
 };
