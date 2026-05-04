@@ -82,6 +82,8 @@ vi.mock('@/services/marketingService', () => ({
     getSubscriptionStats: vi.fn().mockResolvedValue({ paying: 0, trialing: 0, free_plan: 0, canceled: 0, past_due: 0 }),
     getUserActivitySummary: vi.fn().mockResolvedValue([]),
     getUserEvents: vi.fn().mockResolvedValue([]),
+    getAllAccounts: vi.fn().mockResolvedValue([]),
+    getLoginSessions: vi.fn().mockResolvedValue([]),
     listStrategies: vi.fn().mockResolvedValue([]),
     listSegments: vi.fn().mockResolvedValue([]),
     listCampaigns: vi.fn().mockResolvedValue([]),
@@ -107,6 +109,19 @@ function setup(mockOverrides = {}) {
       data: [
         { user_id: 'uid-1', email: 'alice@example.com', event_count: 42, last_active: '2025-01-15T10:00:00Z' },
         { user_id: 'uid-2', email: null, event_count: 3, last_active: null },
+      ],
+      isLoading: false,
+    },
+    'admin-all-accounts': {
+      data: [
+        { user_id: 'uid-1', email: 'alice@example.com', plan: 'pro', sub_status: 'active', last_sign_in: '2025-01-15T10:00:00Z', signed_up_at: '2025-01-01T00:00:00Z' },
+        { user_id: 'uid-3', email: 'bob@example.com', plan: 'none', sub_status: 'none', last_sign_in: null, signed_up_at: '2025-01-02T00:00:00Z' },
+      ],
+      isLoading: false,
+    },
+    'admin-login-sessions': {
+      data: [
+        { session_id: 'sess-1', user_id: 'uid-1', email: 'alice@example.com', signed_in_at: '2025-01-15T10:00:00Z', refreshed_at: '2025-01-15T11:00:00Z', ip: '1.2.3.4' },
       ],
       isLoading: false,
     },
@@ -217,7 +232,7 @@ describe('AdminDashboard', () => {
     it('renders user rows with email and event count', () => {
       setup();
       clickTab('admin.tabs.users');
-      expect(screen.getByText('alice@example.com')).toBeTruthy();
+      expect(screen.getAllByText('alice@example.com').length).toBeGreaterThan(0);
       expect(screen.getByText('42')).toBeTruthy();
     });
 
@@ -250,6 +265,8 @@ describe('AdminDashboard', () => {
           isLoading: false,
         },
         'user-events': { data: [], isFetching: false },
+        'admin-all-accounts': { data: [], isLoading: false },
+        'admin-login-sessions': { data: [], isLoading: false },
         'marketing-strategies': { data: [], isLoading: false },
         'marketing-segments': { data: [], isLoading: false },
         'marketing-campaigns': { data: [], isLoading: false },
@@ -284,6 +301,47 @@ describe('AdminDashboard', () => {
       // No spend entered → CAC = 0 → $0.00 may appear multiple times (CAC, LTV, etc.)
       const matches = screen.getAllByText('$0.00');
       expect(matches.length).toBeGreaterThan(0);
+    });
+  });
+
+  describe('All Accounts section', () => {
+    it('renders All Accounts table heading on Users tab', () => {
+      setup();
+      clickTab('admin.tabs.users');
+      expect(screen.getByText('admin.accounts.listTitle')).toBeTruthy();
+    });
+
+    it('renders account rows with email and plan', () => {
+      setup();
+      clickTab('admin.tabs.users');
+      expect(screen.getAllByText('alice@example.com').length).toBeGreaterThan(0);
+      expect(screen.getByText('bob@example.com')).toBeTruthy();
+    });
+
+    it('renders empty message when no accounts', () => {
+      setup({ 'admin-all-accounts': { data: [], isLoading: false } });
+      clickTab('admin.tabs.users');
+      expect(screen.getByText('admin.accounts.empty')).toBeTruthy();
+    });
+  });
+
+  describe('Login Sessions section', () => {
+    it('renders Login Sessions table heading on Users tab', () => {
+      setup();
+      clickTab('admin.tabs.users');
+      expect(screen.getByText('admin.loginSessions.listTitle')).toBeTruthy();
+    });
+
+    it('renders session row with email and IP', () => {
+      setup();
+      clickTab('admin.tabs.users');
+      expect(screen.getByText('1.2.3.4')).toBeTruthy();
+    });
+
+    it('renders empty message when no sessions', () => {
+      setup({ 'admin-login-sessions': { data: [], isLoading: false } });
+      clickTab('admin.tabs.users');
+      expect(screen.getByText('admin.loginSessions.empty')).toBeTruthy();
     });
   });
 });

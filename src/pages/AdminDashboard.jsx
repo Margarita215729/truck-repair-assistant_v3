@@ -106,6 +106,20 @@ export default function AdminDashboard() {
     refetchOnWindowFocus: false,
   });
 
+  const { data: allAccounts = [] } = useQuery({
+    queryKey: ['admin-all-accounts'],
+    queryFn: marketingService.getAllAccounts,
+    staleTime: 5 * 60 * 1000,
+    refetchOnWindowFocus: false,
+  });
+
+  const { data: loginSessions = [] } = useQuery({
+    queryKey: ['admin-login-sessions'],
+    queryFn: marketingService.getLoginSessions,
+    staleTime: 5 * 60 * 1000,
+    refetchOnWindowFocus: false,
+  });
+
   const { data: userEvents = [], isFetching: userEventsFetching } = useQuery({
     queryKey: ['user-events', selectedUserId],
     queryFn: () => marketingService.getUserEvents(selectedUserId),
@@ -790,6 +804,7 @@ export default function AdminDashboard() {
 
       {/* ─── User Activity tab ──────────────────────────────── */}
       {activeTab === 'users' && (
+        <>
         <div className="grid lg:grid-cols-2 gap-6">
           <Card className="p-4 bg-white/5 border-white/10">
             <h3 className="text-white font-semibold mb-3">{t('admin.userActivity.listTitle')}</h3>
@@ -874,6 +889,93 @@ export default function AdminDashboard() {
             )}
           </Card>
         </div>
+
+        {/* ── All Accounts ── */}
+        <Card className="p-4 bg-white/5 border-white/10">
+          <h3 className="text-white font-semibold mb-3">{t('admin.accounts.listTitle')}</h3>
+          <div className="overflow-auto max-h-[400px]">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="text-white/40 text-left border-b border-white/10">
+                  <th className="pb-2 pr-4">{t('admin.accounts.colEmail')}</th>
+                  <th className="pb-2 pr-4">{t('admin.accounts.colPlan')}</th>
+                  <th className="pb-2 pr-4">{t('admin.accounts.colStatus')}</th>
+                  <th className="pb-2 pr-4 text-right">{t('admin.accounts.colLastSignIn')}</th>
+                  <th className="pb-2 text-right">{t('admin.accounts.colSignedUp')}</th>
+                </tr>
+              </thead>
+              <tbody>
+                {allAccounts.map((a) => (
+                  <tr key={a.user_id} className="border-b border-white/5 hover:bg-white/5">
+                    <td className="py-2 pr-4 text-white/70 truncate max-w-[200px]">{a.email ?? '—'}</td>
+                    <td className="py-2 pr-4">
+                      <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${
+                        a.plan === 'lifetime' ? 'bg-yellow-500/20 text-yellow-300' :
+                        a.plan === 'pro' ? 'bg-brand-orange/20 text-brand-orange' :
+                        'bg-white/10 text-white/50'
+                      }`}>{a.plan}</span>
+                    </td>
+                    <td className="py-2 pr-4">
+                      <span className={`text-xs px-2 py-0.5 rounded-full ${
+                        a.sub_status === 'active' ? 'bg-green-500/20 text-green-300' :
+                        a.sub_status === 'trialing' ? 'bg-blue-500/20 text-blue-300' :
+                        'bg-white/10 text-white/40'
+                      }`}>{a.sub_status}</span>
+                    </td>
+                    <td className="py-2 pr-4 text-white/40 text-right whitespace-nowrap">
+                      {a.last_sign_in ? new Date(a.last_sign_in).toLocaleDateString() : '—'}
+                    </td>
+                    <td className="py-2 text-white/40 text-right whitespace-nowrap">
+                      {a.signed_up_at ? new Date(a.signed_up_at).toLocaleDateString() : '—'}
+                    </td>
+                  </tr>
+                ))}
+                {allAccounts.length === 0 && (
+                  <tr>
+                    <td colSpan={5} className="py-4 text-white/40 text-center">{t('admin.accounts.empty')}</td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+        </Card>
+
+        {/* ── Login Sessions ── */}
+        <Card className="p-4 bg-white/5 border-white/10">
+          <h3 className="text-white font-semibold mb-3">{t('admin.loginSessions.listTitle')}</h3>
+          <div className="overflow-auto max-h-[400px]">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="text-white/40 text-left border-b border-white/10">
+                  <th className="pb-2 pr-4">{t('admin.loginSessions.colEmail')}</th>
+                  <th className="pb-2 pr-4 text-right">{t('admin.loginSessions.colSignedIn')}</th>
+                  <th className="pb-2 pr-4 text-right">{t('admin.loginSessions.colRefreshed')}</th>
+                  <th className="pb-2 text-right">{t('admin.loginSessions.colIp')}</th>
+                </tr>
+              </thead>
+              <tbody>
+                {loginSessions.map((s) => (
+                  <tr key={s.session_id} className="border-b border-white/5 hover:bg-white/5">
+                    <td className="py-2 pr-4 text-white/70 truncate max-w-[200px]">{s.email ?? '—'}</td>
+                    <td className="py-2 pr-4 text-white/40 text-right whitespace-nowrap">
+                      {s.signed_in_at ? new Date(s.signed_in_at).toLocaleString() : '—'}
+                    </td>
+                    <td className="py-2 pr-4 text-white/40 text-right whitespace-nowrap">
+                      {s.refreshed_at ? new Date(s.refreshed_at).toLocaleString() : '—'}
+                    </td>
+                    <td className="py-2 text-white/30 text-right">{s.ip ?? '—'}</td>
+                  </tr>
+                ))}
+                {loginSessions.length === 0 && (
+                  <tr>
+                    <td colSpan={4} className="py-4 text-white/40 text-center">{t('admin.loginSessions.empty')}</td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+        </Card>
+        </>
       )}
     </div>
   );
