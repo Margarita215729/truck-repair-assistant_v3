@@ -840,6 +840,23 @@ export default {
       empty: 'Активность пользователей пока не зафиксирована.',
       noEvents: 'Событий для этого пользователя не найдено.',
     },
+    accounts: {
+      listTitle: 'Все аккаунты',
+      colEmail: 'Email',
+      colPlan: 'Тариф',
+      colStatus: 'Статус',
+      colLastSignIn: 'Последний вход',
+      colSignedUp: 'Дата регистрации',
+      empty: 'Аккаунты не найдены.',
+    },
+    loginSessions: {
+      listTitle: 'Сессии входов',
+      colEmail: 'Email',
+      colSignedIn: 'Вход',
+      colRefreshed: 'Последняя активность',
+      colIp: 'IP',
+      empty: 'Сессии не зафиксированы.',
+    },
   },
 
   // ─── Руководство по ремонту ───
