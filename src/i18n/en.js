@@ -74,6 +74,8 @@ export default {
     checkYourEmail: 'Check Your Email',
     checkEmailDesc: 'We sent a confirmation link to your email. Please check your inbox and click the link to activate your account.',
     backToSignIn: 'Back to Sign In',
+    backToHome: 'Back to Home',
+    continueAsGuest: 'Continue as Guest',
     forgotPassword: 'Forgot Password',
     forgotPasswordDesc: 'Enter your email and we\'ll send you a link to reset your password.',
     sendResetLink: 'Send Reset Link',

@@ -74,6 +74,8 @@ export default {
     checkYourEmail: 'Проверьте почту',
     checkEmailDesc: 'Мы отправили ссылку для подтверждения на вашу почту. Проверьте входящие и нажмите на ссылку для активации аккаунта.',
     backToSignIn: 'Вернуться ко входу',
+    backToHome: 'На главную',
+    continueAsGuest: 'Продолжить без входа',
     forgotPassword: 'Забыли пароль',
     forgotPasswordDesc: 'Введите email и мы отправим вам ссылку для сброса пароля.',
     sendResetLink: 'Отправить ссылку',

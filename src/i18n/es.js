@@ -74,6 +74,8 @@ export default {
     checkYourEmail: 'Revisa tu correo',
     checkEmailDesc: 'Te enviamos un enlace de confirmación por correo. Revisa tu bandeja de entrada y haz clic para activar tu cuenta.',
     backToSignIn: 'Volver a iniciar sesión',
+    backToHome: 'Volver al inicio',
+    continueAsGuest: 'Continuar sin iniciar sesión',
     forgotPassword: 'Olvidé mi contraseña',
     forgotPasswordDesc: 'Ingresa tu correo y te enviaremos un enlace para restablecer tu contraseña.',
     sendResetLink: 'Enviar enlace de restablecimiento',

@@ -106,8 +106,15 @@ export default function LoginPage({ onLogin }) {
       </div>
 
       <div className="w-full max-w-md relative z-10">
-        {/* Language Switcher */}
-        <div className="flex justify-end mb-4">
+        {/* Header with Back button and Language Switcher */}
+        <div className="flex justify-between items-center mb-4">
+          <button
+            onClick={() => navigate('/')}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white/5 border border-white/10 text-white/60 hover:text-white hover:bg-white/10 transition-all text-sm"
+          >
+            <ArrowLeft className="w-4 h-4" />
+            <span className="hidden sm:inline">{t('login.backToHome')}</span>
+          </button>
           <div className="flex items-center gap-1 px-2 py-1 rounded-lg bg-white/5 border border-white/10">
             <Globe className="w-4 h-4 text-white/60" />
             {['en', 'ru', 'es'].map((code) => (
