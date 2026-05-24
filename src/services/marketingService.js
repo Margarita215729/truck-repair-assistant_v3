@@ -154,7 +154,7 @@ export const marketingService = {
     ensureClient();
     const { data, error } = await supabase.rpc('get_subscription_stats');
     if (error) throw new Error(error.message);
-    return data?.[0] ?? { paying: 0, trialing: 0, free_plan: 0, canceled: 0, past_due: 0 };
+    return data?.[0] ?? { ever_paid: 0, active_paid: 0, paid_last_30d: 0, trialing: 0, free_plan: 0, canceled: 0, past_due: 0 };
   },
 
   async getUserActivitySummary() {

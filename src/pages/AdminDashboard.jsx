@@ -343,9 +343,11 @@ export default function AdminDashboard() {
   }, [events]);
 
   const businessMetrics = useMemo(() => {
-    const paying   = subStats?.paying    ?? 0;
-    const trialing = subStats?.trialing  ?? 0;
-    const canceled = subStats?.canceled  ?? 0;
+    const paying      = subStats?.active_paid   ?? 0;
+    const everPaid    = subStats?.ever_paid     ?? 0;
+    const paidLast30d = subStats?.paid_last_30d ?? 0;
+    const trialing    = subStats?.trialing      ?? 0;
+    const canceled    = subStats?.canceled      ?? 0;
 
     const monthlyPrice = parseFloat(bizInputs.monthlyPrice) || 0;
     const spend        = parseFloat(bizInputs.marketingSpend) || 0;
@@ -365,7 +367,7 @@ export default function AdminDashboard() {
     const trialConversion = (paying + trialing) > 0 ? paying / (paying + trialing) : 0;
     const churn           = monthlyChurn;
 
-    return { mrr, cac, ltv, payback, grossMargin, grossMarginPct, trialConversion, churn, paying, trialing, canceled, arpu };
+    return { mrr, cac, ltv, payback, grossMargin, grossMarginPct, trialConversion, churn, paying, everPaid, paidLast30d, trialing, canceled, arpu };
   }, [bizInputs, subStats]);
 
   const submitStrategy = (e) => {
@@ -490,7 +492,7 @@ export default function AdminDashboard() {
               </Card>
               <Card className="p-4 bg-white/5 border-white/10">
                 <p className="text-white/50 text-sm">{t('admin.metrics.paid')}</p>
-                <p className="text-3xl text-white font-bold mt-2">{subStats?.paying ?? 0}</p>
+                <p className="text-3xl text-white font-bold mt-2">{subStats?.active_paid ?? 0}</p>
                 <p className="text-xs text-white/40 mt-1">{t('admin.metrics.new7d')}: {analytics.paid7} · CR: {pct(analytics.paidCr)}</p>
               </Card>
             </div>
@@ -750,10 +752,21 @@ export default function AdminDashboard() {
           </Card>
 
           {/* Subscription counts */}
-          <div className="grid sm:grid-cols-3 gap-4">
+          <div className="grid sm:grid-cols-2 lg:grid-cols-5 gap-4">
             <Card className="p-4 bg-white/5 border-white/10">
-              <p className="text-white/50 text-sm">{t('admin.bizMetrics.payingUsers')}</p>
+              <p className="text-white/50 text-sm">{t('admin.bizMetrics.everPaidUsers')}</p>
+              <p className="text-3xl text-white font-bold mt-2">{businessMetrics.everPaid}</p>
+              <p className="text-xs text-white/40 mt-1">{t('admin.bizMetrics.everPaidHint')}</p>
+            </Card>
+            <Card className="p-4 bg-white/5 border-white/10">
+              <p className="text-white/50 text-sm">{t('admin.bizMetrics.activePaidUsers')}</p>
               <p className="text-3xl text-white font-bold mt-2">{businessMetrics.paying}</p>
+              <p className="text-xs text-white/40 mt-1">{t('admin.bizMetrics.activePaidHint')}</p>
+            </Card>
+            <Card className="p-4 bg-white/5 border-white/10">
+              <p className="text-white/50 text-sm">{t('admin.bizMetrics.paidLast30dUsers')}</p>
+              <p className="text-3xl text-white font-bold mt-2">{businessMetrics.paidLast30d}</p>
+              <p className="text-xs text-white/40 mt-1">{t('admin.bizMetrics.paidLast30dHint')}</p>
             </Card>
             <Card className="p-4 bg-white/5 border-white/10">
               <p className="text-white/50 text-sm">{t('admin.bizMetrics.trialingUsers')}</p>
