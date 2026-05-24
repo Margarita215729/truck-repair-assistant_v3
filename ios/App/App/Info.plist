@@ -45,5 +45,15 @@
 	</array>
 	<key>UIViewControllerBasedStatusBarAppearance</key>
 	<true/>
+	<key>NSLocationWhenInUseUsageDescription</key>
+	<string>We need your location to help you find nearby repair shops, mobile mechanics, and parts suppliers when you use the Service Finder feature.</string>
+	<key>NSCameraUsageDescription</key>
+	<string>We need camera access so you can photograph dashboard warnings, fault codes, and truck parts for AI-powered visual diagnosis.</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>We need access to your photo library so you can upload images of your truck, parts, or diagnostic screens for AI analysis.</string>
+	<key>NSPhotoLibraryAddUsageDescription</key>
+	<string>We need permission to save diagnostic photos and repair documentation to your photo library.</string>
+	<key>ITSAppUsesNonExemptEncryption</key>
+	<false/>
 </dict>
 </plist>
