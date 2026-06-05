@@ -28,8 +28,111 @@ const funnelSteps = [
   { key: 'checkout_completed', label: 'Paid Conversion' },
 ];
 
+// Lifecycle transitions exposed per entity. Each entry maps a current status to
+// the list of [nextStatus, i18nLabelKey] actions available from that status.
+const STATUS_FLOWS = {
+  strategy: {
+    draft: [['active', 'admin.actions.activate']],
+    active: [['paused', 'admin.actions.pause'], ['completed', 'admin.actions.complete']],
+    paused: [['active', 'admin.actions.resume'], ['completed', 'admin.actions.complete']],
+    completed: [['draft', 'admin.actions.reopen']],
+  },
+  segment: {
+    active: [['archived', 'admin.actions.archive']],
+    archived: [['active', 'admin.actions.activate']],
+  },
+  campaign: {
+    draft: [['scheduled', 'admin.actions.schedule'], ['running', 'admin.actions.launch']],
+    scheduled: [['running', 'admin.actions.launch'], ['draft', 'admin.actions.unschedule']],
+    running: [['paused', 'admin.actions.pause'], ['completed', 'admin.actions.complete']],
+    paused: [['running', 'admin.actions.resume'], ['completed', 'admin.actions.complete']],
+    completed: [],
+  },
+  experiment: {
+    draft: [['running', 'admin.actions.start']],
+    running: [['completed', 'admin.actions.complete'], ['stopped', 'admin.actions.stop']],
+    completed: [],
+    stopped: [['running', 'admin.actions.start']],
+  },
+  alert: {
+    active: [['muted', 'admin.actions.mute']],
+    muted: [['active', 'admin.actions.unmute']],
+  },
+};
+
+// Supported metric keys for alert rules — these are the keys the
+// evaluate_marketing_alerts() RPC knows how to resolve against live data.
+const ALERT_METRIC_KEYS = [
+  'active_users',
+  'new_users',
+  'paid_conversions',
+  'checkout_conversion_rate',
+  'signups',
+  'events_total',
+  'active_subscribers',
+  'churn_rate',
+  'd1_retention',
+  'd7_retention',
+  'd30_retention',
+];
+
+const STATUS_BADGE_CLASSES = {
+  draft: 'bg-white/10 text-white/60',
+  active: 'bg-green-500/20 text-green-300',
+  scheduled: 'bg-blue-500/20 text-blue-300',
+  running: 'bg-green-500/20 text-green-300',
+  paused: 'bg-yellow-500/20 text-yellow-300',
+  completed: 'bg-purple-500/20 text-purple-300',
+  stopped: 'bg-red-500/20 text-red-300',
+  archived: 'bg-white/10 text-white/40',
+  muted: 'bg-white/10 text-white/40',
+};
+
 function pct(value) {
   return `${value.toFixed(1)}%`;
+}
+
+function StatusBadge({ status }) {
+  if (!status) return null;
+  const cls = STATUS_BADGE_CLASSES[status] || 'bg-white/10 text-white/50';
+  return (
+    <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${cls}`}>{status}</span>
+  );
+}
+
+// Two-step delete confirmation — no portals so it is deterministic to test.
+function ConfirmDeleteButton({ onConfirm, disabled, t }) {
+  const [armed, setArmed] = useState(false);
+  if (!armed) {
+    return (
+      <Button
+        variant="outline"
+        onClick={() => setArmed(true)}
+        disabled={disabled}
+        className="h-7 px-2 text-xs border-red-500/30 text-red-300 hover:bg-red-500/10"
+      >
+        {t('admin.actions.delete')}
+      </Button>
+    );
+  }
+  return (
+    <span className="inline-flex gap-1">
+      <Button
+        onClick={() => { setArmed(false); onConfirm(); }}
+        disabled={disabled}
+        className="h-7 px-2 text-xs bg-red-600 hover:bg-red-700 text-white border-0"
+      >
+        {t('admin.actions.confirmDelete')}
+      </Button>
+      <Button
+        variant="outline"
+        onClick={() => setArmed(false)}
+        className="h-7 px-2 text-xs border-white/20 text-white/60"
+      >
+        {t('admin.actions.cancel')}
+      </Button>
+    </span>
+  );
 }
 
 export default function AdminDashboard() {
@@ -84,6 +187,8 @@ export default function AdminDashboard() {
   });
 
   const [selectedUserId, setSelectedUserId] = useState(null);
+  const [accountSearch, setAccountSearch] = useState('');
+  const [alertEval, setAlertEval] = useState({});
 
   const { data: events = [], isLoading: eventsLoading } = useQuery({
     queryKey: ['marketing-events-recent'],
@@ -222,6 +327,113 @@ export default function AdminDashboard() {
     },
     onError: (e) => toast.error(e.message || t('admin.toast.alertCreateFailed')),
   });
+
+  // Generic mutation for lifecycle status changes and deletions across all
+  // marketing entities. The caller supplies the async runner, the query keys to
+  // invalidate and the success message key.
+  const actionMutation = useMutation({
+    mutationFn: ({ run }) => run(),
+    onSuccess: (_data, vars) => {
+      if (vars.successKey) toast.success(t(vars.successKey));
+      (vars.invalidate || []).forEach((key) =>
+        queryClient.invalidateQueries({ queryKey: [key] }),
+      );
+    },
+    onError: (e, vars) => toast.error(e?.message || t(vars?.failKey || 'admin.toast.actionFailed')),
+  });
+
+  const evaluateAlertsMutation = useMutation({
+    mutationFn: marketingService.evaluateAlerts,
+    onSuccess: (rows) => {
+      const map = {};
+      (rows || []).forEach((r) => { map[r.id] = r; });
+      setAlertEval(map);
+      queryClient.invalidateQueries({ queryKey: ['marketing-alerts'] });
+      const breaches = (rows || []).filter((r) => r.breached && r.status === 'active').length;
+      toast.success(t('admin.toast.alertsEvaluated', { count: breaches }));
+    },
+    onError: (e) => toast.error(e?.message || t('admin.toast.actionFailed')),
+  });
+
+  const refreshSizesMutation = useMutation({
+    mutationFn: marketingService.refreshSegmentSizes,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['marketing-segments'] });
+      toast.success(t('admin.toast.sizesRefreshed'));
+    },
+    onError: (e) => toast.error(e?.message || t('admin.toast.actionFailed')),
+  });
+
+  const ENTITY_CFG = {
+    strategy: {
+      update: marketingService.updateStrategy,
+      remove: marketingService.deleteStrategy,
+      key: 'marketing-strategies',
+      updatedKey: 'admin.toast.strategyUpdated',
+      deletedKey: 'admin.toast.strategyDeleted',
+    },
+    segment: {
+      update: marketingService.updateSegment,
+      remove: marketingService.deleteSegment,
+      key: 'marketing-segments',
+      updatedKey: 'admin.toast.segmentUpdated',
+      deletedKey: 'admin.toast.segmentDeleted',
+    },
+    campaign: {
+      update: marketingService.updateCampaign,
+      remove: marketingService.deleteCampaign,
+      key: 'marketing-campaigns',
+      updatedKey: 'admin.toast.campaignUpdated',
+      deletedKey: 'admin.toast.campaignDeleted',
+    },
+    experiment: {
+      update: marketingService.updateExperiment,
+      remove: marketingService.deleteExperiment,
+      key: 'marketing-experiments',
+      updatedKey: 'admin.toast.experimentUpdated',
+      deletedKey: 'admin.toast.experimentDeleted',
+    },
+    alert: {
+      update: marketingService.updateAlert,
+      remove: marketingService.deleteAlert,
+      key: 'marketing-alerts',
+      updatedKey: 'admin.toast.alertUpdated',
+      deletedKey: 'admin.toast.alertDeleted',
+    },
+  };
+
+  const changeStatus = (kind, id, status) => {
+    const cfg = ENTITY_CFG[kind];
+    actionMutation.mutate({
+      run: () => cfg.update(id, { status }),
+      invalidate: [cfg.key],
+      successKey: cfg.updatedKey,
+    });
+  };
+
+  const removeEntity = (kind, id) => {
+    const cfg = ENTITY_CFG[kind];
+    actionMutation.mutate({
+      run: () => cfg.remove(id),
+      invalidate: [cfg.key],
+      successKey: cfg.deletedKey,
+    });
+  };
+
+  const renderStatusActions = (kind, item) => {
+    const flow = STATUS_FLOWS[kind]?.[item.status] || [];
+    return flow.map(([nextStatus, labelKey]) => (
+      <Button
+        key={nextStatus}
+        variant="outline"
+        onClick={() => changeStatus(kind, item.id, nextStatus)}
+        disabled={actionMutation.isPending}
+        className="h-7 px-2 text-xs border-white/20 text-white/70 hover:bg-white/10"
+      >
+        {t(labelKey)}
+      </Button>
+    ));
+  };
 
   const analytics = useMemo(() => {
     const now = Date.now();
@@ -369,6 +581,16 @@ export default function AdminDashboard() {
 
     return { mrr, cac, ltv, payback, grossMargin, grossMarginPct, trialConversion, churn, paying, everPaid, paidLast30d, trialing, canceled, arpu };
   }, [bizInputs, subStats]);
+
+  const filteredAccounts = useMemo(() => {
+    const q = accountSearch.trim().toLowerCase();
+    if (!q) return allAccounts;
+    return allAccounts.filter((a) =>
+      (a.email || '').toLowerCase().includes(q) ||
+      (a.plan || '').toLowerCase().includes(q) ||
+      (a.sub_status || '').toLowerCase().includes(q),
+    );
+  }, [allAccounts, accountSearch]);
 
   const submitStrategy = (e) => {
     e.preventDefault();
@@ -565,9 +787,18 @@ export default function AdminDashboard() {
             <div className="space-y-2 max-h-[420px] overflow-auto">
               {strategies.map((s) => (
                 <div key={s.id} className="p-3 rounded-lg bg-white/5 border border-white/10">
-                  <p className="text-white font-medium">{s.name}</p>
+                  <div className="flex items-start justify-between gap-2">
+                    <p className="text-white font-medium">{s.name}</p>
+                    <StatusBadge status={s.status} />
+                  </div>
                   <p className="text-xs text-white/50 mt-1">{s.objective}</p>
-                  <p className="text-xs text-white/40 mt-1">{t('admin.labels.status')}: {s.status}</p>
+                  {s.north_star_metric && (
+                    <p className="text-xs text-white/40 mt-1">{t('admin.fields.northStarMetric')}: {s.north_star_metric}</p>
+                  )}
+                  <div className="flex flex-wrap gap-1 mt-2">
+                    {renderStatusActions('strategy', s)}
+                    <ConfirmDeleteButton t={t} disabled={actionMutation.isPending} onConfirm={() => removeEntity('strategy', s.id)} />
+                  </div>
                 </div>
               ))}
               {strategies.length === 0 && <p className="text-white/50 text-sm">{t('admin.empty.strategies')}</p>}
@@ -590,12 +821,32 @@ export default function AdminDashboard() {
           </Card>
 
           <Card className="p-4 bg-white/5 border-white/10">
-            <h3 className="text-white font-semibold mb-3">{t('admin.segments.listTitle')}</h3>
+            <div className="flex items-center justify-between mb-3">
+              <h3 className="text-white font-semibold">{t('admin.segments.listTitle')}</h3>
+              <Button
+                variant="outline"
+                onClick={() => refreshSizesMutation.mutate()}
+                disabled={refreshSizesMutation.isPending}
+                className="h-8 px-3 text-xs border-white/20 text-white/70 hover:bg-white/10"
+              >
+                {t('admin.actions.recalcSizes')}
+              </Button>
+            </div>
             <div className="space-y-2 max-h-[420px] overflow-auto">
               {segments.map((s) => (
                 <div key={s.id} className="p-3 rounded-lg bg-white/5 border border-white/10">
-                  <p className="text-white font-medium">{s.name}</p>
+                  <div className="flex items-start justify-between gap-2">
+                    <p className="text-white font-medium">{s.name}</p>
+                    <StatusBadge status={s.status} />
+                  </div>
                   <p className="text-xs text-white/50 mt-1">{s.description || t('admin.empty.noDescription')}</p>
+                  <p className="text-xs text-white/40 mt-1">
+                    {t('admin.segments.sizeLabel')}: {Number.isFinite(s.estimated_size) ? s.estimated_size : '—'}
+                  </p>
+                  <div className="flex flex-wrap gap-1 mt-2">
+                    {renderStatusActions('segment', s)}
+                    <ConfirmDeleteButton t={t} disabled={actionMutation.isPending} onConfirm={() => removeEntity('segment', s.id)} />
+                  </div>
                 </div>
               ))}
               {segments.length === 0 && <p className="text-white/50 text-sm">{t('admin.empty.segments')}</p>}
@@ -631,9 +882,18 @@ export default function AdminDashboard() {
             <div className="space-y-2 max-h-[420px] overflow-auto">
               {campaigns.map((c) => (
                 <div key={c.id} className="p-3 rounded-lg bg-white/5 border border-white/10">
-                  <p className="text-white font-medium">{c.name}</p>
+                  <div className="flex items-start justify-between gap-2">
+                    <p className="text-white font-medium">{c.name}</p>
+                    <StatusBadge status={c.status} />
+                  </div>
                   <p className="text-xs text-white/50 mt-1">{t('admin.labels.channel')}: {c.channel}</p>
-                  <p className="text-xs text-white/40 mt-1">{t('admin.labels.status')}: {c.status}</p>
+                  {c.trigger_event && (
+                    <p className="text-xs text-white/40 mt-1">{t('admin.fields.triggerEvent')}: {c.trigger_event}</p>
+                  )}
+                  <div className="flex flex-wrap gap-1 mt-2">
+                    {renderStatusActions('campaign', c)}
+                    <ConfirmDeleteButton t={t} disabled={actionMutation.isPending} onConfirm={() => removeEntity('campaign', c.id)} />
+                  </div>
                 </div>
               ))}
               {campaigns.length === 0 && <p className="text-white/50 text-sm">{t('admin.empty.campaigns')}</p>}
@@ -664,9 +924,15 @@ export default function AdminDashboard() {
             <div className="space-y-2 max-h-[420px] overflow-auto">
               {experiments.map((x) => (
                 <div key={x.id} className="p-3 rounded-lg bg-white/5 border border-white/10">
-                  <p className="text-white font-medium">{x.hypothesis}</p>
+                  <div className="flex items-start justify-between gap-2">
+                    <p className="text-white font-medium">{x.hypothesis}</p>
+                    <StatusBadge status={x.status} />
+                  </div>
                   <p className="text-xs text-white/50 mt-1">{t('admin.labels.metric')}: {x.success_metric}</p>
-                  <p className="text-xs text-white/40 mt-1">{t('admin.labels.status')}: {x.status}</p>
+                  <div className="flex flex-wrap gap-1 mt-2">
+                    {renderStatusActions('experiment', x)}
+                    <ConfirmDeleteButton t={t} disabled={actionMutation.isPending} onConfirm={() => removeEntity('experiment', x.id)} />
+                  </div>
                 </div>
               ))}
               {experiments.length === 0 && <p className="text-white/50 text-sm">{t('admin.empty.experiments')}</p>}
@@ -681,7 +947,11 @@ export default function AdminDashboard() {
             <h3 className="text-white font-semibold mb-3">{t('admin.alerts.createTitle')}</h3>
             <form onSubmit={submitAlert} className="space-y-3">
               <Input placeholder={t('admin.fields.ruleName')} value={alertForm.name} onChange={(e) => setAlertForm((p) => ({ ...p, name: e.target.value }))} className="bg-white/5 border-white/10 text-white" required />
-              <Input placeholder={t('admin.fields.metricKey')} value={alertForm.metric_key} onChange={(e) => setAlertForm((p) => ({ ...p, metric_key: e.target.value }))} className="bg-white/5 border-white/10 text-white" required />
+              <select value={alertForm.metric_key} onChange={(e) => setAlertForm((p) => ({ ...p, metric_key: e.target.value }))} className="w-full h-10 px-3 rounded-md bg-white/5 border border-white/10 text-white">
+                {ALERT_METRIC_KEYS.map((key) => (
+                  <option key={key} value={key}>{t(`admin.metricKeys.${key}`)}</option>
+                ))}
+              </select>
               <select value={alertForm.comparator} onChange={(e) => setAlertForm((p) => ({ ...p, comparator: e.target.value }))} className="w-full h-10 px-3 rounded-md bg-white/5 border border-white/10 text-white">
                 <option value="lt">&lt;</option>
                 <option value="lte">&lt;=</option>
@@ -696,15 +966,53 @@ export default function AdminDashboard() {
           </Card>
 
           <Card className="p-4 bg-white/5 border-white/10">
-            <h3 className="text-white font-semibold mb-3">{t('admin.alerts.listTitle')}</h3>
+            <div className="flex items-center justify-between mb-3">
+              <h3 className="text-white font-semibold">{t('admin.alerts.listTitle')}</h3>
+              <Button
+                onClick={() => evaluateAlertsMutation.mutate()}
+                disabled={evaluateAlertsMutation.isPending || alerts.length === 0}
+                className="brand-btn text-white border-0 h-8 px-3 text-xs"
+              >
+                {t('admin.actions.evaluateAlerts')}
+              </Button>
+            </div>
             <div className="space-y-2 max-h-[420px] overflow-auto">
-              {alerts.map((a) => (
-                <div key={a.id} className="p-3 rounded-lg bg-white/5 border border-white/10">
-                  <p className="text-white font-medium">{a.name}</p>
-                  <p className="text-xs text-white/50 mt-1">{a.metric_key} {a.comparator} {a.threshold_value}</p>
-                  <p className="text-xs text-white/40 mt-1">{t('admin.labels.lookback')}: {a.lookback_days}d</p>
-                </div>
-              ))}
+              {alerts.map((a) => {
+                const ev = alertEval[a.id];
+                return (
+                  <div
+                    key={a.id}
+                    className={`p-3 rounded-lg border ${
+                      ev?.breached && a.status === 'active'
+                        ? 'bg-red-500/10 border-red-500/30'
+                        : 'bg-white/5 border-white/10'
+                    }`}
+                  >
+                    <div className="flex items-start justify-between gap-2">
+                      <p className="text-white font-medium">{a.name}</p>
+                      <StatusBadge status={a.status} />
+                    </div>
+                    <p className="text-xs text-white/50 mt-1">
+                      {t(`admin.metricKeys.${a.metric_key}`) || a.metric_key} {a.comparator} {a.threshold_value}
+                    </p>
+                    <p className="text-xs text-white/40 mt-1">{t('admin.labels.lookback')}: {a.lookback_days}d</p>
+                    {ev && (
+                      <p className={`text-xs mt-1 font-medium ${ev.breached ? 'text-red-300' : 'text-green-300'}`}>
+                        {t('admin.labels.currentValue')}: {ev.current_value} · {ev.breached ? t('admin.labels.breached') : t('admin.labels.ok')}
+                      </p>
+                    )}
+                    {a.last_triggered_at && (
+                      <p className="text-xs text-white/30 mt-1">
+                        {t('admin.labels.lastTriggered')}: {new Date(a.last_triggered_at).toLocaleString()}
+                      </p>
+                    )}
+                    <div className="flex flex-wrap gap-1 mt-2">
+                      {renderStatusActions('alert', a)}
+                      <ConfirmDeleteButton t={t} disabled={actionMutation.isPending} onConfirm={() => removeEntity('alert', a.id)} />
+                    </div>
+                  </div>
+                );
+              })}
               {alerts.length === 0 && <p className="text-white/50 text-sm">{t('admin.empty.alerts')}</p>}
             </div>
           </Card>
@@ -932,7 +1240,18 @@ export default function AdminDashboard() {
 
         {/* ── All Accounts ── */}
         <Card className="p-4 bg-white/5 border-white/10">
-          <h3 className="text-white font-semibold mb-3">{t('admin.accounts.listTitle')}</h3>
+          <div className="flex flex-wrap items-center justify-between gap-3 mb-3">
+            <h3 className="text-white font-semibold">
+              {t('admin.accounts.listTitle')}
+              <span className="text-white/40 text-sm font-normal ml-2">({filteredAccounts.length})</span>
+            </h3>
+            <Input
+              placeholder={t('admin.accounts.searchPlaceholder')}
+              value={accountSearch}
+              onChange={(e) => setAccountSearch(e.target.value)}
+              className="bg-white/5 border-white/10 text-white max-w-xs"
+            />
+          </div>
           <div className="overflow-auto max-h-[400px]">
             <table className="w-full text-sm">
               <thead>
@@ -957,7 +1276,7 @@ export default function AdminDashboard() {
                     ))
                   : (
                     <>
-                {allAccounts.map((a) => (
+                {filteredAccounts.map((a) => (
                   <tr key={a.user_id} className="border-b border-white/5 hover:bg-white/5">
                     <td className="py-2 pr-4 text-white/70 truncate max-w-[200px]">{a.email ?? '—'}</td>
                     <td className="py-2 pr-4">
@@ -984,7 +1303,7 @@ export default function AdminDashboard() {
                     </td>
                   </tr>
                 ))}
-                {allAccounts.length === 0 && (
+                {filteredAccounts.length === 0 && (
                   <tr>
                     <td colSpan={5} className="py-4 text-white/40 text-center">{t('admin.accounts.empty')}</td>
                   </tr>
