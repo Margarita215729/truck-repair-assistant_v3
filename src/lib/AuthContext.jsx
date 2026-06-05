@@ -1,7 +1,7 @@
 import React, { createContext, useState, useContext, useEffect, useCallback, useRef } from 'react';
 import { authService } from '@/services/authService';
 import { subscriptionService } from '@/services/subscriptionService';
-import { checkSupabaseHealth, getSupabaseHealthState } from '@/api/supabaseClient';
+import { checkSupabaseHealth, getSupabaseHealthState, initSupabase } from '@/api/supabaseClient';
 import { LIMITS } from '@/config/stripe';
 
 const AuthContext = createContext();
@@ -71,63 +71,6 @@ export const AuthProvider = ({ children }) => {
   const isProUser = subscription?.plan === 'premium' || subscription?.plan === 'pro' || subscription?.plan === 'owner' || subscription?.plan === 'fleet' || subscription?.plan === 'lifetime';
   const planLimits = LIMITS[subscription?.plan] || LIMITS.free;
 
-  useEffect(() => {
-    checkUserAuth();
-
-    const unsubscribe = authService.onAuthStateChange((event, session) => {
-      if (event === 'SIGNED_IN' && session?.user) {
-        setIsAuthenticated(true);
-        authService.me().then((profile) => {
-          if (profile) {
-            setUser(profile);
-          } else {
-            setUser({
-              id: session.user.id,
-              email: session.user.email,
-              email_confirmed_at: session.user.email_confirmed_at,
-              full_name: session.user.user_metadata?.display_name || session.user.email?.split('@')[0],
-              avatar_url: session.user.user_metadata?.avatar_url,
-              role: session.user.user_metadata?.role || 'technician',
-            });
-          }
-        }).catch(() => {
-          setUser({
-            id: session.user.id,
-            email: session.user.email,
-            email_confirmed_at: session.user.email_confirmed_at,
-            full_name: session.user.user_metadata?.display_name || session.user.email?.split('@')[0],
-            avatar_url: session.user.user_metadata?.avatar_url,
-            role: session.user.user_metadata?.role || 'technician',
-          });
-        });
-
-        // Load subscription after sign-in (non-blocking)
-        loadSubscription();
-      } else if (event === 'SIGNED_OUT') {
-        setUser(null);
-        setIsAuthenticated(false);
-        setSubscription({ plan: 'free', status: 'active' });
-        setAiUsage({ used: 0, limit: 10, remaining: 10 });
-        clearCache();
-      } else if (event === 'TOKEN_REFRESHED') {
-        loadSubscription();
-      }
-    });
-
-    // Safety net: if auth check hasn't completed in AUTH_TIMEOUT, force-finish
-    const safetyTimer = setTimeout(() => {
-      if (!authCheckDone.current) {
-        console.warn('Auth check safety timeout — forcing loading to false');
-        setIsLoadingAuth(false);
-      }
-    }, AUTH_TIMEOUT + 2000);
-
-    return () => {
-      clearTimeout(safetyTimer);
-      if (typeof unsubscribe === 'function') unsubscribe();
-    };
-  }, []);
-
   const loadSubscription = useCallback(async () => {
     try {
       const [sub, usage] = await withTimeout(
@@ -142,9 +85,8 @@ export const AuthProvider = ({ children }) => {
       setAiUsage(usage);
     } catch (err) {
       console.warn('Failed to load subscription, keeping cached/default:', err);
-      // Keep whatever was cached — do not overwrite with mock free-tier
     }
-  }, []);
+  }, [setSubscription]);
 
   const refreshAiUsage = useCallback(async () => {
     try {
@@ -156,10 +98,116 @@ export const AuthProvider = ({ children }) => {
     }
   }, [aiUsage]);
 
+  /**
+   * Stable handler for Supabase auth state changes.
+   * Extracted so it can be registered after deferred Supabase initialisation.
+   */
+  const handleAuthStateChange = useCallback((event, session) => {
+    if (event === 'SIGNED_IN' && session?.user) {
+      setIsAuthenticated(true);
+      authService.me().then((profile) => {
+        if (profile) {
+          setUser(profile);
+        } else {
+          setUser({
+            id: session.user.id,
+            email: session.user.email,
+            email_confirmed_at: session.user.email_confirmed_at,
+            full_name: session.user.user_metadata?.display_name || session.user.email?.split('@')[0],
+            avatar_url: session.user.user_metadata?.avatar_url,
+            role: session.user.user_metadata?.role || 'technician',
+          });
+        }
+      }).catch(() => {
+        setUser({
+          id: session.user.id,
+          email: session.user.email,
+          email_confirmed_at: session.user.email_confirmed_at,
+          full_name: session.user.user_metadata?.display_name || session.user.email?.split('@')[0],
+          avatar_url: session.user.user_metadata?.avatar_url,
+          role: session.user.user_metadata?.role || 'technician',
+        });
+      });
+
+      loadSubscription();
+    } else if (event === 'SIGNED_OUT') {
+      setUser(null);
+      setIsAuthenticated(false);
+      setSubscription({ plan: 'free', status: 'active' });
+      setAiUsage({ used: 0, limit: 10, remaining: 10 });
+      clearCache();
+    } else if (event === 'TOKEN_REFRESHED') {
+      loadSubscription();
+    }
+  }, [setUser, setSubscription, loadSubscription]);
+
+  /**
+   * Initial startup: kick off the auth check and set up a safety timer.
+   * The auth listener is NOT set up here — see the effect below that depends on
+   * authServiceConfigured, so the listener is always registered after the
+   * Supabase client is ready (even after deferred runtime initialisation).
+   */
+  useEffect(() => {
+    checkUserAuth();
+
+    // Safety net: if auth check hasn't completed in AUTH_TIMEOUT, force-finish.
+    const safetyTimer = setTimeout(() => {
+      if (!authCheckDone.current) {
+        console.warn('Auth check safety timeout — forcing loading to false');
+        setIsLoadingAuth(false);
+      }
+    }, AUTH_TIMEOUT + 2000);
+
+    return () => clearTimeout(safetyTimer);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  /**
+   * Register the Supabase auth state listener once the client is configured.
+   * Runs immediately when statically configured, or after deferred init updates
+   * authServiceConfigured from false to true.
+   */
+  useEffect(() => {
+    if (!authServiceConfigured) return;
+    const unsubscribe = authService.onAuthStateChange(handleAuthStateChange);
+    return () => { if (typeof unsubscribe === 'function') unsubscribe(); };
+  }, [authServiceConfigured, handleAuthStateChange]);
+
+  /**
+   * If the Supabase client was not initialised from build-time env vars (VITE_*),
+   * try to fetch the public config from the /api/config serverless endpoint.
+   * This handles deployments where only server-side SUPABASE_* vars are set.
+   */
+  const fetchRuntimeConfig = async () => {
+    if (getSupabaseHealthState() === 'configured') return true;
+
+    try {
+      const res = await fetch('/api/config');
+      if (!res.ok) {
+        console.warn('[AuthContext] /api/config responded with', res.status);
+        return false;
+      }
+      const { supabaseUrl, supabaseAnonKey } = await res.json();
+      if (supabaseUrl && supabaseAnonKey) {
+        const ok = initSupabase(supabaseUrl, supabaseAnonKey);
+        if (ok) console.log('[AuthContext] Supabase initialised from runtime config.');
+        return ok;
+      }
+    } catch (err) {
+      console.warn('[AuthContext] Failed to fetch runtime config:', err?.message || err);
+    }
+    return false;
+  };
+
   const checkUserAuth = async () => {
     try {
       setIsLoadingAuth(true);
       setAuthError(null);
+
+      // Attempt deferred initialisation if build-time env vars were absent.
+      if (getSupabaseHealthState() !== 'configured') {
+        await fetchRuntimeConfig();
+      }
 
       const healthState = getSupabaseHealthState();
       const configured = healthState === 'configured';
@@ -184,7 +232,6 @@ export const AuthProvider = ({ children }) => {
         if (!alive) setSupabaseReachable(true);
         setUser(currentUser);
         setIsAuthenticated(true);
-        // Load subscription — don't block auth for it
         loadSubscription();
       } else {
         setIsAuthenticated(false);
