@@ -46,6 +46,16 @@ export const marketingService = {
     return data;
   },
 
+  async deleteStrategy(id) {
+    ensureClient();
+    const { error } = await supabase
+      .from('marketing_strategies')
+      .delete()
+      .eq('id', id);
+    if (error) throw new Error(error.message);
+    return { id };
+  },
+
   async listSegments() {
     ensureClient();
     const { data, error } = await supabase
@@ -66,6 +76,35 @@ export const marketingService = {
       .single();
     if (error) throw new Error(error.message);
     return data;
+  },
+
+  async updateSegment(id, updates) {
+    ensureClient();
+    const { data, error } = await supabase
+      .from('marketing_segments')
+      .update(updates)
+      .eq('id', id)
+      .select('*')
+      .single();
+    if (error) throw new Error(error.message);
+    return data;
+  },
+
+  async deleteSegment(id) {
+    ensureClient();
+    const { error } = await supabase
+      .from('marketing_segments')
+      .delete()
+      .eq('id', id);
+    if (error) throw new Error(error.message);
+    return { id };
+  },
+
+  async refreshSegmentSizes() {
+    ensureClient();
+    const { data, error } = await supabase.rpc('refresh_segment_sizes');
+    if (error) throw new Error(error.message);
+    return data || [];
   },
 
   async listCampaigns() {
@@ -90,6 +129,28 @@ export const marketingService = {
     return data;
   },
 
+  async updateCampaign(id, updates) {
+    ensureClient();
+    const { data, error } = await supabase
+      .from('marketing_campaigns')
+      .update(updates)
+      .eq('id', id)
+      .select('*')
+      .single();
+    if (error) throw new Error(error.message);
+    return data;
+  },
+
+  async deleteCampaign(id) {
+    ensureClient();
+    const { error } = await supabase
+      .from('marketing_campaigns')
+      .delete()
+      .eq('id', id);
+    if (error) throw new Error(error.message);
+    return { id };
+  },
+
   async listExperiments() {
     ensureClient();
     const { data, error } = await supabase
@@ -112,6 +173,28 @@ export const marketingService = {
     return data;
   },
 
+  async updateExperiment(id, updates) {
+    ensureClient();
+    const { data, error } = await supabase
+      .from('marketing_experiments')
+      .update(updates)
+      .eq('id', id)
+      .select('*')
+      .single();
+    if (error) throw new Error(error.message);
+    return data;
+  },
+
+  async deleteExperiment(id) {
+    ensureClient();
+    const { error } = await supabase
+      .from('marketing_experiments')
+      .delete()
+      .eq('id', id);
+    if (error) throw new Error(error.message);
+    return { id };
+  },
+
   async listAlerts() {
     ensureClient();
     const { data, error } = await supabase
@@ -132,6 +215,35 @@ export const marketingService = {
       .single();
     if (error) throw new Error(error.message);
     return data;
+  },
+
+  async updateAlert(id, updates) {
+    ensureClient();
+    const { data, error } = await supabase
+      .from('marketing_alert_rules')
+      .update(updates)
+      .eq('id', id)
+      .select('*')
+      .single();
+    if (error) throw new Error(error.message);
+    return data;
+  },
+
+  async deleteAlert(id) {
+    ensureClient();
+    const { error } = await supabase
+      .from('marketing_alert_rules')
+      .delete()
+      .eq('id', id);
+    if (error) throw new Error(error.message);
+    return { id };
+  },
+
+  async evaluateAlerts() {
+    ensureClient();
+    const { data, error } = await supabase.rpc('evaluate_marketing_alerts');
+    if (error) throw new Error(error.message);
+    return data || [];
   },
 
   async getRecentEvents(days = 45) {
