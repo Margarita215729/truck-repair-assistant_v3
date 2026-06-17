@@ -41,5 +41,5 @@ CREATE POLICY "vision_temp_delete" ON storage.objects
     AND (storage.foldername(name))[1] = auth.uid()::text
   );
 
--- Note: The server proxy uses SUPABASE_SERVICE_ROLE_KEY which bypasses RLS,
+-- Note: The server proxy uses STORAGE_SUPABASE_SUPABASE_SERVICE_ROLE_KEY which bypasses RLS,
 -- so it can download and delete any file in this bucket without additional policies.

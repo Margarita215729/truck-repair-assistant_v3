@@ -104,8 +104,8 @@
 ### 5. Проверьте переменные окружения
 
 Убедитесь что все production API ключи настроены в Vercel:
-- [ ] `VITE_SUPABASE_URL`
-- [ ] `VITE_SUPABASE_ANON_KEY`
+- [ ] `NEXT_PUBLIC_STORAGE_SUPABASE_SUPABASE_URL`
+- [ ] `STORAGE_SUPABASE_SUPABASE_ANON_KEY`
 - [ ] `VITE_STRIPE_PUBLISHABLE_KEY`
 - [ ] `VITE_GOOGLE_MAPS_API_KEY`
 - [ ] `STRIPE_SECRET_KEY` (server-side)
