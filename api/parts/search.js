@@ -31,8 +31,8 @@ async function fetchWithTimeout(url, options = {}, timeoutMs = 5000) {
 let _supabase;
 function getSupabase() {
   if (!_supabase) {
-    const url = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL;
-    const key = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_ANON_KEY;
+    const url = process.env.NEXT_PUBLIC_STORAGE_SUPABASE_SUPABASE_URL;
+    const key = process.env.STORAGE_SUPABASE_SUPABASE_SERVICE_ROLE_KEY || process.env.STORAGE_SUPABASE_SUPABASE_ANON_KEY;
     if (!url || !key) throw new Error('Missing Supabase config');
     _supabase = createClient(url, key);
   }

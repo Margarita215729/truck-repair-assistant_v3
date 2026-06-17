@@ -10,15 +10,15 @@ import { createClient } from '@supabase/supabase-js';
 import { loadTokens } from './lib/tokenVault.js';
 
 function getSupabase() {
-  const url = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL;
-  const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  const url = process.env.NEXT_PUBLIC_STORAGE_SUPABASE_SUPABASE_URL;
+  const key = process.env.STORAGE_SUPABASE_SUPABASE_SERVICE_ROLE_KEY;
   if (!url || !key) throw new Error('Missing Supabase config');
   return createClient(url, key);
 }
 
 async function getUser(req) {
-  const url = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL;
-  const anonKey = process.env.SUPABASE_ANON_KEY || process.env.VITE_SUPABASE_ANON_KEY;
+  const url = process.env.NEXT_PUBLIC_STORAGE_SUPABASE_SUPABASE_URL;
+  const anonKey = process.env.STORAGE_SUPABASE_SUPABASE_ANON_KEY;
   const sb = createClient(url, anonKey);
 
   const token = (req.headers.authorization || '').replace('Bearer ', '');

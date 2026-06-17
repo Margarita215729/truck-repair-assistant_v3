@@ -56,9 +56,9 @@ Create `.env.local` file in project root:
 
 ```bash
 # Supabase
-VITE_SUPABASE_URL=your_supabase_project_url
-VITE_SUPABASE_ANON_KEY=your_supabase_anon_key
-SUPABASE_SERVICE_ROLE_KEY=your_service_role_key
+NEXT_PUBLIC_STORAGE_SUPABASE_SUPABASE_URL=https://your-project.supabase.co
+STORAGE_SUPABASE_SUPABASE_ANON_KEY=your_supabase_anon_key
+STORAGE_SUPABASE_SUPABASE_SERVICE_ROLE_KEY=your_service_role_key
 
 # AI Services
 VITE_GITHUB_TOKEN=your_github_token
