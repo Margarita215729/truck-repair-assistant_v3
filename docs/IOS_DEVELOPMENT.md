@@ -33,8 +33,8 @@ npm install
 Create `.env.local` with required variables:
 
 ```bash
-VITE_SUPABASE_URL=your_supabase_url
-VITE_SUPABASE_ANON_KEY=your_anon_key
+NEXT_PUBLIC_STORAGE_SUPABASE_SUPABASE_URL=https://your-project.supabase.co
+STORAGE_SUPABASE_SUPABASE_ANON_KEY=your_anon_key
 VITE_GOOGLE_MAPS_API_KEY=your_maps_key
 VITE_GOOGLE_CSE_ID=your_cse_id
 ```
