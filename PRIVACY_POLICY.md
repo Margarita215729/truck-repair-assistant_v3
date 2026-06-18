@@ -126,7 +126,7 @@ We retain your personal information for as long as necessary to provide our serv
 - **Analytics Data**: Aggregated and anonymized data may be retained indefinitely
 - **Telematics Data**: Retained according to your telematics provider's policies
 
-You may request deletion of your account and associated data at any time by contacting us at support@truckrepairassistant.com.
+You may request deletion of your account and associated data at any time by contacting us at founder@tra.tools.
 
 ## 6. Your Privacy Rights
 
@@ -149,7 +149,7 @@ Depending on your location, you may have the following rights regarding your per
 ### 6.5 Withdraw Consent
 - Withdraw consent for location tracking or marketing communications at any time
 
-To exercise these rights, please contact us at privacy@truckrepairassistant.com.
+To exercise these rights, please contact us at founder@tra.tools.
 
 ## 7. Children's Privacy
 
@@ -170,14 +170,14 @@ If you are a California resident, you have additional rights under the Californi
 - **Right to Opt-Out**: Opt-out of the sale of personal information (we do not sell personal information)
 - **Right to Non-Discrimination**: Not receive discriminatory treatment for exercising your rights
 
-To exercise your CCPA rights, email us at privacy@truckrepairassistant.com with "CCPA Request" in the subject line.
+To exercise your CCPA rights, email us at founder@tra.tools with "CCPA Request" in the subject line.
 
 ## 10. European Privacy Rights (GDPR)
 
 If you are located in the European Economic Area (EEA), United Kingdom, or Switzerland, you have rights under the General Data Protection Regulation (GDPR):
 
 - **Legal Basis**: We process your data based on consent, contractual necessity, legitimate interests, or legal obligations
-- **Data Protection Officer**: Contact dpo@truckrepairassistant.com
+- **Data Protection Officer**: Contact founder@tra.tools
 - **Right to Lodge a Complaint**: You may file a complaint with your local data protection authority
 
 ## 11. Third-Party Services and Links
@@ -216,12 +216,10 @@ Your continued use of the App after changes are posted constitutes your acceptan
 
 If you have any questions, concerns, or requests regarding this Privacy Policy or our data practices, please contact us:
 
-**Email**: privacy@truckrepairassistant.com  
-**Support**: support@truckrepairassistant.com  
+**Email**: founder@tra.tools (support, privacy, and legal inquiries)  
 **Mailing Address**:  
 Truck Repair Assistant  
-[Your Company Address]  
-[City, State, ZIP]  
+1405 N Sydenham St  
 
 ---
 

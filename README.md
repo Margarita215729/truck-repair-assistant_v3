@@ -161,8 +161,8 @@ See [docs/APP_STORE_SUBMISSION.md](docs/APP_STORE_SUBMISSION.md) for App Store s
 ## Support
 
 For technical support or business inquiries:
-- Email: support@truckrepairassistant.com
-- Website: https://truckrepairassistant.com
+- Email: founder@tra.tools
+- Website: https://www.tra.tools
 
 ## License
 

@@ -101,7 +101,7 @@ Your data is protected with enterprise-grade encryption. We never sell your pers
 
 **📞 SUPPORT**
 
-Need help? Contact us at support@truckrepairassistant.com or visit our Help Center in the app.
+Need help? Contact us at founder@tra.tools or visit our Help Center in the app.
 
 **⚠️ IMPORTANT DISCLAIMER**
 
@@ -143,16 +143,16 @@ Same 5 screenshots optimized for tablet layout
 ## 🔐 Privacy & Permissions
 
 ### Privacy Policy URL
-https://truckrepairassistant.com/privacy
+https://www.tra.tools/privacy.html
 
 ### Terms of Service URL
-https://truckrepairassistant.com/terms
+https://www.tra.tools/terms.html
 
 ### Support URL
-https://truckrepairassistant.com/support
+https://www.tra.tools/support.html
 
 ### Marketing URL
-https://truckrepairassistant.com
+https://www.tra.tools
 
 ### Permissions Required
 
@@ -298,7 +298,7 @@ https://truckrepairassistant.com
 **Contact Information**
 - **First Name**: [Your First Name]
 - **Last Name**: [Your Last Name]
-- **Email**: legal@truckrepairassistant.com
+- **Email**: founder@tra.tools
 - **Phone**: [Your Phone Number]
 
 **Trade Representative Contact** (if applicable)
@@ -426,7 +426,7 @@ npm run cap:open:ios
 - Must match iOS icon design
 
 ### Privacy Policy URL
-https://truckrepairassistant.com/privacy
+https://www.tra.tools/privacy.html
 
 ### Data Safety Form
 [Complete in Play Console - similar to App Store privacy questionnaire]
@@ -451,8 +451,8 @@ npm run cap:open:android
 ## 📧 Contact & Support
 
 For questions about App Store submission:
-- **Email**: dev@truckrepairassistant.com
-- **Support**: support@truckrepairassistant.com
+- **Email**: founder@tra.tools
+- **Support**: founder@tra.tools
 
 ---
 

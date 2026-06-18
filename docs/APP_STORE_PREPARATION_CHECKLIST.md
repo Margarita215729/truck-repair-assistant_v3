@@ -8,18 +8,18 @@
 - **Файл**: `PRIVACY_POLICY.md`
 - **Описание**: Полная политика конфиденциальности с детальным описанием сбора и использования данных
 - **Соответствие**: GDPR, CCPA, App Store требования
-- **URL для App Store**: Разместите на `https://truckrepairassistant.com/privacy`
+- **URL для App Store**: `https://www.tra.tools/privacy.html`
 
 ### 2. Terms of Service
 - **Файл**: `TERMS_OF_SERVICE.md`
 - **Описание**: Условия использования приложения
 - **Включает**: Подписки, AI disclaimer, ограничение ответственности, права пользователей
-- **URL для App Store**: Разместите на `https://truckrepairassistant.com/terms`
+- **URL для App Store**: `https://www.tra.tools/terms.html`
 
 ### 3. Support Page
 - **Файл**: `public/support.html`
 - **Описание**: Страница поддержки с FAQ, контактами и ресурсами
-- **URL для App Store**: Будет доступна на `https://truckrepairassistant.com/support`
+- **URL для App Store**: `https://www.tra.tools/support.html`
 
 ### 4. App Store Submission Guide
 - **Файл**: `docs/APP_STORE_SUBMISSION.md`
@@ -45,9 +45,9 @@
 ### 1. Разместите документы онлайн
 
 Создайте публичные URL для:
-- **Privacy Policy**: https://truckrepairassistant.com/privacy
-- **Terms of Service**: https://truckrepairassistant.com/terms
-- **Support Page**: https://truckrepairassistant.com/support
+- **Privacy Policy**: https://www.tra.tools/privacy.html (`public/privacy.html`)
+- **Terms of Service**: https://www.tra.tools/terms.html (`public/terms.html`)
+- **Support Page**: https://www.tra.tools/support.html
 
 Можно использовать:
 - Vercel (уже настроен для этого проекта)
@@ -71,12 +71,12 @@
 
 Замените плейсхолдеры в документах:
 
-**В PRIVACY_POLICY.md и TERMS_OF_SERVICE.md:**
-- `[Your Company Address]` → реальный адрес компании
-- `[City, State, ZIP]` → город и почтовый индекс
-- `[Your State/Country]` → юрисдикция
+**В PRIVACY_POLICY.md и TERMS_OF_SERVICE.md:** ✅ Обновлено
+- Адрес: 1405 N Sydenham St
+- Email: founder@tra.tools
+- Юрисдикция: Pennsylvania, United States
 
-**В APP_STORE_SUBMISSION.md:**
+**В APP_STORE_SUBMISSION.md:** (осталось заполнить)
 - `[Your First Name]` и `[Your Last Name]` → контактное лицо
 - `[Your Phone Number]` → номер телефона
 - Создайте demo аккаунт для App Review
@@ -190,12 +190,8 @@ npm run cap:open:android
 
 ## 📧 Контакты для документов
 
-Убедитесь что email адреса активны и мониторятся:
-- support@truckrepairassistant.com (основная поддержка)
-- privacy@truckrepairassistant.com (вопросы конфиденциальности)
-- legal@truckrepairassistant.com (юридические вопросы)
-- billing@truckrepairassistant.com (платежи и подписки)
-- dpo@truckrepairassistant.com (Data Protection Officer для GDPR)
+Убедитесь что email адрес активен и мониторится:
+- founder@tra.tools (support, privacy, legal, billing, и GDPR inquiries)
 
 ## 🎯 Рекомендуемый timeline
 
