@@ -7,6 +7,8 @@
 --
 -- The legacy `paying` column (which counted promo-code accounts as paid) is removed.
 
+DROP FUNCTION IF EXISTS public.get_subscription_stats();
+
 CREATE OR REPLACE FUNCTION public.get_subscription_stats()
 RETURNS TABLE(
   ever_paid     integer,

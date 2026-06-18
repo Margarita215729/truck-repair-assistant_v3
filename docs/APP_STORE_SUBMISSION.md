@@ -137,6 +137,28 @@ Same 5 screenshots optimized for tablet layout
 - 1024x1024px PNG without transparency
 - Should include truck/wrench iconography
 - Use brand colors (orange/black)
+- **Repo:** `ios/App/App/Assets.xcassets/AppIcon.appiconset/AppIcon-512@2x.png` (1024×1024 ✅)
+- **Source SVG:** `LOGO_TRA_v1.svg`, `public/logo.svg`
+
+### Screenshots (prepared in repo)
+
+| File | Screen | Current size | App Store target |
+|------|--------|--------------|------------------|
+| `docs/app-store-screenshots/01-diagnostic.png` | Main diagnostics | 550×1024 | **1290×2796** (iPhone 6.7") |
+| `docs/app-store-screenshots/02-parts.png` | Repair Parts | 550×1024 | **1290×2796** |
+| `docs/app-store-screenshots/03-locator.png` | Service Locator | 550×1024 | **1290×2796** |
+| `docs/app-store-screenshots/04-results.png` | Diagnostic results / chat | 550×1024 | **1290×2796** |
+
+Simulator captures are ~550×1024 (50% scale). Before upload to App Store Connect, upscale 2.345× or re-capture on iPhone 15 Pro Max simulator at **100% scale** (1290×2796).
+
+**Upscale (macOS):**
+```bash
+for f in docs/app-store-screenshots/*.png; do
+  sips -z 2796 1290 "$f" --out "${f%.png}-6.7.png"
+done
+```
+
+Also required by Apple (not yet in repo): iPhone 6.5" (1284×2778), iPad Pro 12.9" (2048×2732) — resize or capture separately.
 
 ---
 
@@ -325,8 +347,8 @@ https://www.tra.tools
 |------|----------|--------|
 | Email | local.admin@truckassist.app | ✅ |
 | Password | [REDACTED] | ✅ |
-| Subscription | Fleet plan (pre-activated) | ⚠️ Проверить в Supabase/Stripe |
-| Sample data | 1–2 грузовика + пример диагностики (fault code) | ⚠️ Проверить в приложении |
+| Subscription | Fleet plan (pre-activated) | ✅ migration `025_demo_account_fleet_seed.sql` |
+| Sample data | 2 грузовика + SPN 4364 диагностика | ✅ migration `025_demo_account_fleet_seed.sql` |
 
 **Перед Submit:** войти в demo-аккаунт, убедиться что Fleet-подписка активна и есть тестовые данные.
 
@@ -338,12 +360,13 @@ https://www.tra.tools
 | https://www.tra.tools/terms.html | Terms of Service URL |
 | https://www.tra.tools/support.html | Support URL |
 
-### Графика (ещё не готова)
+### Графика
 
-- [ ] App Icon 1024×1024 px
-- [ ] Скриншоты iPhone 6.7" (5 шт.)
-- [ ] Скриншоты iPhone 6.5" (5 шт.)
-- [ ] Скриншоты iPad Pro 12.9" (5 шт.)
+- [x] App Icon 1024×1024 px — `ios/App/App/Assets.xcassets/AppIcon.appiconset/AppIcon-512@2x.png`
+- [x] Скриншоты iPhone 6.7" (4 шт.) — `docs/app-store-screenshots/01–04-*.png` (нужен upscale до 1290×2796)
+- [ ] Скриншоты iPhone 6.5" (1284×2778) — переснять или ресайз
+- [ ] Скриншоты iPad Pro 12.9" (2048×2732) — переснять на iPad simulator
+- [ ] 5-й скриншот 6.7" (например Repair History) — опционально
 
 ### Быстрый чеклист перед Submit
 
