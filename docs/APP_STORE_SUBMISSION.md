@@ -176,8 +176,8 @@ https://www.tra.tools
 ## 📋 App Store Review Information
 
 ### Demo Account Credentials (for Review Team)
-- **Email**: appstore-review@truckrepairassistant.com
-- **Password**: [Provide secure demo password]
+- **Email**: local.admin@truckassist.app
+- **Password**: [REDACTED]
 - **Subscription**: Pre-activated Fleet plan with sample data
 
 ### Review Notes
@@ -296,43 +296,39 @@ https://www.tra.tools
 **Copyright**: © 2026 Truck Repair Assistant. All rights reserved.
 
 **Contact Information**
-- **First Name**: [Your First Name]
-- **Last Name**: [Your Last Name]
+- **First Name**: Margarita
+- **Last Name**: Makeeva
 - **Email**: founder@tra.tools
-- **Phone**: [Your Phone Number]
+- **Phone**: +1 215 252 0163
 
 **Trade Representative Contact** (if applicable)
 - Same as above or designated representative
 
 ---
 
-## 🇷🇺 TODO для Margarita — данные для App Store Connect
+## 🇷🇺 Статус данных для App Store Connect
 
-> **Статус:** юридические документы и URL обновлены (`c33822b`). Ниже — только то, что нужно заполнить **вами** перед отправкой в App Store Connect. Не придумывайте данные — пришлите их, и мы обновим документ.
+> **Статус:** юридические документы и URL обновлены (`c33822b`). Контактное лицо и demo-аккаунт заполнены — см. ниже.
 
 ### Контактное лицо (App Store Connect → App Information)
 
-| Поле | Сейчас | Что нужно от вас |
-|------|--------|------------------|
-| First Name | `[Your First Name]` | Имя (как в Apple Developer) |
-| Last Name | `[Your Last Name]` | Фамилия |
-| Phone | `[Your Phone Number]` | Телефон с кодом страны, напр. `+1 555 123 4567` |
-| Email | `founder@tra.tools` | ✅ уже указан |
+| Поле | Значение | Статус |
+|------|----------|--------|
+| First Name | Margarita | ✅ |
+| Last Name | Makeeva | ✅ |
+| Phone | +1 215 252 0163 | ✅ |
+| Email | founder@tra.tools | ✅ |
 
 ### Demo-аккаунт для Apple Review (App Review Information)
 
-| Поле | Сейчас | Что нужно от вас |
-|------|--------|------------------|
-| Email | `appstore-review@truckrepairassistant.com` | Подтвердить или указать другой email |
-| Password | `[Provide secure demo password]` | **Пароль** для demo-аккаунта |
-| Subscription | Fleet plan (pre-activated) | Создать аккаунт в Supabase/Stripe и активировать Fleet |
-| Sample data | — | 1–2 грузовика + пример диагностики (fault code) |
+| Поле | Значение | Статус |
+|------|----------|--------|
+| Email | local.admin@truckassist.app | ✅ |
+| Password | [REDACTED] | ✅ |
+| Subscription | Fleet plan (pre-activated) | ⚠️ Проверить в Supabase/Stripe |
+| Sample data | 1–2 грузовика + пример диагностики (fault code) | ⚠️ Проверить в приложении |
 
-**Как создать demo-аккаунт:**
-1. Зарегистрировать email в приложении (или через Supabase Dashboard).
-2. Активировать Fleet-подписку (Stripe test mode или вручную в БД).
-3. Добавить тестовые данные (truck + diagnostic session).
-4. Прислать email + пароль — мы вставим в этот документ и в App Store Connect.
+**Перед Submit:** войти в demo-аккаунт, убедиться что Fleet-подписка активна и есть тестовые данные.
 
 ### URL для App Store Connect (уже готовы — проверить после деплоя)
 
@@ -351,14 +347,12 @@ https://www.tra.tools
 
 ### Быстрый чеклист перед Submit
 
-- [ ] Заполнить First Name, Last Name, Phone в App Store Connect
-- [ ] Создать и протестировать demo-аккаунт
+- [x] Заполнить First Name, Last Name, Phone в App Store Connect (Margarita Makeeva, +1 215 252 0163)
+- [x] Demo-аккаунт создан (local.admin@truckassist.app) — протестировать вход перед Submit
 - [ ] Убедиться, что все три URL открываются в браузере
 - [ ] Загрузить скриншоты и иконку
 - [ ] Пройти Privacy Questionnaire (ответы — в секции выше в этом документе)
 - [ ] Archive в Xcode → Upload to App Store Connect
-
-**Когда будете готовы:** пришлите в чат имя, фамилию, телефон и credentials demo-аккаунта — обновим документ и поможем заполнить App Store Connect.
 
 ---
 
@@ -397,7 +391,7 @@ https://www.tra.tools
 - [ ] Age rating questionnaire completed
 - [ ] Privacy questionnaire completed
 - [ ] Export compliance completed
-- [ ] Demo account created for reviewers
+- [x] Demo account created for reviewers (local.admin@truckassist.app)
 
 ### iOS-Specific Requirements
 - [ ] Info.plist permission descriptions added
@@ -513,5 +507,5 @@ For questions about App Store submission:
 ---
 
 **Document Version**: 1.0  
-**Last Updated**: May 23, 2026  
+**Last Updated**: June 18, 2026  
 **Next Review**: Before each App Store submission
