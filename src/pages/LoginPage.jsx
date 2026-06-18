@@ -366,6 +366,9 @@ export default function LoginPage({ onLogin }) {
         <p className="text-center text-white/20 text-xs mt-6">
           {t('login.copyright')}
         </p>
+        <p className="text-center text-white/15 text-[11px] mt-1 tracking-wide">
+          {t('common.authorCredit')}
+        </p>
       </div>
     </div>
   );

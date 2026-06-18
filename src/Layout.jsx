@@ -35,7 +35,7 @@ export default function Layout({ children, currentPageName }) {
   ];
 
   return (
-    <div className="min-h-screen text-white">
+    <div className="min-h-screen text-white flex flex-col">
       {/* Header */}
       <header className="fixed top-0 left-0 right-0 z-50 brand-header">
         <div className="max-w-7xl mx-auto px-4 sm:px-6">
@@ -278,7 +278,11 @@ export default function Layout({ children, currentPageName }) {
         </AnimatePresence>
       </header>
 
-      <main className="pt-16 min-h-screen">{children}</main>
+      <main className="pt-16 flex-1 min-h-0">{children}</main>
+
+      <footer className="py-3 px-4 text-center text-white/20 text-[11px] tracking-wide select-none">
+        {t('common.authorCredit')}
+      </footer>
 
       {/* Global Truck Selector Modal */}
       <TruckSelector

@@ -25,6 +25,7 @@ export default {
     retry: 'Повторить',
     refresh: 'Обновить',
     user: 'Пользователь',
+    authorCredit: 'Автор — Margarita Makeeva',
   },
 
   // ─── Навигация ───
