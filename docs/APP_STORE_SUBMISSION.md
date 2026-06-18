@@ -211,7 +211,7 @@ https://www.tra.tools
 
 ### Demo Account Credentials (for Review Team)
 - **Email**: local.admin@truckassist.app
-- **Password**: [REDACTED]
+- **Password**: stored only in App Store Connect → App Review Information (not in repo)
 - **Subscription**: Pre-activated Fleet plan with sample data
 
 ### Review Notes
@@ -358,7 +358,7 @@ https://www.tra.tools
 | Поле | Значение | Статус |
 |------|----------|--------|
 | Email | local.admin@truckassist.app | ✅ |
-| Password | [REDACTED] | ✅ |
+| Password | stored only in App Store Connect → App Review Information (not in repo) | ✅ в ASC |
 | Subscription | Fleet plan (pre-activated) | ✅ migration `025_demo_account_fleet_seed.sql` |
 | Sample data | 2 грузовика + SPN 4364 диагностика | ✅ migration `025_demo_account_fleet_seed.sql` |
 

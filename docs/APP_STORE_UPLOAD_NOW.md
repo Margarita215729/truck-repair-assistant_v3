@@ -198,7 +198,7 @@ Truck Repair Assistant provides informational assistance only and is not a subst
 | Поле | Значение |
 |------|----------|
 | **Username** | local.admin@truckassist.app |
-| **Password** | [REDACTED] |
+| **Password** | stored only in App Store Connect → App Review Information (not in repo) |
 
 ### Notes for Reviewer
 
