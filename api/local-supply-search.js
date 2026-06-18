@@ -10,6 +10,7 @@
  */
 
 import { createClient } from '@supabase/supabase-js';
+import { applyCors } from './lib/cors.js';
 
 let _supabase;
 function getSupabase() {
@@ -22,28 +23,13 @@ function getSupabase() {
   return _supabase;
 }
 
-const ALLOWED_ORIGINS = [
-  'https://tra.tools',
-  'https://truck-repair-assistantv3-main.vercel.app',
-  'https://truck-repair-assistant-v3.vercel.app',
-  'http://localhost:5173',
-  'http://localhost:3000',
-  process.env.NEXT_PUBLIC_BASE_URL,
-].filter(Boolean);
-
 const STORE_TYPES = [
   'auto_parts_store',
   'car_repair',
 ];
 
 export default async function handler(req, res) {
-  // CORS
-  const origin = req.headers.origin || '';
-  const corsOrigin = ALLOWED_ORIGINS.includes(origin) ? origin : '';
-  if (corsOrigin) res.setHeader('Access-Control-Allow-Origin', corsOrigin);
-  res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
-  if (req.method === 'OPTIONS') return res.status(200).end();
+  if (applyCors(req, res)) return;
 
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Method not allowed' });

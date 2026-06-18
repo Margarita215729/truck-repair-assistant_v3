@@ -13,6 +13,7 @@
  */
 
 import { createClient } from '@supabase/supabase-js';
+import { applyCors } from '../lib/cors.js';
 
 const BRAVE_TIMEOUT_MS = 4500;
 const AI_TIMEOUT_MS = 4500;
@@ -267,22 +268,7 @@ ${cseResults.map((r, i) => `[${i + 1}] Title: ${r.title}
 
 // ─── Main handler ───────────────────────────────────────────────────
 export default async function handler(req, res) {
-  const ALLOWED_ORIGINS = [
-    process.env.NEXT_PUBLIC_BASE_URL,
-    'https://tra.tools',
-    'https://truck-repair-assistantv3-main.vercel.app',
-    'https://truck-repair-assistant-v3.vercel.app',
-    'http://localhost:5173',
-    'http://localhost:3000',
-  ].filter(Boolean);
-  const origin = req.headers.origin;
-  if (ALLOWED_ORIGINS.includes(origin)) {
-    res.setHeader('Access-Control-Allow-Origin', origin);
-  }
-  res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
-
-  if (req.method === 'OPTIONS') return res.status(200).end();
+  if (applyCors(req, res)) return;
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
 
   // Auth

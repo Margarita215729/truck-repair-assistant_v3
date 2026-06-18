@@ -8,6 +8,7 @@
  */
 
 import { createClient } from '@supabase/supabase-js';
+import { applyCors } from '../lib/cors.js';
 
 let _supabase;
 function getSupabase() {
@@ -23,22 +24,7 @@ function getSupabase() {
 }
 
 export default async function handler(req, res) {
-  // CORS
-  const origin = req.headers.origin || '';
-  const allowedOrigins = [
-    'https://tra.tools',
-    'http://localhost:5173',
-    'http://localhost:3000',
-    process.env.NEXT_PUBLIC_BASE_URL,
-    process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : '',
-  ].filter(Boolean);
-  const corsOrigin = allowedOrigins.includes(origin) ? origin : allowedOrigins[0];
-  res.setHeader('Access-Control-Allow-Origin', corsOrigin);
-  res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
-  res.setHeader('Vary', 'Origin');
-  res.setHeader('X-Content-Type-Options', 'nosniff');
-  if (req.method === 'OPTIONS') return res.status(200).end();
+  if (applyCors(req, res)) return;
 
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Method not allowed' });
