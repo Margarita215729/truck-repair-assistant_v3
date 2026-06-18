@@ -1,4 +1,5 @@
 import { createClient } from '@supabase/supabase-js';
+import { applyCors } from './lib/cors.js';
 
 const GEMINI_API_URL = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent';
 const MAX_REQUEST_SIZE = 20 * 1024 * 1024; // 20 MB
@@ -188,6 +189,8 @@ export const config = {
 };
 
 export default async function handler(req, res) {
+  if (applyCors(req, res)) return;
+
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Method not allowed' });
   }
