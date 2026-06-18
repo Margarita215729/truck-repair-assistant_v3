@@ -11,8 +11,9 @@ docs/app-store-screenshots/
 ├── 02-parts.png
 ├── 03-locator.png
 ├── 04-results.png
-├── CONNECT-UPLOAD-6.5/       ← ★ перетащить в Connect → iPhone 6.5" Display
-├── CONNECT-UPLOAD-6.7/       ← ★ перетащить в Connect → iPhone 6.7" Display
+├── CONNECT-UPLOAD-6.9/       ← ★ основной: Connect → iPhone 6.9" Display (1290×2796)
+├── CONNECT-UPLOAD-6.5/       ← fallback: Connect → iPhone 6.5" Display (1242×2688)
+├── CONNECT-UPLOAD-6.7/       ← устарело; используйте CONNECT-UPLOAD-6.9
 ├── CONNECT-UPLOAD-ICON/      ← ★ иконка 1024×1024 для App Information
 └── upload/                   ← исходные upscaled файлы
     ├── AppIcon-1024.png      ← иконка 1024×1024 (из LOGO_TRA_v1.svg)
@@ -31,8 +32,9 @@ docs/app-store-screenshots/
 
 | Назначение | Папка / файл | Размер |
 |------------|--------------|--------|
-| **Скриншоты iPhone 6.7"** (обязательно) | `upload/iphone-6.7/*.png` | 1290×2796 |
-| Скриншоты iPhone 6.5" (опционально) | `upload/iphone-6.5/*.png` | 1284×2778 |
+| **Скриншоты iPhone 6.9"** (рекомендуется) | `CONNECT-UPLOAD-6.9/*.png` | 1290×2796 PNG sRGB |
+| Скриншоты iPhone 6.5" (fallback) | `CONNECT-UPLOAD-6.5/*.png` | 1242×2688 PNG sRGB |
+| Устаревшие upscaled | `upload/iphone-6.7/*.png` | JPEG в .png — не загружать |
 | **Иконка приложения** | `upload/AppIcon-1024.png` | 1024×1024 PNG, без прозрачности |
 | Исходники скриншотов | `01-*.png` … `04-*.png` (корень папки) | ~550×1024 |
 
@@ -66,18 +68,36 @@ PY
 
 Альтернатива (если установлен librsvg): `rsvg-convert -w 1024 -h 1024 LOGO_TRA_v1.svg -o docs/app-store-screenshots/upload/AppIcon-1024.png`
 
-## Пересоздать upscaled скриншоты
+## Пересоздать скриншоты для Connect
 
-Из оригиналов в корне папки:
+Из оригиналов в корне папки (Pillow, sRGB PNG без альфы):
 
 ```bash
 cd docs/app-store-screenshots
-mkdir -p upload/iphone-6.7 upload/iphone-6.5
-for f in 0*.png; do
-  sips -z 2796 1290 "$f" --out "upload/iphone-6.7/$f"
-  sips -z 2778 1284 "$f" --out "upload/iphone-6.5/$f"
-done
+python3 - <<'PY'
+from PIL import Image, ImageCms
+import os
+BASE = "."
+SOURCES = ["01-diagnostic.png", "02-parts.png", "03-locator.png", "04-results.png"]
+BG = (11, 16, 18)
+SRGB = ImageCms.ImageCmsProfile(ImageCms.createProfile("sRGB")).tobytes()
+for folder, (tw, th) in {"CONNECT-UPLOAD-6.9": (1290, 2796), "CONNECT-UPLOAD-6.5": (1242, 2688)}.items():
+    for name in SOURCES:
+        img = Image.open(os.path.join(BASE, name)).convert("RGB")
+        sw, sh = img.size
+        scale = min(tw / sw, th / sh)
+        nw, nh = round(sw * scale), round(sh * scale)
+        resized = img.resize((nw, nh), Image.Resampling.LANCZOS)
+        canvas = Image.new("RGB", (tw, th), BG)
+        canvas.paste(resized, ((tw - nw) // 2, (th - nh) // 2))
+        out = os.path.join(BASE, folder, name)
+        os.makedirs(os.path.dirname(out), exist_ok=True)
+        canvas.save(out, "PNG", optimize=True, icc_profile=SRGB)
+        print("Wrote", out)
+PY
 ```
+
+> **Не используйте `sips` без `-s format png`** — он сохраняет JPEG в файлы с расширением `.png`, и App Store Connect отклоняет их с ошибкой «wrong format».
 
 ## Связанные документы
 
