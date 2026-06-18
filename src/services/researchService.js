@@ -11,6 +11,7 @@
  */
 
 import { supabase, hasSupabaseConfig } from '@/api/supabaseClient';
+import { apiUrl } from '@/config/apiBase';
 import {
   createResearchResult,
   createResearchPacket,
@@ -23,7 +24,7 @@ import {
 } from '@/utils/researchModels';
 import { buildQuery, resolveOEMLinks } from '@/utils/queryBuilder';
 
-const RESEARCH_API = '/api/research-search';
+const RESEARCH_API = apiUrl('/api/research-search');
 const SEARCH_TIMEOUT = 6000; // 6s for the shared layer (was 3s for forums only)
 
 // ─── Auth helper ────────────────────────────────────────────────────

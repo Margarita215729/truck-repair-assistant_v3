@@ -8,6 +8,7 @@
 import { createServiceResult } from '../utils/researchModels';
 import { getLocalSupplyLinks } from '../utils/queryBuilder';
 import { supabase } from '../api/supabaseClient';
+import { apiUrl } from '@/config/apiBase';
 
 const SEARCH_TIMEOUT = 6000; // 6 seconds
 
@@ -36,7 +37,7 @@ export async function searchLocalSupplyStores({ lat, lng, partName, partNumber, 
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), SEARCH_TIMEOUT);
 
-    const response = await fetch('/api/local-supply-search', {
+    const response = await fetch(apiUrl('/api/local-supply-search'), {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',

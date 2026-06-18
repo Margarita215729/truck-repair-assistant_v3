@@ -35,9 +35,14 @@ Create `.env.local` with required variables:
 ```bash
 NEXT_PUBLIC_STORAGE_SUPABASE_SUPABASE_URL=https://your-project.supabase.co
 STORAGE_SUPABASE_SUPABASE_ANON_KEY=your_anon_key
+NEXT_PUBLIC_BASE_URL=https://your-app.vercel.app
 VITE_GOOGLE_MAPS_API_KEY=your_maps_key
 VITE_GOOGLE_CSE_ID=your_cse_id
 ```
+
+`NEXT_PUBLIC_BASE_URL` must point to your deployed Vercel app (e.g. `https://tra.tools`). The native app loads bundled web assets locally; all `/api/*` routes (AI diagnostics, maps, parts search) are served from that URL.
+
+If you still use legacy Supabase variable names (`SUPABASE_URL`, `VITE_SUPABASE_URL`, etc.), they are supported as fallbacks, but prefer the `STORAGE_SUPABASE_*` names above.
 
 See [API_CONFIGURATION.md](./API_CONFIGURATION.md) for complete variable reference.
 
@@ -237,6 +242,35 @@ pod repo update
 - Ensure device and computer on same network
 - Verify IP address is correct in `capacitor.config.ts`
 - Test connectivity: `curl http://YOUR_IP:5173`
+
+### APIs Not Working in Simulator (Auth / Diagnostics Errors)
+
+Symptoms:
+- Login shows *"Authentication service is not configured"*
+- Diagnostics shows *"Service temporarily unavailable"* or `diagnostics.aiUnavailable`
+
+Fix:
+
+1. Confirm `.env.local` contains Supabase keys with the new names (or legacy fallbacks):
+   ```bash
+   NEXT_PUBLIC_STORAGE_SUPABASE_SUPABASE_URL=https://xxx.supabase.co
+   STORAGE_SUPABASE_SUPABASE_ANON_KEY=eyJ...
+   NEXT_PUBLIC_BASE_URL=https://your-app.vercel.app
+   ```
+
+2. Rebuild native assets (env vars are baked in at build time):
+   ```bash
+   npm run mobile:prepare
+   ```
+
+3. Rebuild and run in Xcode (⌘+Shift+K clean, then ⌘+R).
+
+4. Validate configuration:
+   ```bash
+   npm run validate:env
+   ```
+
+Without `NEXT_PUBLIC_BASE_URL`, the iOS app cannot reach Vercel serverless routes (`/api/ai-proxy`, `/api/geocode`, etc.) because Capacitor serves static files from `capacitor://localhost`.
 
 ## Project Structure
 
