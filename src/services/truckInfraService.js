@@ -1,13 +1,14 @@
 /**
  * Truck Infrastructure Service
  * 
- * Primary: Overpass API (OpenStreetMap) — free, no key, real worldwide data
+ * Primary: Overpass API (OpenStreetMap) via /api/overpass-query proxy
  * Fallback: Supabase RPC (if tables have been populated via ETL)
  */
 import { supabase, hasSupabaseConfig } from '@/api/supabaseClient';
+import { apiUrl } from '@/config/apiBase';
 
 const DEFAULT_RADIUS = 50; // miles
-const OVERPASS_API = 'https://overpass-api.de/api/interpreter';
+const OVERPASS_PROXY = apiUrl('/api/overpass-query');
 
 // ─── Overpass query builder ───────────────────────────────────────────
 
@@ -21,30 +22,54 @@ function buildBBox(lat, lng, radiusMiles) {
   return `${lat - d},${lng - dLng},${lat + d},${lng + dLng}`;
 }
 
+async function getOverpassAuthHeaders() {
+  const headers = { 'Content-Type': 'application/json' };
+  if (hasSupabaseConfig && supabase) {
+    const { data: { session } } = await supabase.auth.getSession();
+    if (session?.access_token) {
+      headers.Authorization = `Bearer ${session.access_token}`;
+    }
+  }
+  return headers;
+}
+
 async function queryOverpass(query, retries = 2) {
   for (let attempt = 0; attempt <= retries; attempt++) {
     try {
       const controller = new AbortController();
-      const timer = setTimeout(() => controller.abort(), 30000);
+      const timer = setTimeout(() => controller.abort(), 35000);
 
-      const res = await fetch(OVERPASS_API, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-        body: `data=${encodeURIComponent(query)}`,
-        signal: controller.signal,
-      });
-      clearTimeout(timer);
+      let response;
+      try {
+        response = await fetch(OVERPASS_PROXY, {
+          method: 'POST',
+          headers: await getOverpassAuthHeaders(),
+          body: JSON.stringify({ query }),
+          signal: controller.signal,
+        });
+      } finally {
+        clearTimeout(timer);
+      }
 
-      // Rate-limited or gateway timeout → retry after backoff
-      if (res.status === 429 || res.status === 504) {
+      if (response.status === 429 || response.status === 504) {
         if (attempt < retries) {
           await new Promise(r => setTimeout(r, (attempt + 1) * 2000));
           continue;
         }
       }
 
-      if (!res.ok) throw new Error(`Overpass API ${res.status}`);
-      const data = await res.json();
+      if (!response.ok) {
+        let detail = `Overpass proxy ${response.status}`;
+        try {
+          const errBody = await response.json();
+          if (errBody?.error) detail = errBody.error;
+        } catch {
+          // ignore parse failure
+        }
+        throw new Error(detail);
+      }
+
+      const data = await response.json();
       return data.elements || [];
     } catch (err) {
       if (attempt < retries && (err.name === 'AbortError' || err.message?.includes('429'))) {
@@ -54,7 +79,7 @@ async function queryOverpass(query, retries = 2) {
       throw err;
     }
   }
-  throw new Error('Overpass API failed after retries');
+  throw new Error('Overpass query failed after retries');
 }
 
 // ─── Haversine ────────────────────────────────────────────────────────
