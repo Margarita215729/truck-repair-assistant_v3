@@ -207,6 +207,7 @@ export default {
     reportGenerated: '¡Informe generado! Revísalo en la sección de Informes.',
     reportError: 'No se pudo generar el informe',
     responseFailed: 'No se pudo obtener respuesta. Inténtalo de nuevo.',
+    aiUnavailable: 'El servicio de diagnóstico no está disponible. Inicia sesión y asegúrate de que la app esté conectada al servidor.',
     audioUploadFailed: 'No se pudo subir la grabación de audio',
     selectTruck: 'Selecciona tu camión antes de iniciar el chat',
     toolkitLoaded: 'Toolkit cargado: listo para un diagnóstico personalizado',
