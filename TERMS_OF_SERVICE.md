@@ -28,7 +28,7 @@ We reserve the right to suspend or terminate your account at any time for:
 - Non-payment of subscription fees
 - Any other reason at our sole discretion
 
-You may delete your account at any time through the App settings or by contacting support@truckrepairassistant.com.
+You may delete your account at any time through the App settings or by contacting founder@tra.tools.
 
 ## 4. Services Overview
 
@@ -239,7 +239,7 @@ Your continued use of the Services after changes take effect constitutes accepta
 
 ### 17.1 Governing Law
 
-These Terms are governed by and construed in accordance with the laws of [Your State/Country], without regard to conflict of law principles.
+These Terms are governed by and construed in accordance with the laws of Pennsylvania, United States, without regard to conflict of law principles.
 
 ### 17.2 Arbitration Agreement
 
@@ -247,7 +247,7 @@ These Terms are governed by and construed in accordance with the laws of [Your S
 
 Any dispute, claim, or controversy arising out of or relating to these Terms or the Services shall be resolved through binding arbitration, except that either party may seek injunctive relief in court for intellectual property disputes.
 
-Arbitration shall be conducted by a single arbitrator under the rules of the American Arbitration Association (AAA). The arbitration shall take place in [Your City/State].
+Arbitration shall be conducted by a single arbitrator under the rules of the American Arbitration Association (AAA). The arbitration shall take place in Philadelphia, Pennsylvania.
 
 ### 17.3 Class Action Waiver
 
@@ -263,7 +263,7 @@ Either party may bring a claim in small claims court if it qualifies. You may al
 
 You may terminate your account at any time by:
 - Deleting your account through the App settings
-- Contacting support@truckrepairassistant.com
+- Contacting founder@tra.tools
 
 ### 18.2 Termination by Us
 
@@ -301,12 +301,10 @@ You may not assign or transfer these Terms or your account without our prior wri
 
 If you have questions, concerns, or disputes regarding these Terms, please contact us:
 
-**Email**: legal@truckrepairassistant.com  
-**Support**: support@truckrepairassistant.com  
+**Email**: founder@tra.tools (support, legal, and billing inquiries)  
 **Mailing Address**:  
 Truck Repair Assistant  
-[Your Company Address]  
-[City, State, ZIP]
+1405 N Sydenham St
 
 ---
 
