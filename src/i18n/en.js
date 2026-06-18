@@ -207,6 +207,7 @@ export default {
     reportGenerated: 'Report generated! View it in the Reports section.',
     reportError: 'Failed to generate report',
     responseFailed: 'Failed to get response. Please try again.',
+    aiUnavailable: 'Diagnostic service is currently unavailable. Please sign in and ensure the app is connected to the server.',
     audioUploadFailed: 'Failed to upload audio recording',
     selectTruck: 'Please select your truck before starting the chat',
     toolkitLoaded: 'Toolkit loaded - ready for tailored diagnostics',

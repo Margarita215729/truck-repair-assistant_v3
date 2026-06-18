@@ -3,6 +3,7 @@
  * Manages user subscriptions, Stripe checkout, promo codes
  */
 import { supabase, hasSupabaseConfig } from '@/api/supabaseClient';
+import { apiUrl } from '@/config/apiBase';
 
 // ─── Stripe payments paused ────────────────────────────────────────────
 // Stripe serverless functions moved to api/_stripe-paused/ to stay within
@@ -94,7 +95,7 @@ export const subscriptionService = {
     const timeoutId = setTimeout(() => controller.abort(), 30_000);
     let response;
     try {
-      response = await fetch('/api/create-checkout-session', {
+      response = await fetch(apiUrl('/api/create-checkout-session'), {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -135,7 +136,7 @@ export const subscriptionService = {
     const portalTimeoutId = setTimeout(() => portalController.abort(), 30_000);
     let response;
     try {
-      response = await fetch('/api/create-portal-session', {
+      response = await fetch(apiUrl('/api/create-portal-session'), {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
