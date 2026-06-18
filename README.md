@@ -123,7 +123,9 @@ truck-repair-assistant_v3/
 │   ├── telematics/        # Telematics OAuth integrations
 │   └── parts/             # Parts search endpoints
 ├── public/                # Static assets
+├── LOGO_TRA_v1.svg        # Canonical app logo (App Store icon source)
 ├── docs/                  # Technical documentation
+│   └── app-store-screenshots/  # App Store screenshots & upload-ready assets
 ├── supabase/             # Database migrations and config
 ├── ios/                  # iOS native project (Capacitor)
 ├── android/              # Android native project (Capacitor)
@@ -140,6 +142,8 @@ npm run test:watch   # Watch mode
 ## Documentation
 
 - [App Store Submission](docs/APP_STORE_SUBMISSION.md) - iOS deployment guide
+- [App Store Upload (now)](docs/APP_STORE_UPLOAD_NOW.md) - Ready-to-upload paths and metadata
+- [App Store Screenshots](docs/app-store-screenshots/README.md) - Screenshot & icon folder layout (`upload/iphone-6.7`, `AppIcon-1024.png`; logo source: `LOGO_TRA_v1.svg`)
 - [iOS Development](docs/IOS_DEVELOPMENT.md) - iOS development workflow
 - [API Configuration](docs/API_CONFIGURATION.md) - Environment variables reference
 - [App Store Readiness](docs/APP_STORE_READINESS.md) - Pre-launch checklist
