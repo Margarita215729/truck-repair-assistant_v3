@@ -8,7 +8,7 @@
  */
 
 import { createClient } from '@supabase/supabase-js';
-import { applyCors } from '../lib/cors.js';
+import { applyCors } from './lib/cors.js';
 
 let _supabase;
 function getSupabase() {
