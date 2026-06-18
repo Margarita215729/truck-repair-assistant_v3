@@ -306,6 +306,62 @@ https://www.tra.tools
 
 ---
 
+## 🇷🇺 TODO для Margarita — данные для App Store Connect
+
+> **Статус:** юридические документы и URL обновлены (`c33822b`). Ниже — только то, что нужно заполнить **вами** перед отправкой в App Store Connect. Не придумывайте данные — пришлите их, и мы обновим документ.
+
+### Контактное лицо (App Store Connect → App Information)
+
+| Поле | Сейчас | Что нужно от вас |
+|------|--------|------------------|
+| First Name | `[Your First Name]` | Имя (как в Apple Developer) |
+| Last Name | `[Your Last Name]` | Фамилия |
+| Phone | `[Your Phone Number]` | Телефон с кодом страны, напр. `+1 555 123 4567` |
+| Email | `founder@tra.tools` | ✅ уже указан |
+
+### Demo-аккаунт для Apple Review (App Review Information)
+
+| Поле | Сейчас | Что нужно от вас |
+|------|--------|------------------|
+| Email | `appstore-review@truckrepairassistant.com` | Подтвердить или указать другой email |
+| Password | `[Provide secure demo password]` | **Пароль** для demo-аккаунта |
+| Subscription | Fleet plan (pre-activated) | Создать аккаунт в Supabase/Stripe и активировать Fleet |
+| Sample data | — | 1–2 грузовика + пример диагностики (fault code) |
+
+**Как создать demo-аккаунт:**
+1. Зарегистрировать email в приложении (или через Supabase Dashboard).
+2. Активировать Fleet-подписку (Stripe test mode или вручную в БД).
+3. Добавить тестовые данные (truck + diagnostic session).
+4. Прислать email + пароль — мы вставим в этот документ и в App Store Connect.
+
+### URL для App Store Connect (уже готовы — проверить после деплоя)
+
+| URL | Назначение |
+|-----|------------|
+| https://www.tra.tools/privacy.html | Privacy Policy URL |
+| https://www.tra.tools/terms.html | Terms of Service URL |
+| https://www.tra.tools/support.html | Support URL |
+
+### Графика (ещё не готова)
+
+- [ ] App Icon 1024×1024 px
+- [ ] Скриншоты iPhone 6.7" (5 шт.)
+- [ ] Скриншоты iPhone 6.5" (5 шт.)
+- [ ] Скриншоты iPad Pro 12.9" (5 шт.)
+
+### Быстрый чеклист перед Submit
+
+- [ ] Заполнить First Name, Last Name, Phone в App Store Connect
+- [ ] Создать и протестировать demo-аккаунт
+- [ ] Убедиться, что все три URL открываются в браузере
+- [ ] Загрузить скриншоты и иконку
+- [ ] Пройти Privacy Questionnaire (ответы — в секции выше в этом документе)
+- [ ] Archive в Xcode → Upload to App Store Connect
+
+**Когда будете готовы:** пришлите в чат имя, фамилию, телефон и credentials demo-аккаунта — обновим документ и поможем заполнить App Store Connect.
+
+---
+
 ## ✅ Pre-Submission Checklist
 
 ### Technical Requirements
