@@ -12,6 +12,7 @@ const NATIVE_APP_ORIGINS = [
 
 export function getAllowedOrigins() {
   return [
+    'https://www.tra.tools',
     'https://tra.tools',
     'https://truck-repair-assistantv3-main.vercel.app',
     'https://truck-repair-assistant-v3.vercel.app',
