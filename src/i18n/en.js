@@ -25,6 +25,7 @@ export default {
     retry: 'Retry',
     refresh: 'Refresh',
     user: 'User',
+    authorCredit: 'By Margarita Makeeva',
   },
 
   // ─── Navigation ───
