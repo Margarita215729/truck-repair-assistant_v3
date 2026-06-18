@@ -11,14 +11,17 @@ docs/app-store-screenshots/
 ├── 02-parts.png
 ├── 03-locator.png
 ├── 04-results.png
-└── upload/                   ← готовые файлы для загрузки в App Store Connect
+├── CONNECT-UPLOAD-6.5/       ← ★ перетащить в Connect → iPhone 6.5" Display
+├── CONNECT-UPLOAD-6.7/       ← ★ перетащить в Connect → iPhone 6.7" Display
+├── CONNECT-UPLOAD-ICON/      ← ★ иконка 1024×1024 для App Information
+└── upload/                   ← исходные upscaled файлы
     ├── AppIcon-1024.png      ← иконка 1024×1024 (из LOGO_TRA_v1.svg)
     ├── iphone-6.7/           ← iPhone 6.7" (1290×2796) — обязательно
     │   ├── 01-diagnostic.png
     │   ├── 02-parts.png
     │   ├── 03-locator.png
     │   └── 04-results.png
-    ├── iphone-6.5/           ← iPhone 6.5" (1284×2778) — опционально
+    ├── iphone-6.5/           ← iPhone 6.5" (1284×2778)
     │   └── … (те же 4 экрана)
     ├── xcodebuild-archive.log
     └── xcodebuild-export.log
