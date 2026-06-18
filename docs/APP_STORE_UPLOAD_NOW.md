@@ -7,6 +7,21 @@
 
 ---
 
+## 0. Где лежат файлы в репозитории
+
+> **Папка в репо:** `docs/app-store-screenshots/`  
+> Подробная структура: [`docs/app-store-screenshots/README.md`](app-store-screenshots/README.md)
+
+| Тип | Путь в репо | Назначение |
+|-----|-------------|------------|
+| Оригиналы (симулятор) | `docs/app-store-screenshots/01–04-*.png` | ~550×1024, исходники |
+| **Upload 6.7"** | `docs/app-store-screenshots/upload/iphone-6.7/` | **1290×2796 — загружать в ASC** |
+| Upload 6.5" | `docs/app-store-screenshots/upload/iphone-6.5/` | 1284×2778 — опционально |
+| **Иконка** | `docs/app-store-screenshots/upload/AppIcon-1024.png` | 1024×1024 — загружать в ASC |
+| Источник логотипа | `LOGO_TRA_v1.svg` (корень репо) | канонический SVG |
+
+---
+
 ## 1. Скриншоты — перетащить в App Store Connect
 
 ### iPhone 6.7" (1290×2796) — **обязательно**
@@ -28,7 +43,7 @@
 |---|------|
 | 1–4 | `01-diagnostic.png` … `04-results.png` (те же экраны) |
 
-> Скриншоты upscaled из симулятора (~550×1024) через `sips`. Качество приемлемо для первой отправки; позже можно переснять на 100% scale.
+> Upscaled из оригиналов `docs/app-store-screenshots/01–04-*.png` (~550×1024) через `sips`. Качество приемлемо для первой отправки; позже можно переснять на 100% scale.
 
 ---
 
@@ -40,8 +55,10 @@
 /Users/rm/truck-repair-assistant_v3/docs/app-store-screenshots/upload/AppIcon-1024.png
 ```
 
-- Размер: **1024×1024** PNG  
-- Источник: `ios/App/App/Assets.xcassets/AppIcon.appiconset/AppIcon-512@2x.png`
+- Размер: **1024×1024** PNG, без прозрачности  
+- **Источник истины:** `LOGO_TRA_v1.svg` в корне репозитория  
+  `/Users/rm/truck-repair-assistant_v3/LOGO_TRA_v1.svg`  
+- Пересоздание: см. [`docs/app-store-screenshots/README.md`](app-store-screenshots/README.md)
 
 ---
 

@@ -134,31 +134,43 @@ Same 5 screenshots optimized for tablet layout
   4. Finding nearby services
 
 ### App Icon
-- 1024x1024px PNG without transparency
+- 1024×1024 px PNG without transparency
 - Should include truck/wrench iconography
 - Use brand colors (orange/black)
-- **Repo:** `ios/App/App/Assets.xcassets/AppIcon.appiconset/AppIcon-512@2x.png` (1024×1024 ✅)
-- **Source SVG:** `LOGO_TRA_v1.svg`, `public/logo.svg`
+- **Source of truth (SVG):** `LOGO_TRA_v1.svg` in repo root
+- **Upload-ready PNG:** `docs/app-store-screenshots/upload/AppIcon-1024.png`
+- **Folder guide:** `docs/app-store-screenshots/README.md`
+
+> `public/logo.svg` is the web app copy — do **not** use it for App Store icon generation.
 
 ### Screenshots (prepared in repo)
 
-| File | Screen | Current size | App Store target |
-|------|--------|--------------|------------------|
-| `docs/app-store-screenshots/01-diagnostic.png` | Main diagnostics | 550×1024 | **1290×2796** (iPhone 6.7") |
-| `docs/app-store-screenshots/02-parts.png` | Repair Parts | 550×1024 | **1290×2796** |
-| `docs/app-store-screenshots/03-locator.png` | Service Locator | 550×1024 | **1290×2796** |
-| `docs/app-store-screenshots/04-results.png` | Diagnostic results / chat | 550×1024 | **1290×2796** |
+All assets live under **`docs/app-store-screenshots/`** — see [`README.md`](app-store-screenshots/README.md).
 
-Simulator captures are ~550×1024 (50% scale). Before upload to App Store Connect, upscale 2.345× or re-capture on iPhone 15 Pro Max simulator at **100% scale** (1290×2796).
+| Layer | Path | Size | Use |
+|-------|------|------|-----|
+| Originals | `docs/app-store-screenshots/01–04-*.png` | ~550×1024 | Simulator captures (50% scale) |
+| **Upload iPhone 6.7"** | `docs/app-store-screenshots/upload/iphone-6.7/*.png` | **1290×2796** | **Drag into App Store Connect** |
+| Upload iPhone 6.5" | `docs/app-store-screenshots/upload/iphone-6.5/*.png` | 1284×2778 | Optional second size set |
 
-**Upscale (macOS):**
+| File | Screen |
+|------|--------|
+| `01-diagnostic.png` | Main diagnostics |
+| `02-parts.png` | Repair Parts |
+| `03-locator.png` | Service Locator |
+| `04-results.png` | Diagnostic results / chat |
+
+**Regenerate upload sizes (macOS):**
 ```bash
-for f in docs/app-store-screenshots/*.png; do
-  sips -z 2796 1290 "$f" --out "${f%.png}-6.7.png"
+cd docs/app-store-screenshots
+mkdir -p upload/iphone-6.7 upload/iphone-6.5
+for f in 0*.png; do
+  sips -z 2796 1290 "$f" --out "upload/iphone-6.7/$f"
+  sips -z 2778 1284 "$f" --out "upload/iphone-6.5/$f"
 done
 ```
 
-Also required by Apple (not yet in repo): iPhone 6.5" (1284×2778), iPad Pro 12.9" (2048×2732) — resize or capture separately.
+Still missing (not blocking first submit): iPad Pro 12.9" (2048×2732).
 
 ---
 
@@ -362,9 +374,10 @@ https://www.tra.tools
 
 ### Графика
 
-- [x] App Icon 1024×1024 px — `ios/App/App/Assets.xcassets/AppIcon.appiconset/AppIcon-512@2x.png`
-- [x] Скриншоты iPhone 6.7" (4 шт.) — `docs/app-store-screenshots/01–04-*.png` (нужен upscale до 1290×2796)
-- [ ] Скриншоты iPhone 6.5" (1284×2778) — переснять или ресайз
+- [x] App Icon 1024×1024 px — `docs/app-store-screenshots/upload/AppIcon-1024.png` (из `LOGO_TRA_v1.svg`)
+- [x] Скриншоты iPhone 6.7" (4 шт.) — `docs/app-store-screenshots/upload/iphone-6.7/`
+- [x] Скриншоты iPhone 6.5" (4 шт.) — `docs/app-store-screenshots/upload/iphone-6.5/`
+- [x] Оригиналы скриншотов — `docs/app-store-screenshots/01–04-*.png`
 - [ ] Скриншоты iPad Pro 12.9" (2048×2732) — переснять на iPad simulator
 - [ ] 5-й скриншот 6.7" (например Repair History) — опционально
 
