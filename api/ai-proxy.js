@@ -76,8 +76,11 @@ export default async function handler(req, res) {
       return res.status(400).json({ error: `Too many messages (max ${MAX_MESSAGES})` });
     }
 
-    // Sanitize message roles — only allow 'user' and 'assistant' from client
-    const ALLOWED_ROLES = new Set(['user', 'assistant']);
+    // Sanitize message roles — allow 'system', 'user', and 'assistant' from client.
+    // 'system' is required so the JSON-mode system prompt built client-side survives
+    // the proxy and satisfies OpenAI's requirement that messages contain the word
+    // "json" whenever response_format: json_object is used.
+    const ALLOWED_ROLES = new Set(['system', 'user', 'assistant']);
     const sanitizedMessages = messages
       .filter(m => m && typeof m === 'object' && ALLOWED_ROLES.has(m.role) && m.content != null)
       .map(m => ({ role: m.role, content: m.content }));
