@@ -232,13 +232,15 @@ Truck Repair Assistant provides informational assistance only and is not a subst
 
 ## 5. Xcode — Archive & Upload
 
-### Статус сборки (18 июня 2026)
+### Статус сборки (18 июня 2026, build **3**)
 
 | Шаг | Статус | Детали |
 |-----|--------|--------|
+| AppIcon в Xcode assets | ✅ Исправлено | `AppIcon-512@2x.png` ← `docs/app-store-screenshots/upload/AppIcon-1024.png` (из `LOGO_TRA_v1.svg`) |
+| `CURRENT_PROJECT_VERSION` | ✅ **3** | `ios/App/App.xcodeproj/project.pbxproj` |
 | `npm run mobile:prepare` | ✅ Успех | Vite build + cap sync + pod install |
-| `xcodebuild archive` | ✅ **ARCHIVE SUCCEEDED** | Team `5NNJSQR7UM`, signing: Apple Development |
-| `xcodebuild -exportArchive` | ❌ **EXPORT FAILED** | `App Store Connect Credentials Error` — нужен Apple ID в Xcode |
+| `xcodebuild archive` | ✅ **ARCHIVE SUCCEEDED** | CFBundleVersion=3, Team `5NNJSQR7UM`, signing: Apple Development |
+| `xcodebuild -exportArchive` | ❌ **EXPORT FAILED** | `App Store Connect Credentials Error` — нужен Apple ID / Distribution cert |
 
 **Archive path:**
 ```
@@ -251,8 +253,8 @@ Truck Repair Assistant provides informational assistance only and is not a subst
 ```
 
 **Логи:**
-- `docs/app-store-screenshots/upload/xcodebuild-archive.log`
-- `docs/app-store-screenshots/upload/xcodebuild-export.log`
+- `docs/app-store-screenshots/upload/xcodebuild-archive-build3.log`
+- `docs/app-store-screenshots/upload/xcodebuild-export-build3.log`
 
 > Архив подписан **Apple Development** (не Distribution). Xcode при Distribute App переподпишет автоматически для App Store.
 
@@ -283,7 +285,93 @@ xcodebuild -workspace App.xcworkspace \
 
 ---
 
-## 6. Чеклист перед Submit
+## 6. Submit for Review через CLI
+
+> **Xcode / xcodebuild не имеют одной команды `submit`.** Загрузка билда и отправка на ревью — разные шаги.
+
+### Вариант A: fastlane deliver (рекомендуется)
+
+```bash
+# Установка (один раз)
+brew install fastlane
+
+# Инициализация в ios/App (один раз)
+cd ios/App
+fastlane init   # выбрать manual setup, bundle id com.truckrepairassistant.mobile
+
+# Загрузка IPA + метаданные + submit (нужен API key или Apple ID)
+fastlane deliver \
+  --ipa build/export/App.ipa \
+  --submit_for_review \
+  --automatic_release false \
+  --skip_screenshots true \
+  --skip_metadata false
+```
+
+**Аутентификация (выберите один):**
+
+1. **App Store Connect API Key** (без интерактива, лучше для CI):
+   ```bash
+   export APP_STORE_CONNECT_API_KEY_PATH=~/AuthKey_XXXXXX.p8
+   export APP_STORE_CONNECT_KEY_ID=XXXXXXXXXX
+   export APP_STORE_CONNECT_ISSUER_ID=xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx
+   ```
+
+2. **Apple ID** (интерактивный пароль / app-specific password):
+   ```bash
+   export FASTLANE_USER=founder@tra.tools
+   export FASTLANE_APPLE_APPLICATION_SPECIFIC_PASSWORD=xxxx-xxxx-xxxx-xxxx
+   ```
+
+### Вариант B: App Store Connect API напрямую
+
+После загрузки билда (через Xcode или `xcrun altool --upload-package`):
+
+```bash
+# 1. Получить appStoreVersion id (JWT из API key)
+curl -H "Authorization: Bearer $JWT" \
+  "https://api.appstoreconnect.apple.com/v1/apps?filter[bundleId]=com.truckrepairassistant.mobile"
+
+# 2. Привязать build к версии
+curl -X PATCH -H "Authorization: Bearer $JWT" \
+  -H "Content-Type: application/json" \
+  -d '{"data":{"type":"appStoreVersions","id":"VERSION_ID","relationships":{"build":{"data":{"type":"builds","id":"BUILD_ID"}}}}}' \
+  "https://api.appstoreconnect.apple.com/v1/appStoreVersions/VERSION_ID"
+
+# 3. Submit for review
+curl -X POST -H "Authorization: Bearer $JWT" \
+  -H "Content-Type: application/json" \
+  -d '{"data":{"type":"appStoreVersionSubmissions","relationships":{"appStoreVersion":{"data":{"type":"appStoreVersions","id":"VERSION_ID"}}}}}' \
+  "https://api.appstoreconnect.apple.com/v1/appStoreVersionSubmissions"
+```
+
+### Вариант C: asc CLI (сторонний)
+
+```bash
+brew install asc
+asc auth login   # интерактивно
+asc builds upload --ipa build/export/App.ipa
+asc submit create --version "1.0"
+```
+
+### Текущий блокер (18 июня 2026)
+
+| Что | Статус |
+|-----|--------|
+| fastlane | ❌ не установлен |
+| ASC API Key (.p8) | ❌ не найден на машине |
+| Distribution certificate | ❌ только Apple Development |
+| `xcodebuild -exportArchive` | ❌ `App Store Connect Credentials Error` |
+
+**Без Apple ID / API key автоматическая загрузка невозможна.** Следующий шаг — вручную в Xcode Organizer или настроить API key.
+
+### Vercel redirects (/support, /privacy, /terms)
+
+✅ Уже настроены в `vercel.json` (rewrites → `support.html`, `privacy.html`, `terms.html`).
+
+---
+
+## 7. Чеклист перед Submit
 
 - [ ] Загрузить 4 скриншота 6.7" из `upload/iphone-6.7/`
 - [ ] Загрузить иконку `upload/AppIcon-1024.png`
@@ -296,7 +384,7 @@ xcodebuild -workspace App.xcworkspace \
 
 ---
 
-## 7. Что ещё не готово (не блокирует первую отправку)
+## 8. Что ещё не готово (не блокирует первую отправку)
 
 | Элемент | Статус |
 |---------|--------|
