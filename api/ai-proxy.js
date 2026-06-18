@@ -1,4 +1,5 @@
 import { createClient } from '@supabase/supabase-js';
+import { applyCors } from './lib/cors.js';
 
 const GITHUB_MODELS_URL = 'https://models.github.ai/inference/chat/completions';
 const DEFAULT_MODEL = 'openai/gpt-4o-mini';
@@ -21,6 +22,8 @@ function getSupabase() {
 }
 
 export default async function handler(req, res) {
+  if (applyCors(req, res)) return;
+
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Method not allowed' });
   }
