@@ -76,10 +76,11 @@
 - Email: founder@tra.tools
 - Юрисдикция: Pennsylvania, United States
 
-**В APP_STORE_SUBMISSION.md:** (осталось заполнить)
-- `[Your First Name]` и `[Your Last Name]` → контактное лицо
-- `[Your Phone Number]` → номер телефона
-- Создайте demo аккаунт для App Review
+**В APP_STORE_SUBMISSION.md:** ✅ Обновлено
+- First Name: Margarita
+- Last Name: Makeeva
+- Phone: +1 215 252 0163
+- Demo-аккаунт: local.admin@truckassist.app (Fleet plan)
 - Подготовьте скриншоты приложения
 
 ### 4. Подготовьте графические материалы
@@ -112,15 +113,17 @@
 - [ ] `GITHUB_TOKEN` (server-side)
 - [ ] `GEMINI_API_KEY` (server-side)
 
-### 6. Создайте demo аккаунт
+### 6. Demo аккаунт ✅
 
 Для Apple App Review:
 ```
-Email: appstore-review@truckrepairassistant.com
-Password: [Создайте безопасный пароль]
+Email: local.admin@truckassist.app
+Password: [REDACTED]
 Subscription: Pre-activated Fleet plan
 Sample Data: Добавьте примеры грузовиков и диагностики
 ```
+
+> **Перед Submit:** войти в demo-аккаунт и убедиться, что Fleet-подписка активна и есть тестовые данные.
 
 ### 7. Соберите приложение для App Store
 
@@ -214,6 +217,6 @@ npm run cap:open:android
 ---
 
 **Статус**: ✅ Готов к публикации (после выполнения шагов выше)  
-**Последнее обновление**: 23 мая 2026
+**Последнее обновление**: 18 июня 2026
 
 **Удачи с публикацией! 🚀**
