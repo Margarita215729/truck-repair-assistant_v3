@@ -118,7 +118,7 @@
 Для Apple App Review:
 ```
 Email: local.admin@truckassist.app
-Password: [REDACTED]
+Password: stored only in App Store Connect → App Review Information (not in repo)
 Subscription: Pre-activated Fleet plan
 Sample Data: Добавьте примеры грузовиков и диагностики
 ```
