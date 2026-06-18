@@ -23,4 +23,22 @@ end
 
 post_install do |installer|
   assertDeploymentTarget(installer)
+
+  # CapacitorCordova uses legacy Cordova #import "..." headers. Xcode 16+/26
+  # treats these as errors when building framework modules.
+  installer.pods_project.targets.each do |target|
+    target.build_configurations.each do |config|
+      config.build_settings['CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER'] = 'NO'
+      config.build_settings['CLANG_ALLOW_NON_MODULAR_INCLUDES_IN_FRAMEWORK_MODULES'] = 'YES'
+
+      flags = config.build_settings['OTHER_CFLAGS'] || '$(inherited)'
+      flags = [flags] unless flags.is_a?(Array)
+      flags << '-Wno-quoted-include-in-framework-header' unless flags.include?('-Wno-quoted-include-in-framework-header')
+      config.build_settings['OTHER_CFLAGS'] = flags
+    end
+  end
+
+  installer.pods_project.build_configurations.each do |config|
+    config.build_settings['CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER'] = 'NO'
+  end
 end
