@@ -130,6 +130,18 @@ function resolveValue(key, fileVars) {
   return { value: '', source: 'missing' };
 }
 
+function validatePublicBaseUrl(value) {
+  if (!value) return { ok: false, detail: 'missing' };
+  const normalized = value.replace(/\/$/, '');
+  if (normalized === 'https://tra.tools' || normalized === 'http://tra.tools') {
+    return {
+      ok: false,
+      detail: 'use https://www.tra.tools — tra.tools redirects and breaks Capacitor CORS',
+    };
+  }
+  return validateUrl(value);
+}
+
 function validateUrl(value) {
   if (!value) return { ok: false, detail: 'missing' };
   try {
@@ -284,7 +296,11 @@ async function main() {
 
   printSection('Server variables');
   for (const key of SERVER_VARS) {
-    const validator = key.includes('PRICE') ? validateStripePriceId : null;
+    const validator = key.includes('PRICE')
+      ? validateStripePriceId
+      : key === 'NEXT_PUBLIC_BASE_URL'
+        ? validatePublicBaseUrl
+        : null;
     const r = printVar(key, fileVars, { validator });
     if (r.present && validator) {
       const v = validator(resolveValue(key, fileVars).value);
