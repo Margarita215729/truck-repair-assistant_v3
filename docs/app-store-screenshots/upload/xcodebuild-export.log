@@ -1,0 +1,5 @@
+2026-06-18 14:24:05.561 xcodebuild[45052:527637] [MT] IDEDistribution: -[IDEDistributionLogging _createLoggingBundleAtPath:]: Created bundle at path "/var/folders/y6/n547cmkn09gdjvmzbdgsk8tc0000gn/T/App_2026-06-18_14-24-05.561.xcdistributionlogs".
+error: exportArchive App Store Connect Credentials Error
+
+** EXPORT FAILED **
+
