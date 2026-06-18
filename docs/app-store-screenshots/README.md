@@ -13,6 +13,7 @@ docs/app-store-screenshots/
 ├── 04-results.png
 ├── CONNECT-UPLOAD-6.9/       ← ★ основной: Connect → iPhone 6.9" Display (1290×2796)
 ├── CONNECT-UPLOAD-6.5/       ← fallback: Connect → iPhone 6.5" Display (1242×2688)
+├── CONNECT-UPLOAD-IPAD-13/   ← ★ обязательно: Connect → iPad 13" Display (2064×2752)
 ├── CONNECT-UPLOAD-6.7/       ← устарело; используйте CONNECT-UPLOAD-6.9
 ├── CONNECT-UPLOAD-ICON/      ← ★ иконка 1024×1024 для App Information
 └── upload/                   ← исходные upscaled файлы
@@ -33,6 +34,7 @@ docs/app-store-screenshots/
 | Назначение | Папка / файл | Размер |
 |------------|--------------|--------|
 | **Скриншоты iPhone 6.9"** (рекомендуется) | `CONNECT-UPLOAD-6.9/*.png` | 1290×2796 PNG sRGB |
+| **Скриншоты iPad 13"** (обязательно для iPad) | `CONNECT-UPLOAD-IPAD-13/*.png` | 2064×2752 PNG sRGB |
 | Скриншоты iPhone 6.5" (fallback) | `CONNECT-UPLOAD-6.5/*.png` | 1242×2688 PNG sRGB |
 | Устаревшие upscaled | `upload/iphone-6.7/*.png` | JPEG в .png — не загружать |
 | **Иконка приложения** | `upload/AppIcon-1024.png` | 1024×1024 PNG, без прозрачности |
