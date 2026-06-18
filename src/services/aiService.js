@@ -252,7 +252,7 @@ export async function invokeGeminiVision({ media, prompt, truck_context }) {
   }
 
   // Dev fallback: convert to base64 and call Gemini directly (no Vercel limit in local dev)
-  const devKey = env.GEMINI_API_KEY || env.GOOGLE_MAPS_API_KEY;
+  const devKey = env.GEMINI_API_KEY;
   if (devKey) {
     const mediaPayload = await Promise.all(
       media.map(async ({ file }) => {
