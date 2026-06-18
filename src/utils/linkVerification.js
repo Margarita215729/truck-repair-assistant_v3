@@ -7,6 +7,7 @@
  */
 
 import { classifyDomain } from './domainTrust';
+import { apiUrl } from '@/config/apiBase';
 
 /**
  * Batch-verify links through the research API.
@@ -19,7 +20,7 @@ import { classifyDomain } from './domainTrust';
 export async function verifyLinks(urls, accessToken) {
   if (!urls || urls.length === 0) return new Map();
 
-  const response = await fetch('/api/research-search', {
+  const response = await fetch(apiUrl('/api/research-search'), {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',

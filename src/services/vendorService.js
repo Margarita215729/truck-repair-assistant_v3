@@ -4,8 +4,9 @@
  * Returns a unified listings[] array with normalized VendorListing objects.
  */
 import { supabase, hasSupabaseConfig } from '@/api/supabaseClient';
+import { apiUrl } from '@/config/apiBase';
 
-const API_BASE = '/api/parts/search';
+const API_BASE = apiUrl('/api/parts/search');
 
 // ─── Source tier labels (matches backend SOURCE_TIERS) ───────────────
 

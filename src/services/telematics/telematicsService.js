@@ -9,8 +9,9 @@
  * - disconnectProvider(provider) — deactivates a connection via DELETE /api/telematics/vehicles
  */
 import { supabase, hasSupabaseConfig } from '@/api/supabaseClient';
+import { apiUrl } from '@/config/apiBase';
 
-const API_BASE = '/api/telematics';
+const API_BASE = apiUrl('/api/telematics');
 
 /**
  * Get the Supabase auth token from the current session.

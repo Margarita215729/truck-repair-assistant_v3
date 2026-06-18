@@ -28,6 +28,7 @@ import TruckRestrictionCard from '@/components/services/TruckRestrictionCard';
 import { useLanguage } from '@/lib/LanguageContext';
 import { useTruck } from '@/lib/TruckContext';
 import { supabase } from '@/api/supabaseClient';
+import { apiUrl } from '@/config/apiBase';
 import { resolveOEMLinks } from '@/services/researchService';
 
 export default function ServiceFinder() {
@@ -121,7 +122,7 @@ export default function ServiceFinder() {
         throw new Error(t('services.authRequired') || 'Please sign in to search for services.');
       }
 
-      const res = await fetch('/api/geocode', {
+      const res = await fetch(apiUrl('/api/geocode'), {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -229,7 +230,7 @@ export default function ServiceFinder() {
         return;
       }
 
-      const response = await fetch('/api/places-search', {
+      const response = await fetch(apiUrl('/api/places-search'), {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

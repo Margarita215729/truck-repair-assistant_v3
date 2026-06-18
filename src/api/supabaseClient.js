@@ -4,8 +4,8 @@
 import { createClient } from '@supabase/supabase-js';
 import { env, isDevelopment } from '@/config/env';
 
-const supabaseUrl = env.SUPABASE_URL;
-const supabaseAnonKey = env.SUPABASE_ANON_KEY;
+const supabaseUrl = env.NEXT_PUBLIC_STORAGE_SUPABASE_SUPABASE_URL;
+const supabaseAnonKey = env.STORAGE_SUPABASE_SUPABASE_ANON_KEY;
 
 export const hasSupabaseConfig = Boolean(supabaseUrl && supabaseAnonKey);
 

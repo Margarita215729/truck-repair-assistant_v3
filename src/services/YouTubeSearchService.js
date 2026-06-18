@@ -27,8 +27,11 @@
 export class YouTubeSearchService {
   constructor(apiKey) {
     this.BASE_URL = 'https://www.googleapis.com/youtube/v3';
-    // Uses the same Google API key as Google Maps (YouTube Data API v3 must be enabled)
-    this.API_KEY = apiKey || import.meta.env.VITE_GOOGLE_MAPS_API_KEY || '';
+    // General Google Cloud key (Maps, YouTube, CSE) — not valid for Gemini
+    this.API_KEY = apiKey
+      || import.meta.env.VITE_YOUTUBE_API_KEY
+      || import.meta.env.VITE_GOOGLE_MAPS_API_KEY
+      || '';
   }
 
   /**

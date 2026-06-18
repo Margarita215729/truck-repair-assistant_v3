@@ -8,9 +8,10 @@
  *   VISION_MODEL   – supports image_url content, used for photo analysis
  */
 import { env } from '@/config/env';
+import { apiUrl } from '@/config/apiBase';
 import { supabase, hasSupabaseConfig } from '@/api/supabaseClient';
 
-const AI_PROXY_URL = '/api/ai-proxy';
+const AI_PROXY_URL = apiUrl('/api/ai-proxy');
 const GITHUB_MODELS_URL = 'https://models.github.ai/inference/chat/completions';
 const DEFAULT_MODEL = 'openai/gpt-4o-mini';
 const VISION_MODEL  = 'openai/gpt-4o';
@@ -252,7 +253,7 @@ export async function invokeGeminiVision({ media, prompt, truck_context }) {
   }
 
   // Dev fallback: convert to base64 and call Gemini directly (no Vercel limit in local dev)
-  const devKey = env.GEMINI_API_KEY || env.GOOGLE_MAPS_API_KEY;
+  const devKey = env.GEMINI_API_KEY;
   if (devKey) {
     const mediaPayload = await Promise.all(
       media.map(async ({ file }) => {
@@ -309,7 +310,7 @@ async function analyzeViaStorage(media, prompt, truckContext, session, guessMime
 }
 
 async function callGeminiProxy(mediaRefs, prompt, truckContext, accessToken) {
-  const response = await fetch('/api/gemini-proxy', {
+  const response = await fetch(apiUrl('/api/gemini-proxy'), {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
