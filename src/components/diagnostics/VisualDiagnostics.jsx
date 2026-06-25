@@ -112,17 +112,8 @@ export default function VisualDiagnostics({ open, onClose, onDiagnosisComplete, 
 
     // Validate video duration — use relaxed limit for uploaded files
     if (isVideo) {
-      if (isGuest) {
-        toast.error('Video diagnostics require an account. Photos are available in guest mode.');
-        return;
-      }
-      const ok = await validateVideoDuration(file, MAX_UPLOADED_VIDEO_DURATION);
-      if (!ok) {
-        toast.error(
-          (t('visualDiagnostics.videoTooLong') || `Video must be ${MAX_UPLOADED_VIDEO_DURATION} seconds or shorter`)
-        );
-        return;
-      }
+      toast.message(t('visualDiagnostics.videoUnsupported') || 'Video recording and video analysis will be available in the next version. You can upload photos for now.');
+      return;
     }
 
     setMediaFile(file);
@@ -320,9 +311,7 @@ export default function VisualDiagnostics({ open, onClose, onDiagnosisComplete, 
               <div className="border-2 border-dashed border-white/20 rounded-xl p-8 text-center hover:border-emerald-500/50 transition-colors">
                 <Camera className="w-10 h-10 text-white/40 mx-auto mb-3" />
                 <p className="text-white/70 mb-1 text-sm">
-                  {isGuest
-                    ? (t('visualDiagnostics.uploadHintGuest') || 'Upload a photo of the issue (video requires account)')
-                    : (t('visualDiagnostics.uploadHint') || 'Upload photo or video of the issue')}
+                  {t('visualDiagnostics.uploadHint') || 'Upload a photo of the issue (video coming soon)'}
                 </p>
                 <p className="text-xs text-white/40 mb-4">
                   {t('visualDiagnostics.examples') || 'Dashboard lights, leaks, smoke, damage, wear, VIN plates'}
@@ -336,7 +325,7 @@ export default function VisualDiagnostics({ open, onClose, onDiagnosisComplete, 
                     <input
                       id="visual-file"
                       type="file"
-                      accept={isGuest ? 'image/*' : 'image/*,video/*'}
+                      accept="image/*"
                       onChange={handleFileSelect}
                       className="hidden"
                     />
@@ -344,17 +333,19 @@ export default function VisualDiagnostics({ open, onClose, onDiagnosisComplete, 
                   {!isGuest && (
                     <Button
                       variant="outline"
+                      disabled
                       onClick={startRecording}
-                      className="border-emerald-500/30 text-emerald-400 hover:bg-emerald-500/10"
+                      className="border-white/10 text-white/30 hover:bg-white/5 cursor-not-allowed relative"
+                      title="Coming Soon"
                     >
                       <Video className="w-4 h-4 mr-2" />
-                      {t('visualDiagnostics.recordVideo') || 'Record Video'}
+                      {t('visualDiagnostics.recordVideo') || 'Record Video (Coming Soon)'}
                     </Button>
                   )}
-                  {!isGuest && !videoRecordingSupported && (
+                  {!isGuest && (
                     <p className="text-[11px] text-white/40 text-center w-full">
                       {t('visualDiagnostics.videoUploadHint') ||
-                        'Video recording is not available on this device — use Upload File for photos or videos.'}
+                        'Video analysis — coming soon! Use Upload File for photos.'}
                     </p>
                   )}
                 </div>
