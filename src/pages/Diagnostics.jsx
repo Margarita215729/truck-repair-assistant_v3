@@ -1308,7 +1308,7 @@ Focus on:
                             whileHover={{ scale: toolDisabled ? 1 : 1.03 }}
                             whileTap={{ scale: 0.97 }}
                             onClick={toolDisabled ? handleDisabled : onClick}
-                            className={`relative flex flex-col sm:flex-col flex-row items-center gap-2 sm:gap-2 p-3 sm:p-5 rounded-2xl border bg-gradient-to-b sm:bg-gradient-to-b bg-gradient-to-r transition-all duration-200
+                            className={`relative flex flex-col items-center gap-2 p-3 sm:p-5 rounded-2xl border bg-gradient-to-b transition-all duration-200
                               ${toolDisabled ? 'border-white/5 from-white/[0.02] to-transparent opacity-40 cursor-pointer' : `${c.border} ${c.bg}`}`}
                           >
                             <div className={`w-10 h-10 sm:w-10 sm:h-10 rounded-xl flex items-center justify-center ${toolDisabled ? 'bg-white/5' : 'bg-white/5'}`}>
