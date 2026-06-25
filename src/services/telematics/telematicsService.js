@@ -110,11 +110,13 @@ export async function getProviderStatus() {
  * Fetch the full truck state snapshot with AI interpretation.
  *
  * @param {string} vehicleProfileId - The vehicle profile ID from the trucks table
- * @returns {{ snapshot, interpretation, meta } | null}
+ * @returns {Promise<{ ok: true, snapshot, interpretation, meta } | { ok: false, code: string, message?: string }>}
  */
 export async function getTruckStateSnapshot(vehicleProfileId) {
   const token = await getAuthToken();
-  if (!token) return null;
+  if (!token) {
+    return { ok: false, code: 'unauthenticated' };
+  }
 
   try {
     const resp = await fetch(
@@ -123,14 +125,30 @@ export async function getTruckStateSnapshot(vehicleProfileId) {
         headers: { Authorization: `Bearer ${token}` },
       }
     );
-    if (!resp.ok) {
-      console.error('Truck state snapshot fetch failed:', resp.status);
-      return null;
+
+    if (resp.status === 401) {
+      return { ok: false, code: 'unauthenticated' };
     }
-    return await resp.json();
+
+    if (!resp.ok) {
+      const err = await resp.json().catch(() => ({}));
+      console.error('Truck state snapshot fetch failed:', resp.status, err);
+      return {
+        ok: false,
+        code: 'server',
+        message: err.error || `Server error (${resp.status})`,
+      };
+    }
+
+    const data = await resp.json();
+    return { ok: true, ...data };
   } catch (err) {
     console.error('Truck state snapshot error:', err);
-    return null;
+    return {
+      ok: false,
+      code: 'network',
+      message: err.message || 'Network error',
+    };
   }
 }
 

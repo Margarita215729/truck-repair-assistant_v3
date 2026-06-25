@@ -12,6 +12,11 @@ import { motion } from 'framer-motion';
 import { toast } from 'sonner';
 import { useLanguage } from '@/lib/LanguageContext';
 import { useTruck } from '@/lib/TruckContext';
+import {
+  canRecordVideo,
+  getSupportedMimeType,
+  stopMediaStream,
+} from '@/utils/mediaCapabilities';
 
 const MAX_VIDEO_DURATION = 15; // seconds — for live recording
 const MAX_UPLOADED_VIDEO_DURATION = 120; // seconds — for pre-recorded uploads
@@ -41,6 +46,15 @@ export default function VisualDiagnostics({ open, onClose, onDiagnosisComplete, 
   const [result, setResult] = useState(null);
   const [rejected, setRejected] = useState(false);
   const [rejectionReason, setRejectionReason] = useState('');
+  const videoRecordingSupported = canRecordVideo();
+  const mountedRef = useRef(true);
+
+  useEffect(() => {
+    mountedRef.current = true;
+    return () => {
+      mountedRef.current = false;
+    };
+  }, []);
 
   // Cleanup on unmount / close
   useEffect(() => {
@@ -120,6 +134,14 @@ export default function VisualDiagnostics({ open, onClose, onDiagnosisComplete, 
 
   /* ──────── Video recording ──────── */
   const startRecording = async () => {
+    if (!videoRecordingSupported) {
+      toast.message(
+        t('visualDiagnostics.videoUnsupported') ||
+          'Video recording is not supported on this device. Please upload a photo or video file instead.'
+      );
+      return;
+    }
+
     try {
       const stream = await navigator.mediaDevices.getUserMedia({
         video: { facingMode: 'environment', width: { ideal: 1280 }, height: { ideal: 720 } },
@@ -129,10 +151,11 @@ export default function VisualDiagnostics({ open, onClose, onDiagnosisComplete, 
 
       if (videoPreviewRef.current) {
         videoPreviewRef.current.srcObject = stream;
-        videoPreviewRef.current.play();
+        await videoPreviewRef.current.play().catch(() => {});
       }
 
-      const recorder = new MediaRecorder(stream, { mimeType: getSupportedMimeType() });
+      const mimeType = getSupportedMimeType();
+      const recorder = mimeType ? new MediaRecorder(stream, { mimeType }) : new MediaRecorder(stream);
       mediaRecorderRef.current = recorder;
       chunksRef.current = [];
 
@@ -141,8 +164,11 @@ export default function VisualDiagnostics({ open, onClose, onDiagnosisComplete, 
       };
 
       recorder.onstop = () => {
-        const blob = new Blob(chunksRef.current, { type: recorder.mimeType || 'video/webm' });
-        const file = new File([blob], `visual_diag_${Date.now()}.webm`, { type: 'video/webm' });
+        const blobType = recorder.mimeType || mimeType || 'video/mp4';
+        const ext = blobType.includes('mp4') ? 'mp4' : 'webm';
+        const blob = new Blob(chunksRef.current, { type: blobType });
+        const file = new File([blob], `visual_diag_${Date.now()}.${ext}`, { type: blobType });
+        if (!mountedRef.current) return;
         setMediaFile(file);
         setMediaType('video');
         setMediaPreviewUrl(URL.createObjectURL(blob));
@@ -150,37 +176,44 @@ export default function VisualDiagnostics({ open, onClose, onDiagnosisComplete, 
       };
 
       recorder.start(250);
+      if (!mountedRef.current) {
+        stopRecording();
+        return;
+      }
       setIsRecording(true);
       setRecordingTime(0);
-      timerRef.current = setInterval(() => setRecordingTime((t) => t + 1), 1000);
+      timerRef.current = setInterval(() => setRecordingTime((prev) => prev + 1), 1000);
     } catch (err) {
       console.error('Camera access error:', err);
-      toast.error(t('visualDiagnostics.cameraError') || 'Could not access camera');
+      cleanupStream();
+      toast.message(
+        t('visualDiagnostics.videoUnsupported') ||
+          'Video recording is not supported on this device. Please upload a photo or video file instead.'
+      );
     }
   };
 
   const stopRecording = () => {
-    if (mediaRecorderRef.current?.state === 'recording') {
-      mediaRecorderRef.current.stop();
+    try {
+      if (mediaRecorderRef.current?.state === 'recording') {
+        mediaRecorderRef.current.stop();
+      }
+    } catch (err) {
+      console.warn('stopRecording:', err);
     }
     if (timerRef.current) {
       clearInterval(timerRef.current);
       timerRef.current = null;
     }
-    setIsRecording(false);
+    if (mountedRef.current) {
+      setIsRecording(false);
+    }
     cleanupStream();
   };
 
   const cleanupStream = () => {
-    if (streamRef.current) {
-      streamRef.current.getTracks().forEach((t) => t.stop());
-      streamRef.current = null;
-    }
-  };
-
-  const getSupportedMimeType = () => {
-    const types = ['video/webm;codecs=vp9,opus', 'video/webm;codecs=vp8,opus', 'video/webm', 'video/mp4'];
-    return types.find((t) => MediaRecorder.isTypeSupported(t)) || 'video/webm';
+    stopMediaStream(streamRef.current);
+    streamRef.current = null;
   };
 
   /* ──────── Analysis ──────── */
@@ -317,6 +350,12 @@ export default function VisualDiagnostics({ open, onClose, onDiagnosisComplete, 
                       <Video className="w-4 h-4 mr-2" />
                       {t('visualDiagnostics.recordVideo') || 'Record Video'}
                     </Button>
+                  )}
+                  {!isGuest && !videoRecordingSupported && (
+                    <p className="text-[11px] text-white/40 text-center w-full">
+                      {t('visualDiagnostics.videoUploadHint') ||
+                        'Video recording is not available on this device — use Upload File for photos or videos.'}
+                    </p>
                   )}
                 </div>
               </div>

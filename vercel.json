@@ -69,6 +69,9 @@
     },
     "api/telematics/vehicles.js": {
       "maxDuration": 15
+    },
+    "api/delete-account.js": {
+      "maxDuration": 30
     }
   },
   "crons": [

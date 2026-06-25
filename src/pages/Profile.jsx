@@ -44,6 +44,7 @@ import ProfileStats from '@/components/profile/ProfileStats';
 import TruckGarage from '@/components/profile/TruckGarage';
 import SavedShops from '@/components/profile/SavedShops';
 import VehicleMapper from '@/components/profile/VehicleMapper';
+import DeleteAccountSection from '@/components/profile/DeleteAccountSection';
 
 export default function Profile() {
   const { t } = useLanguage();
@@ -582,6 +583,9 @@ export default function Profile() {
 
         {/* Saved Shops */}
         <SavedShops />
+
+        {/* Account deletion — App Store Guideline 5.1.1(v) */}
+        <DeleteAccountSection />
       </motion.div>
 
       <CredentialConnectDialog

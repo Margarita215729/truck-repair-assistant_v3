@@ -1,26 +1,23 @@
 import React, { useState, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Wifi, WifiOff, Loader2, CheckCircle2, AlertTriangle, Radio, X, KeyRound } from 'lucide-react';
-import { Button } from '@/components/ui/button';
+import { Wifi, WifiOff, Loader2, Radio, X, KeyRound } from 'lucide-react';
 import { toast } from 'sonner';
+import { useNavigate } from 'react-router-dom';
 import { getTruckStateSnapshot, connectProvider } from '@/services/telematics/telematicsService';
 import CredentialConnectDialog from './CredentialConnectDialog';
 
 /**
- * ScanTruckButton
- *
- * A prominent button that:
- * 1. Checks if a telematics provider (Motive / Samsara) is connected
- * 2. If not → shows a provider-picker overlay to initiate OAuth (one-time)
- * 3. If connected → fetches live truck state and sends it to the chat
- *
- * Props:
- *   vehicleProfileId – truck profile ID from TruckContext
- *   onScanComplete({ snapshot, interpretation }) – callback to inject data into chat
- *   disabled – external disable flag (e.g. no truck selected)
- *   className – optional wrapper class
+ * ScanTruckButton — live telematics scan with graceful setup flows for App Review.
  */
-export default function ScanTruckButton({ vehicleProfileId, onScanComplete, disabled, className, isGuest, onGuestBlocked }) {
+export default function ScanTruckButton({
+  vehicleProfileId,
+  onScanComplete,
+  disabled,
+  className,
+  isGuest,
+  onGuestBlocked,
+}) {
+  const navigate = useNavigate();
   const [scanning, setScanning] = useState(false);
   const [showProviderPicker, setShowProviderPicker] = useState(false);
   const [credentialMeta, setCredentialMeta] = useState(null);
@@ -31,29 +28,36 @@ export default function ScanTruckButton({ vehicleProfileId, onScanComplete, disa
       onGuestBlocked?.();
       return;
     }
+
     setScanning(true);
     try {
       const result = await getTruckStateSnapshot(vehicleProfileId || '_auto');
 
-      if (!result) {
-        // Not authenticated at all
-        toast.error('Please log in to scan your truck');
+      if (!result.ok) {
+        if (result.code === 'unauthenticated') {
+          onGuestBlocked?.();
+          return;
+        }
+        if (result.code === 'network') {
+          toast.message('Unable to reach the scan service. Check your connection and try again.');
+          return;
+        }
+        toast.message(result.message || 'Scan is temporarily unavailable. Please try again later.');
         return;
       }
 
-      if (!result.meta?.connected && result.meta?.connected === false) {
-        // No telematics provider linked → show provider picker
+      if (result.meta?.connected === false) {
         setShowProviderPicker(true);
         return;
       }
 
       if (!result.snapshot) {
-        // Connected but no data yet (vehicle not mapped or no signals)
-        toast.info('Telematics connected but no data yet. Make sure your vehicle is mapped in Profile.');
+        toast.message(
+          'Telematics connected. Waiting for truck data — map your vehicle in Profile if you have not already.'
+        );
         return;
       }
 
-      // Success – relay data to parent
       onScanComplete?.({
         snapshot: result.snapshot,
         interpretation: result.interpretation,
@@ -66,11 +70,11 @@ export default function ScanTruckButton({ vehicleProfileId, onScanComplete, disa
       } else if (status === 'amber') {
         toast.warning(`Truck scanned — ${faultCount} warning(s) found`);
       } else {
-        toast.error(`Truck scanned — ${faultCount} critical fault(s) detected`);
+        toast.warning(`Truck scanned — ${faultCount} critical fault(s) detected`);
       }
     } catch (err) {
       console.error('Scan failed:', err);
-      toast.error('Scan failed: ' + (err.message || 'Unknown error'));
+      toast.message('Scan is temporarily unavailable. Please try again later.');
     } finally {
       setScanning(false);
     }
@@ -80,15 +84,13 @@ export default function ScanTruckButton({ vehicleProfileId, onScanComplete, disa
     setShowProviderPicker(false);
     try {
       const result = await connectProvider(provider);
-      // Credential-based provider — show credential dialog
       if (result?.authType === 'credentials') {
         setCredentialMeta(result);
         setShowCredentialDialog(true);
       }
-      // OAuth providers redirect automatically (no return value used)
     } catch (err) {
       console.error('Connect failed:', err);
-      toast.error('Failed to start authorization: ' + (err.message || 'Unknown error'));
+      toast.message('Could not start provider connection. Please try again from Profile → Telematics.');
     }
   };
 
@@ -121,7 +123,6 @@ export default function ScanTruckButton({ vehicleProfileId, onScanComplete, disa
           {scanning ? 'Reading ECU data' : 'Live data from truck computer'}
         </span>
 
-        {/* Pulsing ring animation while scanning */}
         {scanning && (
           <div className="absolute inset-0 rounded-2xl">
             <div className="absolute inset-0 rounded-2xl border border-cyan-400/30 animate-ping" />
@@ -129,14 +130,13 @@ export default function ScanTruckButton({ vehicleProfileId, onScanComplete, disa
         )}
       </motion.button>
 
-      {/* Provider picker overlay */}
       <AnimatePresence>
         {showProviderPicker && (
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm"
+            className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4"
             onClick={() => setShowProviderPicker(false)}
           >
             <motion.div
@@ -144,14 +144,15 @@ export default function ScanTruckButton({ vehicleProfileId, onScanComplete, disa
               animate={{ scale: 1, opacity: 1 }}
               exit={{ scale: 0.9, opacity: 0 }}
               onClick={(e) => e.stopPropagation()}
-              className="w-full max-w-sm mx-4 rounded-2xl bg-[#141a1e] border border-white/10 p-6 space-y-5"
+              className="w-full max-w-sm rounded-2xl bg-[#141a1e] border border-white/10 p-6 space-y-5"
             >
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-3">
-                  <WifiOff className="w-5 h-5 text-yellow-400" />
+                  <WifiOff className="w-5 h-5 text-cyan-400" />
                   <h3 className="text-lg font-semibold text-white">Connect Telematics</h3>
                 </div>
                 <button
+                  type="button"
                   onClick={() => setShowProviderPicker(false)}
                   className="p-1 rounded-lg hover:bg-white/10 text-white/40 hover:text-white/80 transition-colors"
                 >
@@ -159,81 +160,48 @@ export default function ScanTruckButton({ vehicleProfileId, onScanComplete, disa
                 </button>
               </div>
 
-              <p className="text-sm text-white/50">
-                Connect your ELD / telematics provider to read live data from the truck computer.
-                You only need to authorize once.
+              <p className="text-sm text-white/60">
+                Connect a telematics provider to enable truck computer scan.
               </p>
 
               <div className="space-y-3">
-                <button
-                  onClick={() => handleConnect('motive')}
-                  className="w-full flex items-center gap-4 p-4 rounded-xl border border-white/10 hover:border-cyan-500/40 bg-white/5 hover:bg-cyan-500/10 transition-all"
-                >
-                  <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-blue-600 to-blue-800 flex items-center justify-center">
-                    <Wifi className="w-5 h-5 text-white" />
-                  </div>
-                  <div className="text-left">
-                    <div className="font-medium text-white">Motive (KeepTruckin)</div>
-                    <div className="text-xs text-white/40">ELD, GPS, fault codes, engine data</div>
-                  </div>
-                </button>
-
-                <button
-                  onClick={() => handleConnect('samsara')}
-                  className="w-full flex items-center gap-4 p-4 rounded-xl border border-white/10 hover:border-cyan-500/40 bg-white/5 hover:bg-cyan-500/10 transition-all"
-                >
-                  <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-green-600 to-green-800 flex items-center justify-center">
-                    <Wifi className="w-5 h-5 text-white" />
-                  </div>
-                  <div className="text-left">
-                    <div className="font-medium text-white">Samsara</div>
-                    <div className="text-xs text-white/40">ELD, GPS, fault codes, engine data</div>
-                  </div>
-                </button>
-
-                <button
-                  onClick={() => handleConnect('geotab')}
-                  className="w-full flex items-center gap-4 p-4 rounded-xl border border-white/10 hover:border-orange-500/40 bg-white/5 hover:bg-orange-500/10 transition-all"
-                >
-                  <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-orange-500 to-orange-700 flex items-center justify-center">
-                    <KeyRound className="w-5 h-5 text-white" />
-                  </div>
-                  <div className="text-left">
-                    <div className="font-medium text-white">Geotab</div>
-                    <div className="text-xs text-white/40">ELD, GPS, fault codes, engine data</div>
-                  </div>
-                </button>
-
-                <button
-                  onClick={() => handleConnect('verizonconnect')}
-                  className="w-full flex items-center gap-4 p-4 rounded-xl border border-white/10 hover:border-red-500/40 bg-white/5 hover:bg-red-500/10 transition-all"
-                >
-                  <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-red-600 to-red-800 flex items-center justify-center">
-                    <KeyRound className="w-5 h-5 text-white" />
-                  </div>
-                  <div className="text-left">
-                    <div className="font-medium text-white">Verizon Connect</div>
-                    <div className="text-xs text-white/40">GPS, fleet tracking, engine data</div>
-                  </div>
-                </button>
-
-                <button
-                  onClick={() => handleConnect('omnitracs')}
-                  className="w-full flex items-center gap-4 p-4 rounded-xl border border-white/10 hover:border-purple-500/40 bg-white/5 hover:bg-purple-500/10 transition-all"
-                >
-                  <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-purple-600 to-purple-800 flex items-center justify-center">
-                    <KeyRound className="w-5 h-5 text-white" />
-                  </div>
-                  <div className="text-left">
-                    <div className="font-medium text-white">Omnitracs</div>
-                    <div className="text-xs text-white/40">ELD, GPS, fleet management</div>
-                  </div>
-                </button>
+                {[
+                  { id: 'motive', name: 'Motive (KeepTruckin)', icon: Wifi, gradient: 'from-blue-600 to-blue-800', credential: false },
+                  { id: 'samsara', name: 'Samsara', icon: Wifi, gradient: 'from-green-600 to-green-800', credential: false },
+                  { id: 'geotab', name: 'Geotab', icon: KeyRound, gradient: 'from-orange-500 to-orange-700', credential: true },
+                  { id: 'verizonconnect', name: 'Verizon Connect', icon: KeyRound, gradient: 'from-red-600 to-red-800', credential: true },
+                  { id: 'omnitracs', name: 'Omnitracs', icon: KeyRound, gradient: 'from-purple-600 to-purple-800', credential: true },
+                ].map((prov) => {
+                  const Icon = prov.icon;
+                  return (
+                    <button
+                      key={prov.id}
+                      type="button"
+                      onClick={() => handleConnect(prov.id)}
+                      className="w-full flex items-center gap-4 p-4 rounded-xl border border-white/10 hover:border-cyan-500/40 bg-white/5 hover:bg-cyan-500/10 transition-all text-left"
+                    >
+                      <div className={`w-10 h-10 rounded-lg bg-gradient-to-br ${prov.gradient} flex items-center justify-center shrink-0`}>
+                        <Icon className="w-5 h-5 text-white" />
+                      </div>
+                      <div>
+                        <div className="font-medium text-white">{prov.name}</div>
+                        <div className="text-xs text-white/40">ELD, GPS, fault codes, engine data</div>
+                      </div>
+                    </button>
+                  );
+                })}
               </div>
 
-              <p className="text-[11px] text-white/30 text-center">
-                Your credentials are encrypted and stored securely. You won't need to log in again.
-              </p>
+              <button
+                type="button"
+                onClick={() => {
+                  setShowProviderPicker(false);
+                  navigate('/Profile');
+                }}
+                className="w-full text-center text-sm text-cyan-400 hover:text-cyan-300"
+              >
+                Manage connections in Profile
+              </button>
             </motion.div>
           </motion.div>
         )}

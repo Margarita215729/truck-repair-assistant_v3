@@ -47,6 +47,8 @@
 	<true/>
 	<key>NSLocationWhenInUseUsageDescription</key>
 	<string>We need your location to help you find nearby repair shops, mobile mechanics, and parts suppliers when you use the Service Finder feature.</string>
+	<key>NSMicrophoneUsageDescription</key>
+	<string>We need microphone access so you can record engine sounds and voice descriptions for AI-powered truck diagnostics.</string>
 	<key>NSCameraUsageDescription</key>
 	<string>We need camera access so you can photograph dashboard warnings, fault codes, and truck parts for AI-powered visual diagnosis.</string>
 	<key>NSPhotoLibraryUsageDescription</key>

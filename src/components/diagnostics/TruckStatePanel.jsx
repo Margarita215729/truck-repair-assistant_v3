@@ -185,6 +185,13 @@ export default function TruckStatePanel({ vehicleProfileId, className = '' }) {
     setError(null);
     try {
       const result = await getTruckStateSnapshot(vehicleProfileId);
+      if (!result.ok) {
+        if (result.code !== 'unauthenticated') {
+          setError(result.message || 'Unable to load truck state');
+        }
+        setData(null);
+        return;
+      }
       setData(result);
       setLastRefresh(new Date());
     } catch (err) {

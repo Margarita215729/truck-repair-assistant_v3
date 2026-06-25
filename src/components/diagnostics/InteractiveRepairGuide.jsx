@@ -12,6 +12,7 @@ import {
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { toast } from 'sonner';
+import { openExternalUrl } from '@/utils/safeExternalLink';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 
 const GUIDE_CACHE_PREFIX = 'interactive_repair_guide:v1:';
@@ -415,28 +416,30 @@ Make it practical and easy to follow for someone with basic mechanical skills.`,
                           {/* Visual Resources */}
                           <div className="flex gap-2">
                             {step.image_search_terms && (
-                              <a
-                                href={`https://www.google.com/search?tbm=isch&q=${encodeURIComponent(step.image_search_terms)}`}
-                                target="_blank"
-                                rel="noopener noreferrer"
+                              <button
+                                type="button"
+                                onClick={() => openExternalUrl(
+                                  `https://www.google.com/search?tbm=isch&q=${encodeURIComponent(step.image_search_terms)}`
+                                )}
                                 className="flex items-center gap-2 px-3 py-1.5 bg-purple-500/10 border border-purple-500/30 rounded-lg text-xs text-purple-400 hover:bg-purple-500/20 transition-colors"
                               >
                                 <ImageIcon className="w-3 h-3" />
                                 View Images
                                 <ExternalLink className="w-3 h-3" />
-                              </a>
+                              </button>
                             )}
                             {step.video_search_terms && (
-                              <a
-                                href={`https://www.youtube.com/results?search_query=${encodeURIComponent(step.video_search_terms)}`}
-                                target="_blank"
-                                rel="noopener noreferrer"
+                              <button
+                                type="button"
+                                onClick={() => openExternalUrl(
+                                  `https://www.youtube.com/results?search_query=${encodeURIComponent(step.video_search_terms)}`
+                                )}
                                 className="flex items-center gap-2 px-3 py-1.5 bg-red-500/10 border border-red-500/30 rounded-lg text-xs text-red-400 hover:bg-red-500/20 transition-colors"
                               >
                                 <Video className="w-3 h-3" />
                                 Watch Videos
                                 <ExternalLink className="w-3 h-3" />
-                              </a>
+                              </button>
                             )}
                           </div>
 
