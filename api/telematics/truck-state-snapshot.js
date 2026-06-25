@@ -65,16 +65,16 @@ export default async function handler(req, res) {
       .limit(1)
       .maybeSingle();
 
-    // Auto-resolve vehicleProfileId from mapped vehicle if not provided
-    if (!vehicleProfileId && connection?.provider_vehicle_id) {
-      const { data: mapped } = await sb
-        .from('vehicle_profiles')
+    // Auto-resolve vehicleProfileId from primary truck if not provided
+    if (!vehicleProfileId) {
+      const { data: primaryTruck } = await sb
+        .from('trucks')
         .select('id')
         .eq('user_id', user.id)
-        .eq('telematics_vehicle_id', connection.provider_vehicle_id)
+        .eq('is_primary', true)
         .limit(1)
         .maybeSingle();
-      if (mapped) vehicleProfileId = mapped.id;
+      if (primaryTruck) vehicleProfileId = primaryTruck.id;
     }
 
     if (!connection) {
@@ -187,12 +187,21 @@ export default async function handler(req, res) {
       // Get truck context if available
       let truckContext = null;
       const { data: profile } = await sb
-        .from('vehicle_profiles')
-        .select('make, model, year, vin, engine_type, mileage')
+        .from('trucks')
+        .select('manufacturer, model, year, vin, engine_type, mileage')
         .eq('id', vehicleProfileId)
         .maybeSingle();
 
-      if (profile) truckContext = profile;
+      if (profile) {
+        truckContext = {
+          make: profile.manufacturer,
+          model: profile.model,
+          year: profile.year,
+          vin: profile.vin,
+          engine_type: profile.engine_type,
+          mileage: profile.mileage,
+        };
+      }
 
       interpretation = await interpret(snapshot.snapshot_json, truckContext);
     } catch (aiErr) {

@@ -8,6 +8,7 @@ import { Mic, Square, Play, Pause, Upload, Trash2, Loader2, Volume2, Sparkles, A
 import { motion, AnimatePresence } from 'framer-motion';
 import { toast } from 'sonner';
 import { useLanguage } from '@/lib/LanguageContext';
+import { canRecordAudio, stopMediaStream } from '@/utils/mediaCapabilities';
 
 const audioAnalysisService = new AudioAnalysisService();
 
@@ -41,6 +42,10 @@ export default function AudioRecorder({ open, onClose, onAudioCaptured }) {
   }, [audioUrl]);
 
   const startRecording = async () => {
+    if (!canRecordAudio()) {
+      toast.message(t('audioRecorder.unsupported') || 'Audio recording is not supported on this device.');
+      return;
+    }
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       
@@ -61,7 +66,7 @@ export default function AudioRecorder({ open, onClose, onAudioCaptured }) {
         const blob = new Blob(chunksRef.current, { type: 'audio/webm' });
         setAudioBlob(blob);
         setAudioUrl(URL.createObjectURL(blob));
-        stream.getTracks().forEach(track => track.stop());
+        stopMediaStream(stream);
       };
       
       mediaRecorderRef.current.start(100);
@@ -83,6 +88,7 @@ export default function AudioRecorder({ open, onClose, onAudioCaptured }) {
       
     } catch (err) {
       console.error('Error accessing microphone:', err);
+      toast.message(t('audioRecorder.unsupported') || 'Audio recording is not supported on this device.');
     }
   };
 

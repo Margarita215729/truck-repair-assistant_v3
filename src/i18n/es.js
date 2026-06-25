@@ -117,6 +117,14 @@ export default {
     trucksUsed: 'Camiones',
     unlimited: 'Ilimitado',
     of: 'de',
+    deleteAccount: 'Eliminar cuenta',
+    deleteAccountDesc: 'Elimina permanentemente tu cuenta y todos los datos asociados.',
+    deleteAccountConfirmTitle: '¿Eliminar tu cuenta?',
+    deleteAccountConfirmBody: 'Esto elimina permanentemente tu cuenta y los datos asociados. Esta acción no se puede deshacer.',
+    deleteAccountConfirmAction: 'Eliminar permanentemente',
+    deletingAccount: 'Eliminando...',
+    accountDeleted: 'Tu cuenta ha sido eliminada permanentemente.',
+    accountDeleteFailed: 'No se pudo eliminar la cuenta. Inténtalo de nuevo.',
   },
 
   // ─── Profile Stats ───
@@ -266,6 +274,11 @@ export default {
     needMoreConversation: 'Necesita más conversación para generar un reporte',
     authFailed: 'Autorización fallida',
     providerConnected: '¡Proveedor conectado! Intenta escanear de nuevo.',
+    signInToScanTitle: 'Inicia sesión para escanear tu camión',
+    signInToScanBody: 'El escaneo del computador del camión requiere una cuenta. Inicia sesión para conectar Motive, Samsara u otro proveedor.',
+    signInAction: 'Iniciar sesión',
+    scanNetworkUnavailable: 'No se pudo conectar al servicio de escaneo. Verifica tu conexión.',
+    scanUnavailable: 'El escaneo no está disponible temporalmente. Inténtalo más tarde.',
   },
 
   // ─── Visual Diagnostics ───
@@ -280,6 +293,8 @@ export default {
     fileTooLarge: 'El archivo es demasiado grande (máx. 15 MB)',
     unsupportedFormat: 'Formato de archivo no compatible',
     cameraError: 'No se pudo acceder a la cámara',
+    videoUnsupported: 'La grabación de video no es compatible con este dispositivo. Sube una foto o video.',
+    videoUploadHint: 'La grabación no está disponible en este dispositivo — usa Subir archivo.',
     descriptionPlaceholder: 'Opcional: describe qué ves o cuándo ocurre...',
     analyzing: 'Analizando imagen...',
     analyze: 'Analizar',

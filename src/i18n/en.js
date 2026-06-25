@@ -117,6 +117,14 @@ export default {
     trucksUsed: 'Trucks',
     unlimited: 'Unlimited',
     of: 'of',
+    deleteAccount: 'Delete Account',
+    deleteAccountDesc: 'Permanently remove your account and all associated data from Truck Repair Assistant.',
+    deleteAccountConfirmTitle: 'Delete your account?',
+    deleteAccountConfirmBody: 'This permanently deletes your account and associated data. This action cannot be undone.',
+    deleteAccountConfirmAction: 'Delete permanently',
+    deletingAccount: 'Deleting...',
+    accountDeleted: 'Your account has been permanently deleted.',
+    accountDeleteFailed: 'Could not delete account. Please try again.',
   },
 
   // ─── Profile Stats ───
@@ -266,6 +274,11 @@ export default {
     needMoreConversation: 'Need more conversation to generate a report',
     authFailed: 'Authorization failed',
     providerConnected: 'Provider connected! Try scanning again.',
+    signInToScanTitle: 'Sign in to scan your truck',
+    signInToScanBody: 'Truck computer scan requires an account. Sign in to connect Motive, Samsara, or another telematics provider.',
+    signInAction: 'Sign In',
+    scanNetworkUnavailable: 'Unable to reach the scan service. Check your connection and try again.',
+    scanUnavailable: 'Scan is temporarily unavailable. Please try again later.',
   },
 
   // ─── Visual Diagnostics ───
@@ -280,6 +293,8 @@ export default {
     fileTooLarge: 'File is too large (max 15 MB)',
     unsupportedFormat: 'Unsupported file format',
     cameraError: 'Could not access camera',
+    videoUnsupported: 'Video recording is not supported on this device. Please upload a photo or video file instead.',
+    videoUploadHint: 'Video recording is not available on this device — use Upload File for photos or videos.',
     descriptionPlaceholder: 'Optional: describe what you see or when it happens...',
     analyzing: 'Analyzing image...',
     analyze: 'Analyze',

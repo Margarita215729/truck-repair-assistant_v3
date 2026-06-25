@@ -3,6 +3,7 @@ import { entities } from '@/services/entityService';
 import { invokeLLM, uploadFile } from '@/services/aiService';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Loader2, FileText, Wrench, MessageSquarePlus, AlertTriangle, AlertCircle, Mic, Lock, History, Info, Eye, Radio, X } from 'lucide-react';
 import { toast } from 'sonner';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -356,6 +357,7 @@ export default function Diagnostics() {
     sendMessage(scanText);
   };
 
+  const [showScanSignInPrompt, setShowScanSignInPrompt] = useState(false);
   const [scanningInline, setScanningInline] = useState(false);
   const [showProviderPicker, setShowProviderPicker] = useState(false);
   const [credentialMeta, setCredentialMeta] = useState(null);
@@ -363,14 +365,22 @@ export default function Diagnostics() {
 
   const handleInlineScan = async () => {
     if (isGuest) {
-      toast.error('Truck computer scan requires an account. Sign up to connect Motive or Samsara.');
+      setShowScanSignInPrompt(true);
       return;
     }
     setScanningInline(true);
     try {
       const result = await getTruckStateSnapshot(truck?.details?.id || '_auto');
-      if (!result) {
-        toast.error(t('diagnostics.loginToScan'));
+      if (!result.ok) {
+        if (result.code === 'unauthenticated') {
+          setShowScanSignInPrompt(true);
+          return;
+        }
+        if (result.code === 'network') {
+          toast.message(t('diagnostics.scanNetworkUnavailable') || 'Unable to reach the scan service. Check your connection and try again.');
+          return;
+        }
+        toast.message(result.message || t('diagnostics.scanUnavailable') || 'Scan is temporarily unavailable. Please try again later.');
         return;
       }
       if (result.meta?.connected === false) {
@@ -378,13 +388,13 @@ export default function Diagnostics() {
         return;
       }
       if (!result.snapshot) {
-        toast.info(t('diagnostics.telematicsNoData'));
+        toast.message(t('diagnostics.telematicsNoData') || 'Telematics connected. Waiting for truck data — map your vehicle in Profile.');
         return;
       }
       handleScanComplete({ snapshot: result.snapshot, interpretation: result.interpretation });
     } catch (err) {
       console.error('Inline scan failed:', err);
-      toast.error(t('diagnostics.scanFailed') + ': ' + (err.message || 'Unknown error'));
+      toast.message(t('diagnostics.scanUnavailable') || 'Scan is temporarily unavailable. Please try again later.');
     } finally {
       setScanningInline(false);
     }
@@ -495,7 +505,7 @@ export default function Diagnostics() {
           try {
             if (!truck?.details?.id) return null;
             const result = await getTruckStateSnapshot(truck.details.id);
-            if (result?.snapshot) {
+            if (result?.ok && result.snapshot) {
               setTruckStateSnapshot(result.snapshot);
               setTruckStateInterpretation(result.interpretation);
             }
@@ -1261,7 +1271,7 @@ Focus on:
                     setShowTruckSelector(true);
                   };
                   const handleGuestScanBlocked = () => {
-                    toast.error(t('diagnostics.scanRequiresAccount'));
+                    setShowScanSignInPrompt(true);
                   };
                   const cards = [
                     // { icon: Mic,            label: t('diagnostics.sound') || 'Sound',    desc: t('diagnostics.soundDesc') || 'Record engine / brake sounds',    color: 'orange', onClick: () => setShowAudioRecorder(true) },
@@ -1720,6 +1730,36 @@ Focus on:
         isGuest={isGuest}
       />
 
+      <Dialog open={showScanSignInPrompt} onOpenChange={setShowScanSignInPrompt}>
+        <DialogContent className="bg-[#1a1a1a] border-white/10 text-white max-w-sm">
+          <DialogHeader>
+            <DialogTitle>{t('diagnostics.signInToScanTitle') || 'Sign in to scan your truck'}</DialogTitle>
+            <DialogDescription className="text-white/60">
+              {t('diagnostics.signInToScanBody') ||
+                'Truck computer scan requires an account. Sign in to connect Motive, Samsara, or another telematics provider.'}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="flex flex-col gap-2 pt-2">
+            <Button
+              className="bg-orange-500 hover:bg-orange-600 w-full"
+              onClick={() => {
+                setShowScanSignInPrompt(false);
+                navigate('/Login');
+              }}
+            >
+              {t('diagnostics.signInAction') || 'Sign In'}
+            </Button>
+            <Button
+              variant="outline"
+              className="border-white/20 w-full"
+              onClick={() => setShowScanSignInPrompt(false)}
+            >
+              {t('common.cancel') || 'Cancel'}
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
       {/* Provider picker overlay for inline scan */}
       <AnimatePresence>
         {showProviderPicker && (
@@ -1749,8 +1789,8 @@ Focus on:
                   <X className="w-4 h-4" />
                 </button>
               </div>
-              <p className="text-sm text-white/50">
-                Connect your ELD / telematics provider to read live data. You only need to authorize once.
+              <p className="text-sm text-white/60">
+                Connect a telematics provider to enable truck computer scan.
               </p>
               <div className="space-y-3">
                 {[
@@ -1762,7 +1802,7 @@ Focus on:
                 ].map(p => (
                   <button
                     key={p.id}
-                    onClick={async () => { setShowProviderPicker(false); try { const res = await connectProvider(p.id); if (res?.authType === 'credentials') { setCredentialMeta(res); setShowCredentialDialog(true); } } catch(e) { toast.error(t('diagnostics.authFailed') + ': ' + e.message); } }}
+                    onClick={async () => { setShowProviderPicker(false); try { const res = await connectProvider(p.id); if (res?.authType === 'credentials') { setCredentialMeta(res); setShowCredentialDialog(true); } } catch(e) { toast.message(t('diagnostics.authFailed') + ': ' + e.message); } }}
                     className={`w-full flex items-center gap-4 p-4 rounded-xl border border-white/10 ${p.hover} bg-white/5 transition-all`}
                   >
                     <div className={`w-10 h-10 rounded-lg bg-gradient-to-br ${p.gradient} flex items-center justify-center`}>
