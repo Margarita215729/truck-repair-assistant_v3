@@ -31,14 +31,21 @@ export default function DeleteAccountSection() {
   const handleDelete = async () => {
     setIsDeleting(true);
     try {
+      console.log('[DeleteAccount] Starting deletion process...');
       await deleteAccount();
+      console.log('[DeleteAccount] Deletion successful');
       setDialogOpen(false);
       queryClient.clear();
       await logout();
       toast.success(t('profile.accountDeleted') || 'Your account has been permanently deleted.');
       navigate('/Login', { replace: true });
     } catch (err) {
-      console.error('Account deletion failed:', err);
+      console.error('[DeleteAccount] Account deletion failed:', {
+        message: err.message,
+        stack: err.stack,
+        error: err,
+        stringified: JSON.stringify(err, Object.getOwnPropertyNames(err))
+      });
       toast.error(
         err.message || t('profile.accountDeleteFailed') || 'Could not delete account. Please try again.'
       );

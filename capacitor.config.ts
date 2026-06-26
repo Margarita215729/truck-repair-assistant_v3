@@ -7,6 +7,12 @@ const config: CapacitorConfig = {
   bundledWebRuntime: false,
   server: {
     androidScheme: 'https',
+    // Разрешить запросы к API
+    allowNavigation: [
+      'https://www.tra.tools',
+      'https://truck-repair-assistantv3-main.vercel.app',
+      'https://*.supabase.co',
+    ],
   },
   plugins: {
     SplashScreen: {
