@@ -515,10 +515,10 @@ export default function Profile() {
         <Card className="p-6 bg-white/5 border-white/10">
           <h3 className="text-lg font-semibold text-white flex items-center gap-2 mb-4">
             <Radio className="w-5 h-5 text-orange-500" />
-            Telematics
+            {t('profile.telematicsTitle') || 'Telematics'}
           </h3>
           <p className="text-sm text-white/50 mb-4">
-            Connect your fleet telematics provider to get live truck data, fault codes, and signals directly in diagnostics.
+            {t('profile.telematicsComingSoon') || 'Truck scan integration is temporarily unavailable and will be available soon.'}
           </p>
           <div className="space-y-3">
             {[
@@ -551,11 +551,11 @@ export default function Profile() {
                     <Button
                       size="sm"
                       variant="outline"
-                      className={`${prov.btnBorder} ${prov.btnText} ${prov.btnHover}`}
-                      onClick={async () => { try { const res = await connectProvider(prov.id); if (res?.authType === 'credentials') { setCredentialMeta(res); setShowCredentialDialog(true); } } catch(e) { toast.error('Authorization failed: ' + e.message); } }}
+                      disabled
+                      className="border-white/10 text-white/40 cursor-not-allowed"
                     >
                       {prov.credential ? <KeyRound className="w-3.5 h-3.5 mr-1.5" /> : <Link className="w-3.5 h-3.5 mr-1.5" />}
-                      Connect
+                      {t('diagnostics.scanAvailableSoon') || 'Available soon'}
                     </Button>
                   )}
                 </div>

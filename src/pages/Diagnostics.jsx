@@ -1446,17 +1446,12 @@ Focus on:
                 {/* Compact SCAN TRUCK button in active-conversation toolbar */}
                 {!isGuest && (
                   <motion.button
-                    whileTap={{ scale: 0.95 }}
-                    onClick={handleInlineScan}
-                    disabled={scanningInline}
-                    className="shrink-0 flex items-center gap-1.5 px-2.5 py-2 rounded-xl border border-cyan-500/20 bg-cyan-500/10 hover:bg-cyan-500/20 text-cyan-400 hover:text-cyan-300 text-xs font-medium transition-colors disabled:opacity-50"
+                    whileTap={{ scale: 1 }}
+                    disabled
+                    className="shrink-0 flex items-center gap-1.5 px-2.5 py-2 rounded-xl border border-white/10 bg-white/5 text-white/40 text-xs font-medium transition-colors cursor-not-allowed"
                   >
-                    {scanningInline ? (
-                      <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                    ) : (
-                      <Radio className="w-3.5 h-3.5" />
-                    )}
-                    <span>{scanningInline ? 'Scanning...' : 'SCAN'}</span>
+                    <Radio className="w-3.5 h-3.5" />
+                    <span>{t('diagnostics.scanComingSoon') || 'SCAN (SOON)'}</span>
                   </motion.button>
                 )}
 
