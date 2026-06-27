@@ -4,6 +4,7 @@
  */
 import { supabase, hasSupabaseConfig } from '@/api/supabaseClient';
 import { apiUrl } from '@/config/apiBase';
+import { httpPost } from '@/utils/httpClient';
 
 // ─── Stripe payments paused ────────────────────────────────────────────
 // Stripe serverless functions moved to api/_stripe-paused/ to stay within
@@ -91,22 +92,11 @@ export const subscriptionService = {
 
     if (!priceId) throw new Error('Price not configured. Please refresh the page.');
 
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 30_000);
-    let response;
-    try {
-      response = await fetch(apiUrl('/api/create-checkout-session'), {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${session.access_token}`,
-        },
-        signal: controller.signal,
-        body: JSON.stringify({ priceId }),
-      });
-    } finally {
-      clearTimeout(timeoutId);
-    }
+    const response = await httpPost(
+      apiUrl('/api/create-checkout-session'),
+      { priceId },
+      { 'Authorization': `Bearer ${session.access_token}` }
+    );
 
     if (!response.ok) {
       const err = await response.json().catch(() => ({}));
@@ -132,21 +122,11 @@ export const subscriptionService = {
     const { data: { session } } = await supabase.auth.getSession();
     if (!session) throw new Error('Not authenticated');
 
-    const portalController = new AbortController();
-    const portalTimeoutId = setTimeout(() => portalController.abort(), 30_000);
-    let response;
-    try {
-      response = await fetch(apiUrl('/api/create-portal-session'), {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${session.access_token}`,
-        },
-        signal: portalController.signal,
-      });
-    } finally {
-      clearTimeout(portalTimeoutId);
-    }
+    const response = await httpPost(
+      apiUrl('/api/create-portal-session'),
+      {},
+      { 'Authorization': `Bearer ${session.access_token}` }
+    );
 
     if (!response.ok) {
       const err = await response.json().catch(() => ({}));

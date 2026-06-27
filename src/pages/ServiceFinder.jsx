@@ -30,6 +30,7 @@ import { useTruck } from '@/lib/TruckContext';
 import { supabase } from '@/api/supabaseClient';
 import { apiUrl } from '@/config/apiBase';
 import { resolveOEMLinks } from '@/services/researchService';
+import { httpPost } from '@/utils/httpClient';
 
 export default function ServiceFinder() {
   const { t } = useLanguage();
@@ -122,14 +123,11 @@ export default function ServiceFinder() {
         throw new Error(t('services.authRequired') || 'Please sign in to search for services.');
       }
 
-      const res = await fetch(apiUrl('/api/geocode'), {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({ address }),
-      });
+      const res = await httpPost(
+        apiUrl('/api/geocode'),
+        { address },
+        { Authorization: `Bearer ${token}` }
+      );
       if (!res.ok) {
         let detail = '';
         try {
@@ -230,21 +228,18 @@ export default function ServiceFinder() {
         return;
       }
 
-      const response = await fetch(apiUrl('/api/places-search'), {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          ...(authToken && { Authorization: `Bearer ${authToken}` }),
-        },
-        body: JSON.stringify({
+      const response = await httpPost(
+        apiUrl('/api/places-search'),
+        {
           lat: coords[0],
           lng: coords[1],
           query: queryTerm || undefined,
           types,
           serviceTypes: activeFilters.serviceTypes?.length > 0 ? activeFilters.serviceTypes : undefined,
           radius: 40000,
-        }),
-      });
+        },
+        authToken ? { Authorization: `Bearer ${authToken}` } : {}
+      );
 
       if (!response.ok) {
         if (response.status === 401) {

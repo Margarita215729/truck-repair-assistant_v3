@@ -8,6 +8,7 @@
 
 import { classifyDomain } from './domainTrust';
 import { apiUrl } from '@/config/apiBase';
+import { httpPost } from './httpClient';
 
 /**
  * Batch-verify links through the research API.
@@ -20,17 +21,14 @@ import { apiUrl } from '@/config/apiBase';
 export async function verifyLinks(urls, accessToken) {
   if (!urls || urls.length === 0) return new Map();
 
-  const response = await fetch(apiUrl('/api/research-search'), {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      ...(accessToken ? { 'Authorization': `Bearer ${accessToken}` } : {}),
-    },
-    body: JSON.stringify({
+  const response = await httpPost(
+    apiUrl('/api/research-search'),
+    {
       action: 'verify_links',
       urls: urls.slice(0, 10), // max 10 per batch
-    }),
-  });
+    },
+    accessToken ? { 'Authorization': `Bearer ${accessToken}` } : {}
+  );
 
   if (!response.ok) {
     throw new Error(`Link verification failed: HTTP ${response.status}`);

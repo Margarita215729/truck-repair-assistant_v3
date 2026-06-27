@@ -12,6 +12,7 @@
 
 import { supabase, hasSupabaseConfig } from '@/api/supabaseClient';
 import { apiUrl } from '@/config/apiBase';
+import { httpPost } from '@/utils/httpClient';
 import {
   createResearchResult,
   createResearchPacket,
@@ -48,18 +49,9 @@ async function getAuthHeaders() {
 
 async function researchFetch(body, timeout = SEARCH_TIMEOUT) {
   const headers = await getAuthHeaders();
-  const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), timeout);
 
   try {
-    const response = await fetch(RESEARCH_API, {
-      method: 'POST',
-      headers,
-      body: JSON.stringify(body),
-      signal: controller.signal,
-    });
-
-    clearTimeout(timer);
+    const response = await httpPost(RESEARCH_API, body, headers);
 
     if (!response.ok) {
       console.warn('Research API HTTP error:', response.status);
@@ -68,12 +60,7 @@ async function researchFetch(body, timeout = SEARCH_TIMEOUT) {
 
     return await response.json();
   } catch (err) {
-    clearTimeout(timer);
-    if (err.name === 'AbortError') {
-      console.warn('Research search timed out');
-    } else {
-      console.warn('Research search failed:', err.message);
-    }
+    console.warn('Research search failed:', err.message);
     return null;
   }
 }

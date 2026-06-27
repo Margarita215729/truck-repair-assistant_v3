@@ -6,6 +6,7 @@
  */
 import { supabase, hasSupabaseConfig } from '@/api/supabaseClient';
 import { apiUrl } from '@/config/apiBase';
+import { httpPost } from '@/utils/httpClient';
 
 const DEFAULT_RADIUS = 50; // miles
 const OVERPASS_PROXY = apiUrl('/api/overpass-query');
@@ -36,20 +37,11 @@ async function getOverpassAuthHeaders() {
 async function queryOverpass(query, retries = 2) {
   for (let attempt = 0; attempt <= retries; attempt++) {
     try {
-      const controller = new AbortController();
-      const timer = setTimeout(() => controller.abort(), 35000);
-
-      let response;
-      try {
-        response = await fetch(OVERPASS_PROXY, {
-          method: 'POST',
-          headers: await getOverpassAuthHeaders(),
-          body: JSON.stringify({ query }),
-          signal: controller.signal,
-        });
-      } finally {
-        clearTimeout(timer);
-      }
+      const response = await httpPost(
+        OVERPASS_PROXY,
+        { query },
+        await getOverpassAuthHeaders()
+      );
 
       if (response.status === 429 || response.status === 504) {
         if (attempt < retries) {
@@ -72,7 +64,7 @@ async function queryOverpass(query, retries = 2) {
       const data = await response.json();
       return data.elements || [];
     } catch (err) {
-      if (attempt < retries && (err.name === 'AbortError' || err.message?.includes('429'))) {
+      if (attempt < retries && err.message?.includes('429')) {
         await new Promise(r => setTimeout(r, (attempt + 1) * 2000));
         continue;
       }

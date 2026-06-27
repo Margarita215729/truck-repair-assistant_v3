@@ -10,6 +10,7 @@
 import { env } from '@/config/env';
 import { apiUrl } from '@/config/apiBase';
 import { supabase, hasSupabaseConfig } from '@/api/supabaseClient';
+import { httpPost } from '@/utils/httpClient';
 
 const AI_PROXY_URL = apiUrl('/api/ai-proxy');
 const GITHUB_MODELS_URL = 'https://models.github.ai/inference/chat/completions';
@@ -96,77 +97,57 @@ export async function invokeLLM({
 }
 
 async function callViaProxy(messages, schema, accessToken, model) {
-  const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), 60_000);
-  try {
-    const response = await fetch(AI_PROXY_URL, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${accessToken}`,
-      },
-      signal: controller.signal,
-      body: JSON.stringify({
-        messages,
-        model: model || DEFAULT_MODEL,
-        temperature: 0.2,
-        max_tokens: 16384,
-        ...(schema ? { response_format: { type: 'json_object' } } : {}),
-      }),
-    });
+  const response = await httpPost(
+    AI_PROXY_URL,
+    {
+      messages,
+      model: model || DEFAULT_MODEL,
+      temperature: 0.2,
+      max_tokens: 16384,
+      ...(schema ? { response_format: { type: 'json_object' } } : {}),
+    },
+    { 'Authorization': `Bearer ${accessToken}` }
+  );
 
-    if (response.status === 429) {
-      const err = await response.json().catch(() => ({}));
-      const error = new Error(err.error || 'Daily request limit reached');
-      error.status = 429;
-      error.limit = err.limit;
-      throw error;
-    }
-
-    if (!response.ok) {
-      const errBody = await response.json().catch(() => null);
-      const detail = errBody?.error || `Proxy error ${response.status}`;
-      console.error('Diagnostic proxy responded with error:', response.status, detail);
-      const err = new Error(detail);
-      err.status = response.status;
-      throw err;
-    }
-
-    return response.json();
-  } finally {
-    clearTimeout(timeoutId);
+  if (response.status === 429) {
+    const err = await response.json().catch(() => ({}));
+    const error = new Error(err.error || 'Daily request limit reached');
+    error.status = 429;
+    error.limit = err.limit;
+    throw error;
   }
+
+  if (!response.ok) {
+    const errBody = await response.json().catch(() => null);
+    const detail = errBody?.error || `Proxy error ${response.status}`;
+    console.error('Diagnostic proxy responded with error:', response.status, detail);
+    const err = new Error(detail);
+    err.status = response.status;
+    throw err;
+  }
+
+  return response.json();
 }
 
 async function callDirect(messages, schema, token, model) {
-  const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), 60_000);
-  try {
-    const response = await fetch(GITHUB_MODELS_URL, {
-      method: 'POST',
-      headers: {
-        Authorization: `Bearer ${token}`,
-        'Content-Type': 'application/json',
-      },
-      signal: controller.signal,
-      body: JSON.stringify({
-        messages,
-        model: model || DEFAULT_MODEL,
-        temperature: 0.2,
-        max_tokens: 16384,
-        ...(schema ? { response_format: { type: 'json_object' } } : {}),
-      }),
-    });
+  const response = await httpPost(
+    GITHUB_MODELS_URL,
+    {
+      messages,
+      model: model || DEFAULT_MODEL,
+      temperature: 0.2,
+      max_tokens: 16384,
+      ...(schema ? { response_format: { type: 'json_object' } } : {}),
+    },
+    { 'Authorization': `Bearer ${token}` }
+  );
 
-    if (!response.ok) {
-      const errorText = await response.text();
-      throw new Error(`GitHub Models API error: ${response.status} - ${errorText}`);
-    }
-
-    return response.json();
-  } finally {
-    clearTimeout(timeoutId);
+  if (!response.ok) {
+    const errorText = await response.text();
+    throw new Error(`GitHub Models API error: ${response.status} - ${errorText}`);
   }
+
+  return response.json();
 }
 
 function parseResponse(data, schema) {
@@ -310,14 +291,11 @@ async function analyzeViaStorage(media, prompt, truckContext, session, guessMime
 }
 
 async function callGeminiProxy(mediaRefs, prompt, truckContext, accessToken) {
-  const response = await fetch(apiUrl('/api/gemini-proxy'), {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'Authorization': `Bearer ${accessToken}`,
-    },
-    body: JSON.stringify({ mediaRefs, prompt, truck_context: truckContext }),
-  });
+  const response = await httpPost(
+    apiUrl('/api/gemini-proxy'),
+    { mediaRefs, prompt, truck_context: truckContext },
+    { 'Authorization': `Bearer ${accessToken}` }
+  );
 
   // Read body once as text, then parse — avoids double-read bug
   const bodyText = await response.text().catch(() => '');
@@ -364,23 +342,20 @@ async function callGeminiDirect(media, prompt, truckContext, apiKey) {
     { text: userPrompt },
   ];
 
-  const response = await fetch(
+  const response = await httpPost(
     `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`,
     {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        systemInstruction: {
-          parts: [{ text: 'You are a HEAVY-DUTY TRUCK Visual Diagnostic System. Analyze ONLY truck-related images (Class 5-8). If the image is not truck-related, set is_truck_related=false. Respond in JSON with fields: is_truck_related, image_category, findings, dashboard_lights, fluid_analysis, smoke_analysis, extracted_text, safety_assessment, probable_diagnosis.' }],
-        },
-        contents: [{ role: 'user', parts }],
-        generationConfig: {
-          temperature: 0.2,
-          maxOutputTokens: 8192,
-          responseMimeType: 'application/json',
-        },
-      }),
-    }
+      systemInstruction: {
+        parts: [{ text: 'You are a HEAVY-DUTY TRUCK Visual Diagnostic System. Analyze ONLY truck-related images (Class 5-8). If the image is not truck-related, set is_truck_related=false. Respond in JSON with fields: is_truck_related, image_category, findings, dashboard_lights, fluid_analysis, smoke_analysis, extracted_text, safety_assessment, probable_diagnosis.' }],
+      },
+      contents: [{ role: 'user', parts }],
+      generationConfig: {
+        temperature: 0.2,
+        maxOutputTokens: 8192,
+        responseMimeType: 'application/json',
+      },
+    },
+    {}
   );
 
   if (!response.ok) {

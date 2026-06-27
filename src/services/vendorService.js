@@ -5,6 +5,7 @@
  */
 import { supabase, hasSupabaseConfig } from '@/api/supabaseClient';
 import { apiUrl } from '@/config/apiBase';
+import { httpPost } from '@/utils/httpClient';
 
 const API_BASE = apiUrl('/api/parts/search');
 
@@ -29,7 +30,7 @@ export const SOURCE_TIER_LABELS = {
  */
 export async function searchVendors(query, options = {}) {
   try {
-    let headers = { 'Content-Type': 'application/json' };
+    let headers = {};
     if (hasSupabaseConfig && supabase) {
       const { data: { session } } = await supabase.auth.getSession();
       if (session?.access_token) {
@@ -37,28 +38,16 @@ export async function searchVendors(query, options = {}) {
       }
     }
 
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 30_000);
-    let resp;
-    try {
-      resp = await fetch(API_BASE, {
-        method: 'POST',
-        headers,
-        signal: controller.signal,
-        body: JSON.stringify({
-          query: query || '',
-          partNumber: options.partNumber || '',
-          vinLast6: options.vinLast6 || '',
-          make: options.make || '',
-          model: options.model || '',
-          year: options.year || '',
-          condition: options.condition || 'all',
-          limit: options.limit || 20,
-        }),
-      });
-    } finally {
-      clearTimeout(timeoutId);
-    }
+    const resp = await httpPost(API_BASE, {
+      query: query || '',
+      partNumber: options.partNumber || '',
+      vinLast6: options.vinLast6 || '',
+      make: options.make || '',
+      model: options.model || '',
+      year: options.year || '',
+      condition: options.condition || 'all',
+      limit: options.limit || 20,
+    }, headers);
 
     if (!resp.ok) {
       const body = await resp.json().catch(() => ({}));
