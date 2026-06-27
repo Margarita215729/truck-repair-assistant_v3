@@ -12,6 +12,9 @@ const config: CapacitorConfig = {
       'https://www.tra.tools',
       'https://truck-repair-assistantv3-main.vercel.app',
       'https://*.supabase.co',
+      'https://*.googleapis.com',
+      'https://models.github.ai',
+      'https://router.project-osrm.org',
     ],
   },
   plugins: {

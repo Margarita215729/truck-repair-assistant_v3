@@ -3,6 +3,7 @@
  * Searches for truck repair tutorial videos via YouTube Data API v3
  * Ported from v2 YouTubeSearchService.ts — TypeScript types removed
  */
+import { httpGet } from '@/utils/httpClient';
 
 /**
  * @typedef {Object} YouTubeVideo
@@ -50,7 +51,7 @@ export class YouTubeSearchService {
       const query = this.buildSearchQuery(searchTerms);
       const url = `${this.BASE_URL}/search?part=snippet&q=${encodeURIComponent(query)}&type=video&maxResults=${maxResults}&key=${this.API_KEY}&order=relevance&videoDuration=medium&videoDefinition=high`;
 
-      const response = await fetch(url);
+      const response = await httpGet(url);
 
       if (!response.ok) {
         throw new Error(`YouTube API error: ${response.status} ${response.statusText}`);
@@ -70,7 +71,7 @@ export class YouTubeSearchService {
       const videoIds = data.items.map((item) => item.id.videoId).join(',');
       const detailsUrl = `${this.BASE_URL}/videos?part=contentDetails,statistics&id=${videoIds}&key=${this.API_KEY}`;
 
-      const detailsResponse = await fetch(detailsUrl);
+      const detailsResponse = await httpGet(detailsUrl);
       const detailsData = await detailsResponse.json();
 
       const videos = data.items.map((item, index) => {

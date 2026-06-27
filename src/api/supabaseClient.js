@@ -3,6 +3,7 @@
  */
 import { createClient } from '@supabase/supabase-js';
 import { env, isDevelopment } from '@/config/env';
+import { httpGet } from '@/utils/httpClient';
 
 const supabaseUrl = env.NEXT_PUBLIC_STORAGE_SUPABASE_SUPABASE_URL;
 const supabaseAnonKey = env.STORAGE_SUPABASE_SUPABASE_ANON_KEY;
@@ -52,14 +53,10 @@ export async function checkSupabaseHealth() {
   }
 
   try {
-    const controller = new AbortController();
-    const timer = setTimeout(() => controller.abort(), 5000);
-    const res = await fetch(`${supabaseUrl}/auth/v1/health`, {
-      method: 'GET',
-      headers: { apikey: supabaseAnonKey },
-      signal: controller.signal,
-    });
-    clearTimeout(timer);
+    const res = await httpGet(
+      `${supabaseUrl}/auth/v1/health`,
+      { apikey: supabaseAnonKey }
+    );
     // Any non-5xx response means the service is reachable.
     return res.status > 0 && res.status < 500;
   } catch {

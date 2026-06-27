@@ -3,6 +3,7 @@ import { MapContainer, TileLayer, Marker, Popup, Polyline, useMap } from 'react-
 import { Star, Phone, AlertTriangle, Navigation, X, Clock, Route } from 'lucide-react';
 import { timeAgo } from '@/services/truckInfraService';
 import { useLanguage } from '@/lib/LanguageContext';
+import { httpGet } from '@/utils/httpClient';
 import 'leaflet/dist/leaflet.css';
 import L from 'leaflet';
 
@@ -99,7 +100,7 @@ const OSRM_URL = 'https://router.project-osrm.org/route/v1/driving';
 async function fetchOSRMRoute(from, to) {
   // OSRM wants lng,lat (not lat,lng)
   const url = `${OSRM_URL}/${from[1]},${from[0]};${to[1]},${to[0]}?overview=full&geometries=geojson&steps=false`;
-  const res = await fetch(url);
+  const res = await httpGet(url);
   if (!res.ok) throw new Error(`OSRM ${res.status}`);
   const data = await res.json();
   if (!data.routes || data.routes.length === 0) throw new Error('No route found');

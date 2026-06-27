@@ -10,6 +10,7 @@
  */
 import { supabase, hasSupabaseConfig } from '@/api/supabaseClient';
 import { apiUrl } from '@/config/apiBase';
+import { httpGet, httpPost, httpDelete } from '@/utils/httpClient';
 
 const API_BASE = apiUrl('/api/telematics');
 
@@ -38,9 +39,10 @@ export async function connectProvider(provider) {
   const token = await getAuthToken();
   if (!token) throw new Error('Not authenticated');
 
-  const resp = await fetch(`${API_BASE}/oauth-start?provider=${encodeURIComponent(provider)}`, {
-    headers: { Authorization: `Bearer ${token}` },
-  });
+  const resp = await httpGet(
+    `${API_BASE}/oauth-start?provider=${encodeURIComponent(provider)}`,
+    { Authorization: `Bearer ${token}` }
+  );
 
   if (!resp.ok) {
     const err = await resp.json().catch(() => ({}));
@@ -69,14 +71,11 @@ export async function connectProviderWithCredentials(provider, credentials) {
   const token = await getAuthToken();
   if (!token) throw new Error('Not authenticated');
 
-  const resp = await fetch(`${API_BASE}/credential-connect`, {
-    method: 'POST',
-    headers: {
-      Authorization: `Bearer ${token}`,
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({ provider, credentials }),
-  });
+  const resp = await httpPost(
+    `${API_BASE}/credential-connect`,
+    { provider, credentials },
+    { Authorization: `Bearer ${token}` }
+  );
 
   if (!resp.ok) {
     const err = await resp.json().catch(() => ({}));
@@ -95,9 +94,10 @@ export async function getProviderStatus() {
   if (!token) return [];
 
   try {
-    const resp = await fetch(`${API_BASE}/truck-state-snapshot?vehicleProfileId=_status_only`, {
-      headers: { Authorization: `Bearer ${token}` },
-    });
+    const resp = await httpGet(
+      `${API_BASE}/truck-state-snapshot?vehicleProfileId=_status_only`,
+      { Authorization: `Bearer ${token}` }
+    );
     if (!resp.ok) return [];
     const data = await resp.json();
     return data?.connections || [];
@@ -119,11 +119,9 @@ export async function getTruckStateSnapshot(vehicleProfileId) {
   }
 
   try {
-    const resp = await fetch(
+    const resp = await httpGet(
       `${API_BASE}/truck-state-snapshot?vehicleProfileId=${encodeURIComponent(vehicleProfileId)}`,
-      {
-        headers: { Authorization: `Bearer ${token}` },
-      }
+      { Authorization: `Bearer ${token}` }
     );
 
     if (resp.status === 401) {
@@ -160,10 +158,10 @@ export async function disconnectProvider(provider) {
   const token = await getAuthToken();
   if (!token) throw new Error('Not authenticated');
 
-  const resp = await fetch(`${API_BASE}/vehicles?provider=${encodeURIComponent(provider)}`, {
-    method: 'DELETE',
-    headers: { Authorization: `Bearer ${token}` },
-  });
+  const resp = await httpDelete(
+    `${API_BASE}/vehicles?provider=${encodeURIComponent(provider)}`,
+    { Authorization: `Bearer ${token}` }
+  );
 
   if (!resp.ok) {
     const err = await resp.json().catch(() => ({}));
@@ -182,9 +180,10 @@ export async function getProviderVehicles() {
   if (!token) return { providers: [], truckProfiles: [] };
 
   try {
-    const resp = await fetch(`${API_BASE}/vehicles`, {
-      headers: { Authorization: `Bearer ${token}` },
-    });
+    const resp = await httpGet(
+      `${API_BASE}/vehicles`,
+      { Authorization: `Bearer ${token}` }
+    );
     if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
     return await resp.json();
   } catch (err) {
@@ -200,14 +199,11 @@ export async function mapVehicle(connectionId, providerVehicleId, vehicleProfile
   const token = await getAuthToken();
   if (!token) throw new Error('Not authenticated');
 
-  const resp = await fetch(`${API_BASE}/vehicles`, {
-    method: 'POST',
-    headers: {
-      Authorization: `Bearer ${token}`,
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({ connectionId, providerVehicleId, vehicleProfileId }),
-  });
+  const resp = await httpPost(
+    `${API_BASE}/vehicles`,
+    { connectionId, providerVehicleId, vehicleProfileId },
+    { Authorization: `Bearer ${token}` }
+  );
 
   if (!resp.ok) {
     const err = await resp.json().catch(() => ({}));
