@@ -109,11 +109,12 @@
 - [ ] `VITE_SUPABASE_PUBLISHABLE_KEY` (`sb_publishable_*`, client-safe)
 - [ ] `STORAGE_SUPABASE_SUPABASE_SECRET_KEY` (`sb_secret_*`, server-side only)
 - [ ] `VITE_STRIPE_PUBLISHABLE_KEY`
-- [ ] `VITE_GOOGLE_MAPS_API_KEY`
+- [ ] `GOOGLE_MAPS_API_KEY` (server-side only; Geocoding/Places)
 - [ ] `STRIPE_SECRET_KEY` (server-side)
 - [ ] `GITHUB_TOKEN` (server-side)
 - [ ] `GEMINI_API_KEY` (server-side)
 - [ ] Legacy Supabase anon/service-role/JWT variables удалены
+- [ ] Google/YouTube/CSE keys отсутствуют под `VITE_`/`NEXT_PUBLIC_` prefixes
 - [ ] `npm run validate:env` проходит успешно
 - [ ] После `npm run mobile:prepare` команда `npm run security:scan` проходит для web/iOS/Android bundles
 

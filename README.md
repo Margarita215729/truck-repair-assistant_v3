@@ -64,9 +64,6 @@ NEXT_PUBLIC_BASE_URL=https://www.tra.tools
 
 # Other public browser/mobile configuration
 VITE_STRIPE_PUBLISHABLE_KEY=pk_live_xxx
-VITE_GOOGLE_MAPS_API_KEY=your_google_maps_key
-VITE_GOOGLE_CSE_ID=your_custom_search_engine_id
-VITE_YOUTUBE_API_KEY=your_youtube_api_key
 ```
 
 Set backend credentials only in Vercel Environment Variables (and in a local
@@ -77,13 +74,15 @@ STORAGE_SUPABASE_SUPABASE_SECRET_KEY=sb_secret_xxx
 GITHUB_TOKEN=your_github_token
 GEMINI_API_KEY=your_gemini_key
 BRAVE_API_KEY=your_brave_search_key
+GOOGLE_MAPS_API_KEY=your_server_only_maps_key
 STRIPE_SECRET_KEY=sk_live_...
 STRIPE_WEBHOOK_SECRET=whsec_...
 ```
 
 Do not configure Supabase anon JWTs, service-role JWTs, JWT secrets, database
-passwords, or any secret under a `VITE_`/`NEXT_PUBLIC_` name. Validate the policy
-and connectivity before building:
+passwords, Google API keys, or any other secret under a `VITE_`/`NEXT_PUBLIC_`
+name. Maps and Places calls are routed through authenticated server endpoints.
+Validate the policy and connectivity before building:
 
 ```bash
 npm run validate:env

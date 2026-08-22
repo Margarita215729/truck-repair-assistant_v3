@@ -28,11 +28,9 @@ import { httpGet } from '@/utils/httpClient';
 export class YouTubeSearchService {
   constructor(apiKey) {
     this.BASE_URL = 'https://www.googleapis.com/youtube/v3';
-    // General Google Cloud key (Maps, YouTube, CSE) — not valid for Gemini
-    this.API_KEY = apiKey
-      || import.meta.env.VITE_YOUTUBE_API_KEY
-      || import.meta.env.VITE_GOOGLE_MAPS_API_KEY
-      || '';
+    // Legacy/testing only. Production must call an authenticated server proxy;
+    // Google API keys must never be compiled into the browser/mobile bundle.
+    this.API_KEY = apiKey || '';
   }
 
   /**

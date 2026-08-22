@@ -57,10 +57,6 @@ const CLIENT_PUBLIC_VARIABLES = [
   'VITE_OWNER_PRICE_ANNUAL',
   'VITE_FLEET_PRICE_MONTHLY',
   'VITE_FLEET_PRICE_ANNUAL',
-  'VITE_GOOGLE_MAPS_API_KEY',
-  'VITE_YOUTUBE_API_KEY',
-  'VITE_GOOGLE_CSE_API_KEY',
-  'VITE_GOOGLE_CSE_ID',
 ];
 
 const OPTIONAL_SERVER_VARIABLES = [
@@ -68,7 +64,6 @@ const OPTIONAL_SERVER_VARIABLES = [
   'STRIPE_WEBHOOK_SECRET',
   'GITHUB_TOKEN',
   'GEMINI_API_KEY',
-  'GOOGLE_CSE_API_KEY',
   'GOOGLE_MAPS_API_KEY',
   'BRAVE_API_KEY',
   'OWNER_PRICE_MONTHLY',
@@ -189,6 +184,9 @@ function forbiddenReason(name) {
   }
   if (CLIENT_SECRET_NAME_PATTERN.test(name)) {
     return 'secret-like variable uses a client-visible VITE_ or NEXT_PUBLIC_ prefix';
+  }
+  if (/^(?:VITE_|NEXT_PUBLIC_)(?:GOOGLE|YOUTUBE)(?:_|$)/i.test(name)) {
+    return 'Google API configuration must remain server-side and must not be compiled into clients';
   }
   return '';
 }
