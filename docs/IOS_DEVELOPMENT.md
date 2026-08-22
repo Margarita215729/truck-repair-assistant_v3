@@ -36,18 +36,17 @@ Create `.env.local` with the public variables compiled into the iOS bundle:
 NEXT_PUBLIC_STORAGE_SUPABASE_SUPABASE_URL=https://your-project.supabase.co
 VITE_SUPABASE_PUBLISHABLE_KEY=sb_publishable_xxx
 NEXT_PUBLIC_BASE_URL=https://www.tra.tools
-VITE_GOOGLE_MAPS_API_KEY=your_maps_key
-VITE_GOOGLE_CSE_ID=your_cse_id
 ```
 
 `NEXT_PUBLIC_BASE_URL` must point to the canonical deployed Vercel URL. The native
 app loads bundled web assets locally; all `/api/*` routes (AI diagnostics, maps,
 parts search) are served from that URL.
 
-Set `STORAGE_SUPABASE_SUPABASE_SECRET_KEY=sb_secret_xxx` only in the Vercel
-server environment. Never place a Supabase secret, service-role JWT, anon JWT,
-JWT secret, database password, `GITHUB_TOKEN`, or `GEMINI_API_KEY` under a
-`VITE_` or `NEXT_PUBLIC_` name.
+Set `STORAGE_SUPABASE_SUPABASE_SECRET_KEY=sb_secret_xxx` and
+`GOOGLE_MAPS_API_KEY=your_server_only_maps_key` only in the Vercel server
+environment. Never place a Supabase secret, service-role JWT, anon JWT, JWT
+secret, database password, Google API key, `GITHUB_TOKEN`, or `GEMINI_API_KEY`
+under a `VITE_` or `NEXT_PUBLIC_` name.
 
 Run `npm run validate:env` before building. For a format/policy check without
 network calls, use `npm run validate:env -- --no-connectivity`. See

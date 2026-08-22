@@ -21,7 +21,6 @@ const targetDirectories = [
 ];
 
 const allowedPublicCredentialNames = [
-  /^(?:VITE_|NEXT_PUBLIC_)?(?:GOOGLE_(?:MAPS|CSE)_API_KEY|YOUTUBE_API_KEY)$/,
   /^(?:VITE_|NEXT_PUBLIC_)?(?:STRIPE_)?PUBLISHABLE_KEY$/,
   /^VITE_SUPABASE_PUBLISHABLE_KEY$/,
 ];
@@ -36,6 +35,7 @@ const dangerousPatterns = [
   { name: 'Supabase secret key', regex: /\bsb_secret_[A-Za-z0-9_-]{16,}\b/ },
   { name: 'embedded JWT', regex: /\beyJ[A-Za-z0-9_-]{8,}\.[A-Za-z0-9_-]{8,}\.[A-Za-z0-9_-]{8,}\b/ },
   { name: 'GitHub access token', regex: /\b(?:gh[pousr]_[A-Za-z0-9]{20,}|github_pat_[A-Za-z0-9_]{20,})\b/ },
+  { name: 'Google API key', regex: /\bAIza[A-Za-z0-9_-]{35}\b/ },
   { name: 'Stripe secret or restricted key', regex: /\b(?:sk|rk)_(?:live|test)_[A-Za-z0-9]{12,}\b/ },
   { name: 'OpenAI secret key', regex: /\bsk-(?:proj-|svcacct-)?[A-Za-z0-9_-]{20,}\b/ },
   { name: 'AWS access key', regex: /\b(?:AKIA|ASIA)[A-Z0-9]{16}\b/ },
