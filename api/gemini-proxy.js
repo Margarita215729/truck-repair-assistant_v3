@@ -12,9 +12,9 @@ let _supabase;
 function getSupabase() {
   if (!_supabase) {
     const url = process.env.NEXT_PUBLIC_STORAGE_SUPABASE_SUPABASE_URL;
-    const key = process.env.STORAGE_SUPABASE_SUPABASE_SERVICE_ROLE_KEY;
+    const key = process.env.STORAGE_SUPABASE_SUPABASE_SECRET_KEY;
     if (!url || !key) {
-      throw new Error('NEXT_PUBLIC_STORAGE_SUPABASE_SUPABASE_URL and STORAGE_SUPABASE_SUPABASE_SERVICE_ROLE_KEY must be set');
+      throw new Error('NEXT_PUBLIC_STORAGE_SUPABASE_SUPABASE_URL and STORAGE_SUPABASE_SUPABASE_SECRET_KEY must be set');
     }
     _supabase = createClient(url, key);
   }
@@ -209,7 +209,7 @@ export default async function handler(req, res) {
       return res.status(401).json({ error: 'Invalid token' });
     }
 
-    // ── Rate limit (direct query — service role cannot use auth.uid()-based RPCs) ──
+    // ── Rate limit (the server-admin client has no caller auth.uid() context) ──
     const { data: sub } = await getSupabase()
       .from('subscriptions')
       .select('plan, status')
@@ -355,7 +355,7 @@ export default async function handler(req, res) {
       });
     }
 
-    // ── Track usage (direct upsert — service role cannot use auth.uid()-based RPCs) ──
+    // ── Track usage (the server-admin client has no caller auth.uid() context) ──
     try {
       const today = new Date().toISOString().split('T')[0];
       const { data: cur } = await getSupabase()

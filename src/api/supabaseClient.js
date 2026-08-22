@@ -2,19 +2,19 @@
  * Supabase Client — provides auth, database, storage
  */
 import { createClient } from '@supabase/supabase-js';
-import { env, isDevelopment } from '@/config/env';
+import { env } from '@/config/env';
 import { httpGet } from '@/utils/httpClient';
 
-const supabaseUrl = env.NEXT_PUBLIC_STORAGE_SUPABASE_SUPABASE_URL;
-const supabaseAnonKey = env.STORAGE_SUPABASE_SUPABASE_ANON_KEY;
+const supabaseUrl = env.SUPABASE_URL;
+const supabasePublishableKey = env.SUPABASE_PUBLISHABLE_KEY;
 
-export const hasSupabaseConfig = Boolean(supabaseUrl && supabaseAnonKey);
+export const hasSupabaseConfig = Boolean(supabaseUrl && supabasePublishableKey);
 
 let supabase = null;
 
 try {
   if (hasSupabaseConfig) {
-    supabase = createClient(supabaseUrl, supabaseAnonKey, {
+    supabase = createClient(supabaseUrl, supabasePublishableKey, {
       auth: {
         autoRefreshToken: true,
         persistSession: true,
@@ -55,7 +55,7 @@ export async function checkSupabaseHealth() {
   try {
     const res = await httpGet(
       `${supabaseUrl}/auth/v1/health`,
-      { apikey: supabaseAnonKey }
+      { apikey: supabasePublishableKey }
     );
     // Any non-5xx response means the service is reachable.
     return res.status > 0 && res.status < 500;

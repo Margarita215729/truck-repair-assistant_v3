@@ -23,8 +23,8 @@ function getMasterKey() {
 
 function getSupabase() {
   const url = process.env.NEXT_PUBLIC_STORAGE_SUPABASE_SUPABASE_URL;
-  const key = process.env.STORAGE_SUPABASE_SUPABASE_SERVICE_ROLE_KEY;
-  if (!url || !key) throw new Error('NEXT_PUBLIC_STORAGE_SUPABASE_SUPABASE_URL / STORAGE_SUPABASE_SUPABASE_SERVICE_ROLE_KEY required');
+  const key = process.env.STORAGE_SUPABASE_SUPABASE_SECRET_KEY;
+  if (!url || !key) throw new Error('NEXT_PUBLIC_STORAGE_SUPABASE_SUPABASE_URL / STORAGE_SUPABASE_SUPABASE_SECRET_KEY required');
   return createClient(url, key);
 }
 
