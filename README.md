@@ -52,32 +52,48 @@ npm install
 
 ## Environment Configuration
 
-Create `.env.local` file in project root:
+Copy `.env.example` to `.env.local`. Only public values may use `VITE_` or
+`NEXT_PUBLIC_`; those prefixes compile values into the browser and mobile bundles.
+
+Frontend/mobile Supabase configuration is limited to:
 
 ```bash
-# Supabase
 NEXT_PUBLIC_STORAGE_SUPABASE_SUPABASE_URL=https://your-project.supabase.co
-STORAGE_SUPABASE_SUPABASE_ANON_KEY=your_supabase_anon_key
-STORAGE_SUPABASE_SUPABASE_SERVICE_ROLE_KEY=your_service_role_key
+VITE_SUPABASE_PUBLISHABLE_KEY=sb_publishable_xxx
+NEXT_PUBLIC_BASE_URL=https://www.tra.tools
 
-# AI Services
-VITE_GITHUB_TOKEN=your_github_token
-VITE_GEMINI_API_KEY=your_gemini_key
-
-# Google Services
+# Other public browser/mobile configuration
+VITE_STRIPE_PUBLISHABLE_KEY=pk_live_xxx
 VITE_GOOGLE_MAPS_API_KEY=your_google_maps_key
 VITE_GOOGLE_CSE_ID=your_custom_search_engine_id
 VITE_YOUTUBE_API_KEY=your_youtube_api_key
+```
 
-# Search
+Set backend credentials only in Vercel Environment Variables (and in a local
+server environment when developing serverless routes):
+
+```bash
+STORAGE_SUPABASE_SUPABASE_SECRET_KEY=sb_secret_xxx
+GITHUB_TOKEN=your_github_token
+GEMINI_API_KEY=your_gemini_key
 BRAVE_API_KEY=your_brave_search_key
-
-# Payments
 STRIPE_SECRET_KEY=sk_live_...
 STRIPE_WEBHOOK_SECRET=whsec_...
 ```
 
-See [docs/API_CONFIGURATION.md](docs/API_CONFIGURATION.md) for complete reference.
+Do not configure Supabase anon JWTs, service-role JWTs, JWT secrets, database
+passwords, or any secret under a `VITE_`/`NEXT_PUBLIC_` name. Validate the policy
+and connectivity before building:
+
+```bash
+npm run validate:env
+npm run mobile:prepare
+npm run security:scan
+```
+
+Use `npm run validate:env -- --no-connectivity` for an offline policy/format
+check. See [.env.example](.env.example) and [Security](docs/SECURITY.md) for the
+complete reference.
 
 ## Development
 
@@ -145,7 +161,8 @@ npm run test:watch   # Watch mode
 - [App Store Upload (now)](docs/APP_STORE_UPLOAD_NOW.md) - Ready-to-upload paths and metadata
 - [App Store Screenshots](docs/app-store-screenshots/README.md) - Screenshot & icon folder layout (`upload/iphone-6.7`, `AppIcon-1024.png`; logo source: `LOGO_TRA_v1.svg`)
 - [iOS Development](docs/IOS_DEVELOPMENT.md) - iOS development workflow
-- [API Configuration](docs/API_CONFIGURATION.md) - Environment variables reference
+- [.env.example](.env.example) - Environment variables reference
+- [Security](docs/SECURITY.md) - Client/server credential policy
 - [App Store Readiness](docs/APP_STORE_READINESS.md) - Pre-launch checklist
 
 ## Deployment

@@ -106,12 +106,16 @@
 
 Убедитесь что все production API ключи настроены в Vercel:
 - [ ] `NEXT_PUBLIC_STORAGE_SUPABASE_SUPABASE_URL`
-- [ ] `STORAGE_SUPABASE_SUPABASE_ANON_KEY`
+- [ ] `VITE_SUPABASE_PUBLISHABLE_KEY` (`sb_publishable_*`, client-safe)
+- [ ] `STORAGE_SUPABASE_SUPABASE_SECRET_KEY` (`sb_secret_*`, server-side only)
 - [ ] `VITE_STRIPE_PUBLISHABLE_KEY`
 - [ ] `VITE_GOOGLE_MAPS_API_KEY`
 - [ ] `STRIPE_SECRET_KEY` (server-side)
 - [ ] `GITHUB_TOKEN` (server-side)
 - [ ] `GEMINI_API_KEY` (server-side)
+- [ ] Legacy Supabase anon/service-role/JWT variables удалены
+- [ ] `npm run validate:env` проходит успешно
+- [ ] После `npm run mobile:prepare` команда `npm run security:scan` проходит для web/iOS/Android bundles
 
 ### 6. Demo аккаунт ✅
 
