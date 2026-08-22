@@ -32,6 +32,14 @@ export default async function handler(req, res) {
       return res.status(500).json({ error: 'Payment system not configured' });
     }
 
+    // Do not accept money unless Stripe can notify us that payment completed.
+    // Checkout is intentionally paused while the endpoint-specific signing
+    // secret and the product/price model are being reconfigured.
+    if (!process.env.STRIPE_WEBHOOK_SECRET) {
+      console.error('[checkout] Stripe webhook is not configured');
+      return res.status(503).json({ error: 'Billing is temporarily unavailable' });
+    }
+
     // Verify JWT from Authorization header
     const token = req.headers.authorization?.replace('Bearer ', '');
     if (!token) {
