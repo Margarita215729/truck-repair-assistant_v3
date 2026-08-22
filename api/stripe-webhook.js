@@ -1,7 +1,8 @@
 import Stripe from 'stripe';
 import { createClient } from '@supabase/supabase-js';
 
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
+const stripeSecretKey = process.env.STRIPE_SECRET_KEY;
+const stripe = stripeSecretKey ? new Stripe(stripeSecretKey) : null;
 const endpointSecret = process.env.STRIPE_WEBHOOK_SECRET;
 
 let _supabase;
@@ -47,6 +48,13 @@ async function buffer(readable) {
 export default async function handler(req, res) {
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Method not allowed' });
+  }
+
+  // Billing must fail closed. Never accept webhook traffic unless both the
+  // Stripe API key and the endpoint-specific signing secret are configured.
+  if (!stripe || !endpointSecret) {
+    console.error('Stripe webhook is disabled: server credentials are incomplete');
+    return res.status(503).json({ error: 'Billing webhook is not configured' });
   }
 
   const buf = await buffer(req);
