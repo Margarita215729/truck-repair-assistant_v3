@@ -4,7 +4,9 @@ import { defineConfig } from 'vite'
 
 // https://vite.dev/config/
 export default defineConfig({
-  envPrefix: ['VITE_', 'NEXT_PUBLIC_', 'STORAGE_SUPABASE_'],
+  // Only explicitly public variables may be compiled into the browser bundle.
+  // Never add broad server-side prefixes here (for example STORAGE_SUPABASE_).
+  envPrefix: ['VITE_', 'NEXT_PUBLIC_'],
   plugins: [react()],
   resolve: {
     alias: {

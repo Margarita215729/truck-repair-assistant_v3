@@ -23,7 +23,7 @@ let _supabase;
 function getSupabase() {
   if (!_supabase) {
     const url = process.env.NEXT_PUBLIC_STORAGE_SUPABASE_SUPABASE_URL;
-    const key = process.env.STORAGE_SUPABASE_SUPABASE_SERVICE_ROLE_KEY;
+    const key = process.env.STORAGE_SUPABASE_SUPABASE_SECRET_KEY;
     if (!url || !key) throw new Error('Missing Supabase config');
     _supabase = createClient(url, key);
   }

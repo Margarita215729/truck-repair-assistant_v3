@@ -1,22 +1,18 @@
 /**
  * AI Service (LLM Integration)
  * Uses server-side AI proxy (/api/ai-proxy) to keep API keys secure.
- * Falls back to direct GitHub Models API call only in dev with VITE_GITHUB_TOKEN.
  *
  * Models:
  *   DEFAULT_MODEL  – fast & cheap, used for text-only tasks (chat, reports, guides)
  *   VISION_MODEL   – supports image_url content, used for photo analysis
  */
-import { env } from '@/config/env';
 import { apiUrl } from '@/config/apiBase';
 import { supabase, hasSupabaseConfig } from '@/api/supabaseClient';
 import { httpPost } from '@/utils/httpClient';
 
 const AI_PROXY_URL = apiUrl('/api/ai-proxy');
-const GITHUB_MODELS_URL = 'https://models.github.ai/inference/chat/completions';
 const DEFAULT_MODEL = 'openai/gpt-4o-mini';
 const VISION_MODEL  = 'openai/gpt-4o';
-const DIAGNOSTIC_MODEL = 'openai/gpt-4o';
 
 /**
  * Call the LLM API via secure server proxy.
@@ -74,13 +70,6 @@ export async function invokeLLM({
       }
     }
 
-    // Dev fallback: direct API call with client-side token
-    const devToken = env.GITHUB_TOKEN;
-    if (devToken) {
-      const data = await callDirect(messages, response_json_schema, devToken, effectiveModel);
-      return parseResponse(data, response_json_schema);
-    }
-
     const err = new Error('Diagnostic service unavailable — no active session.');
     err.code = 'NO_AI_SERVICE';
     throw err;
@@ -124,27 +113,6 @@ async function callViaProxy(messages, schema, accessToken, model) {
     const err = new Error(detail);
     err.status = response.status;
     throw err;
-  }
-
-  return response.json();
-}
-
-async function callDirect(messages, schema, token, model) {
-  const response = await httpPost(
-    GITHUB_MODELS_URL,
-    {
-      messages,
-      model: model || DEFAULT_MODEL,
-      temperature: 0.2,
-      max_tokens: 16384,
-      ...(schema ? { response_format: { type: 'json_object' } } : {}),
-    },
-    { 'Authorization': `Bearer ${token}` }
-  );
-
-  if (!response.ok) {
-    const errorText = await response.text();
-    throw new Error(`GitHub Models API error: ${response.status} - ${errorText}`);
   }
 
   return response.json();
@@ -233,19 +201,7 @@ export async function invokeGeminiVision({ media, prompt, truck_context }) {
     }
   }
 
-  // Dev fallback: convert to base64 and call Gemini directly (no Vercel limit in local dev)
-  const devKey = env.GEMINI_API_KEY;
-  if (devKey) {
-    const mediaPayload = await Promise.all(
-      media.map(async ({ file }) => {
-        const base64 = await fileToBase64(file);
-        return { data: base64, mimeType: guessMimeType(file) };
-      })
-    );
-    return await callGeminiDirect(mediaPayload, prompt, truck_context, devKey);
-  }
-
-  throw new Error('No Gemini API configuration available');
+  throw new Error('Visual diagnostic service unavailable — no active session.');
 }
 
 /**
@@ -326,65 +282,6 @@ async function callGeminiProxy(mediaRefs, prompt, truckContext, accessToken) {
   }
 
   return bodyJson;
-}
-
-async function callGeminiDirect(media, prompt, truckContext, apiKey) {
-  let userPrompt = '';
-  if (truckContext) {
-    userPrompt += `TRUCK CONTEXT: ${truckContext.year || ''} ${truckContext.make || ''} ${truckContext.model || ''}`;
-    if (truckContext.engine) userPrompt += `, Engine: ${truckContext.engine}`;
-    userPrompt += '\n\n';
-  }
-  userPrompt += prompt || 'Analyze this image/video and provide a diagnostic assessment.';
-
-  const parts = [
-    ...media.map(item => ({ inlineData: { mimeType: item.mimeType, data: item.data } })),
-    { text: userPrompt },
-  ];
-
-  const response = await httpPost(
-    `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`,
-    {
-      systemInstruction: {
-        parts: [{ text: 'You are a HEAVY-DUTY TRUCK Visual Diagnostic System. Analyze ONLY truck-related images (Class 5-8). If the image is not truck-related, set is_truck_related=false. Respond in JSON with fields: is_truck_related, image_category, findings, dashboard_lights, fluid_analysis, smoke_analysis, extracted_text, safety_assessment, probable_diagnosis.' }],
-      },
-      contents: [{ role: 'user', parts }],
-      generationConfig: {
-        temperature: 0.2,
-        maxOutputTokens: 8192,
-        responseMimeType: 'application/json',
-      },
-    },
-    {}
-  );
-
-  if (!response.ok) {
-    const errorText = await response.text();
-    throw new Error(`Gemini API error: ${response.status} - ${errorText}`);
-  }
-
-  const data = await response.json();
-  const text = data.candidates?.[0]?.content?.parts?.[0]?.text;
-  if (!text) throw new Error('Empty response from Gemini');
-
-  try {
-    return JSON.parse(text);
-  } catch {
-    return { is_truck_related: true, image_category: 'unknown', raw_response: text };
-  }
-}
-
-function fileToBase64(file) {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = () => {
-      // Strip the data URL prefix (data:image/jpeg;base64,...)
-      const base64 = reader.result.split(',')[1];
-      resolve(base64);
-    };
-    reader.onerror = reject;
-    reader.readAsDataURL(file);
-  });
 }
 
 /**

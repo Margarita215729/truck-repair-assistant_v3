@@ -3,7 +3,7 @@
  *
  * Permanently deletes the authenticated user and owned data.
  * Requires Authorization: Bearer <access_token>
- * Uses SUPABASE_SERVICE_ROLE_KEY server-side only.
+ * Uses the Supabase secret key server-side only.
  */
 import { createClient } from '@supabase/supabase-js';
 import { applyCors } from './lib/cors.js';
@@ -12,7 +12,7 @@ let _supabase;
 function getSupabaseAdmin() {
   if (!_supabase) {
     const url = process.env.NEXT_PUBLIC_STORAGE_SUPABASE_SUPABASE_URL;
-    const key = process.env.STORAGE_SUPABASE_SUPABASE_SERVICE_ROLE_KEY;
+    const key = process.env.STORAGE_SUPABASE_SUPABASE_SECRET_KEY;
     if (!url || !key) {
       throw new Error('Missing Supabase server configuration');
     }

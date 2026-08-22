@@ -11,20 +11,16 @@ import { loadTokens } from './lib/tokenVault.js';
 
 function getSupabase() {
   const url = process.env.NEXT_PUBLIC_STORAGE_SUPABASE_SUPABASE_URL;
-  const key = process.env.STORAGE_SUPABASE_SUPABASE_SERVICE_ROLE_KEY;
+  const key = process.env.STORAGE_SUPABASE_SUPABASE_SECRET_KEY;
   if (!url || !key) throw new Error('Missing Supabase config');
   return createClient(url, key);
 }
 
 async function getUser(req) {
-  const url = process.env.NEXT_PUBLIC_STORAGE_SUPABASE_SUPABASE_URL;
-  const anonKey = process.env.STORAGE_SUPABASE_SUPABASE_ANON_KEY;
-  const sb = createClient(url, anonKey);
-
   const token = (req.headers.authorization || '').replace('Bearer ', '');
   if (!token) return null;
 
-  const { data: { user }, error } = await sb.auth.getUser(token);
+  const { data: { user }, error } = await getSupabase().auth.getUser(token);
   if (error || !user) return null;
   return user;
 }
