@@ -1,5 +1,5 @@
-const SHELL_CACHE = 'truck-repair-assistant-shell-v2';
-const ASSET_CACHE = 'truck-repair-assistant-assets-v2';
+const SHELL_CACHE = 'truck-repair-assistant-shell-v3';
+const ASSET_CACHE = 'truck-repair-assistant-assets-v3';
 const APP_SHELL = ['/', '/index.html', '/manifest.webmanifest', '/favicon.svg', '/logo.svg'];
 
 function isNavigationRequest(request) {
