@@ -30,21 +30,28 @@ npm install
 
 ### 3. Environment Configuration
 
-Create `.env.local` with required variables:
+Create `.env.local` with the public variables compiled into the iOS bundle:
 
 ```bash
 NEXT_PUBLIC_STORAGE_SUPABASE_SUPABASE_URL=https://your-project.supabase.co
-STORAGE_SUPABASE_SUPABASE_ANON_KEY=your_anon_key
-NEXT_PUBLIC_BASE_URL=https://your-app.vercel.app
+VITE_SUPABASE_PUBLISHABLE_KEY=sb_publishable_xxx
+NEXT_PUBLIC_BASE_URL=https://www.tra.tools
 VITE_GOOGLE_MAPS_API_KEY=your_maps_key
 VITE_GOOGLE_CSE_ID=your_cse_id
 ```
 
-`NEXT_PUBLIC_BASE_URL` must point to your deployed Vercel app (e.g. `https://tra.tools`). The native app loads bundled web assets locally; all `/api/*` routes (AI diagnostics, maps, parts search) are served from that URL.
+`NEXT_PUBLIC_BASE_URL` must point to the canonical deployed Vercel URL. The native
+app loads bundled web assets locally; all `/api/*` routes (AI diagnostics, maps,
+parts search) are served from that URL.
 
-If you still use legacy Supabase variable names (`SUPABASE_URL`, `VITE_SUPABASE_URL`, etc.), they are supported as fallbacks, but prefer the `STORAGE_SUPABASE_*` names above.
+Set `STORAGE_SUPABASE_SUPABASE_SECRET_KEY=sb_secret_xxx` only in the Vercel
+server environment. Never place a Supabase secret, service-role JWT, anon JWT,
+JWT secret, database password, `GITHUB_TOKEN`, or `GEMINI_API_KEY` under a
+`VITE_` or `NEXT_PUBLIC_` name.
 
-See [API_CONFIGURATION.md](./API_CONFIGURATION.md) for complete variable reference.
+Run `npm run validate:env` before building. For a format/policy check without
+network calls, use `npm run validate:env -- --no-connectivity`. See
+[../.env.example](../.env.example) for the complete variable reference.
 
 ### 4. Build and Sync
 
@@ -55,6 +62,12 @@ npm run mobile:prepare
 This command:
 - Builds the React application (`npm run build:mobile`)
 - Syncs web assets to native project (`npx cap sync`)
+
+Then verify the generated web, iOS, and Android assets contain no server secrets:
+
+```bash
+npm run security:scan
+```
 
 ### 5. Install iOS Dependencies
 
@@ -165,7 +178,10 @@ npx cap open ios
 
 ### Pre-submission Checklist
 
-- [ ] All API keys configured in `.env.local`
+- [ ] Public mobile variables use only approved `VITE_`/`NEXT_PUBLIC_` names
+- [ ] Server secrets are configured in Vercel, not as client variables
+- [ ] `npm run validate:env` passes
+- [ ] `npm run security:scan` passes after `npm run mobile:prepare`
 - [ ] App icons and splash screens configured
 - [ ] Bundle identifier matches App Store Connect
 - [ ] Version and build number incremented
@@ -251,12 +267,15 @@ Symptoms:
 
 Fix:
 
-1. Confirm `.env.local` contains Supabase keys with the new names (or legacy fallbacks):
+1. Confirm `.env.local` contains only the approved public Supabase configuration:
    ```bash
    NEXT_PUBLIC_STORAGE_SUPABASE_SUPABASE_URL=https://xxx.supabase.co
-   STORAGE_SUPABASE_SUPABASE_ANON_KEY=eyJ...
-   NEXT_PUBLIC_BASE_URL=https://your-app.vercel.app
+   VITE_SUPABASE_PUBLISHABLE_KEY=sb_publishable_xxx
+   NEXT_PUBLIC_BASE_URL=https://www.tra.tools
    ```
+
+   The Vercel project must separately contain the server-only
+   `STORAGE_SUPABASE_SUPABASE_SECRET_KEY=sb_secret_xxx`.
 
 2. Rebuild native assets (env vars are baked in at build time):
    ```bash
@@ -268,6 +287,7 @@ Fix:
 4. Validate configuration:
    ```bash
    npm run validate:env
+   npm run security:scan
    ```
 
 Without `NEXT_PUBLIC_BASE_URL`, the iOS app cannot reach Vercel serverless routes (`/api/ai-proxy`, `/api/geocode`, etc.) because Capacitor serves static files from `capacitor://localhost`.

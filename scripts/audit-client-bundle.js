@@ -23,12 +23,11 @@ const targetDirectories = [
 const allowedPublicCredentialNames = [
   /^(?:VITE_|NEXT_PUBLIC_)?(?:GOOGLE_(?:MAPS|CSE)_API_KEY|YOUTUBE_API_KEY)$/,
   /^(?:VITE_|NEXT_PUBLIC_)?(?:STRIPE_)?PUBLISHABLE_KEY$/,
-  /^(?:VITE_|NEXT_PUBLIC_)?SUPABASE_(?:ANON_KEY|PUBLISHABLE_KEY)$/,
-  /^STORAGE_SUPABASE_SUPABASE_(?:ANON_KEY|PUBLISHABLE_KEY)$/,
+  /^VITE_SUPABASE_PUBLISHABLE_KEY$/,
 ];
 
 const sensitiveNamePatterns = [
-  /(?:^|_)(?:SECRET|TOKEN|PASSWORD|PRIVATE_KEY|SERVICE_ROLE)(?:_|$)/,
+  /(?:^|_)(?:SECRET|TOKEN|PASSWORD|PRIVATE_KEY|SERVICE_ROLE|ANON_KEY)(?:_|$)/,
   /(?:^|_)(?:JWT_SECRET|DATABASE_URL|POSTGRES_URL|PRISMA_URL)(?:_|$)/,
   /(?:^|_)API_KEY$/,
 ];
@@ -44,8 +43,8 @@ const dangerousPatterns = [
   { name: 'Postgres connection string', regex: /\bpostgres(?:ql)?:\/\/[^\s"'`<>]{8,}/i },
   { name: 'URL with embedded credentials', regex: /\b[a-z][a-z0-9+.-]*:\/\/[^/\s:@]+:[^@\s/]+@/i },
   {
-    name: 'server credential variable name',
-    regex: /\b(?:SUPABASE_(?:SERVICE_ROLE_KEY|SECRET_KEY|JWT_SECRET)|POSTGRES_(?:PASSWORD|URL)|DATABASE_URL|STRIPE_(?:SECRET_KEY|WEBHOOK_SECRET)|GITHUB_TOKEN|GEMINI_API_KEY)\b/,
+    name: 'forbidden credential variable name',
+    regex: /\b(?:(?:STORAGE_)?SUPABASE_(?:SUPABASE_)?(?:ANON_KEY|SERVICE_ROLE_KEY|SECRET_KEY|JWT_SECRET)|POSTGRES_(?:PASSWORD|URL)|DATABASE_URL|STRIPE_(?:SECRET_KEY|WEBHOOK_SECRET)|GITHUB_TOKEN|GEMINI_API_KEY)\b/,
   },
 ];
 

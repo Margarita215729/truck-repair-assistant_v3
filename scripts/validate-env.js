@@ -1,33 +1,57 @@
 #!/usr/bin/env node
 /**
- * Validates .env.local and process.env for Truck Repair Assistant.
- * Masks secrets in output. Tests live connectivity where possible.
+ * Validates Truck Repair Assistant environment configuration without printing
+ * credential values. The Supabase contract is intentionally strict:
  *
- * Usage: npm run validate:env
+ * Client:
+ *   NEXT_PUBLIC_STORAGE_SUPABASE_SUPABASE_URL
+ *   VITE_SUPABASE_PUBLISHABLE_KEY
+ *
+ * Server:
+ *   STORAGE_SUPABASE_SUPABASE_SECRET_KEY
+ *
+ * Usage:
+ *   npm run validate:env
+ *   npm run validate:env -- --no-connectivity
  */
 
-import { readFileSync, existsSync } from 'fs';
-import { resolve, dirname } from 'path';
-import { fileURLToPath } from 'url';
-import { createClient } from '@supabase/supabase-js';
+import { existsSync, readFileSync } from 'node:fs';
+import { dirname, resolve } from 'node:path';
+import { fileURLToPath } from 'node:url';
 
-const __dirname = dirname(fileURLToPath(import.meta.url));
-const ROOT = resolve(__dirname, '..');
-const ENV_FILE = resolve(ROOT, '.env.local');
+const scriptDirectory = dirname(fileURLToPath(import.meta.url));
+const ROOT = resolve(scriptDirectory, '..');
+const ENV_FILE = process.env.VALIDATE_ENV_FILE
+  ? resolve(process.env.VALIDATE_ENV_FILE)
+  : resolve(ROOT, '.env.local');
+const SKIP_CONNECTIVITY =
+  process.argv.includes('--no-connectivity') || process.env.VALIDATE_ENV_SKIP_NETWORK === '1';
 
-const REQUIRED_SUPABASE = [
-  'NEXT_PUBLIC_STORAGE_SUPABASE_SUPABASE_URL',
-  'STORAGE_SUPABASE_SUPABASE_ANON_KEY',
-  'STORAGE_SUPABASE_SUPABASE_SERVICE_ROLE_KEY',
+const REQUIRED_PUBLIC_SUPABASE = [
+  {
+    key: 'NEXT_PUBLIC_STORAGE_SUPABASE_SUPABASE_URL',
+    validator: validateUrl,
+  },
+  {
+    key: 'VITE_SUPABASE_PUBLISHABLE_KEY',
+    validator: validateSupabasePublishableKey,
+  },
 ];
 
-const OPTIONAL_SUPABASE = [
-  'STORAGE_SUPABASE_SUPABASE_PUBLISHABLE_KEY',
-  'STORAGE_SUPABASE_SUPABASE_SECRET_KEY',
-  'STORAGE_SUPABASE_SUPABASE_JWT_SECRET',
+const REQUIRED_SERVER_SUPABASE = [
+  {
+    key: 'STORAGE_SUPABASE_SUPABASE_SECRET_KEY',
+    validator: validateSupabaseSecretKey,
+  },
 ];
 
-const CLIENT_VITE_VARS = [
+const ALLOWED_SUPABASE_VARIABLES = new Set([
+  ...REQUIRED_PUBLIC_SUPABASE.map(({ key }) => key),
+  ...REQUIRED_SERVER_SUPABASE.map(({ key }) => key),
+]);
+
+const CLIENT_PUBLIC_VARIABLES = [
+  'NEXT_PUBLIC_BASE_URL',
   'VITE_STRIPE_PUBLISHABLE_KEY',
   'VITE_OWNER_PRICE_MONTHLY',
   'VITE_OWNER_PRICE_ANNUAL',
@@ -39,7 +63,7 @@ const CLIENT_VITE_VARS = [
   'VITE_GOOGLE_CSE_ID',
 ];
 
-const SERVER_VARS = [
+const OPTIONAL_SERVER_VARIABLES = [
   'STRIPE_SECRET_KEY',
   'STRIPE_WEBHOOK_SECRET',
   'GITHUB_TOKEN',
@@ -51,188 +75,137 @@ const SERVER_VARS = [
   'OWNER_PRICE_ANNUAL',
   'FLEET_PRICE_MONTHLY',
   'FLEET_PRICE_ANNUAL',
-  'NEXT_PUBLIC_BASE_URL',
   'EBAY_CLIENT_ID',
   'EBAY_CLIENT_SECRET',
   'FINDITPARTS_API_URL',
   'FINDITPARTS_API_KEY',
 ];
 
-const LEGACY_VARS = [
-  'SUPABASE_URL',
-  'VITE_SUPABASE_URL',
-  'SUPABASE_ANON_KEY',
-  'VITE_SUPABASE_ANON_KEY',
-  'SUPABASE_SERVICE_ROLE_KEY',
-  'NEXT_PUBLIC_SUPABASE_URL',
-  'NEXT_PUBLIC_SUPABASE_ANON_KEY',
-];
-
-const LEGACY_MAP = {
-  NEXT_PUBLIC_STORAGE_SUPABASE_SUPABASE_URL: [
-    'NEXT_PUBLIC_STORAGE_SUPABASE_SUPABASE_URL',
-    'NEXT_PUBLIC_SUPABASE_URL',
-    'SUPABASE_URL',
-    'VITE_SUPABASE_URL',
-  ],
-  STORAGE_SUPABASE_SUPABASE_ANON_KEY: [
-    'STORAGE_SUPABASE_SUPABASE_ANON_KEY',
-    'SUPABASE_ANON_KEY',
-    'NEXT_PUBLIC_SUPABASE_ANON_KEY',
-    'VITE_SUPABASE_ANON_KEY',
-  ],
-  STORAGE_SUPABASE_SUPABASE_SERVICE_ROLE_KEY: [
-    'STORAGE_SUPABASE_SUPABASE_SERVICE_ROLE_KEY',
-    'SUPABASE_SERVICE_ROLE_KEY',
-  ],
-  STORAGE_SUPABASE_SUPABASE_JWT_SECRET: [
-    'STORAGE_SUPABASE_SUPABASE_JWT_SECRET',
-    'SUPABASE_JWT_SECRET',
-  ],
-};
+const CLIENT_SECRET_NAME_PATTERN =
+  /^(?:VITE_|NEXT_PUBLIC_).*(?:SECRET|SERVICE_ROLE|JWT|TOKEN|PASSWORD|PRIVATE_KEY|DATABASE_URL|POSTGRES_URL)/i;
 
 function mask(value) {
   if (!value) return '(empty)';
-  if (value.length <= 8) return '***';
-  return `${value.slice(0, 4)}…${value.slice(-4)} (${value.length} chars)`;
+  return `(set, ${value.length} chars; value withheld)`;
 }
 
 function parseEnvFile(filePath) {
   if (!existsSync(filePath)) return null;
-  const vars = {};
-  for (const line of readFileSync(filePath, 'utf8').split('\n')) {
-    const trimmed = line.trim();
-    if (!trimmed || trimmed.startsWith('#')) continue;
-    const eq = trimmed.indexOf('=');
-    if (eq === -1) continue;
-    const key = trimmed.slice(0, eq).trim();
-    let val = trimmed.slice(eq + 1).trim();
-    if ((val.startsWith('"') && val.endsWith('"')) || (val.startsWith("'") && val.endsWith("'"))) {
-      val = val.slice(1, -1);
+
+  const variables = {};
+  for (const line of readFileSync(filePath, 'utf8').split(/\r?\n/)) {
+    const match = line.match(/^\s*(?:export\s+)?([A-Za-z_][A-Za-z0-9_]*)\s*=\s*(.*)\s*$/);
+    if (!match) continue;
+
+    const [, key, rawInput] = match;
+    let value = rawInput.trim();
+    if (
+      (value.startsWith('"') && value.endsWith('"')) ||
+      (value.startsWith("'") && value.endsWith("'"))
+    ) {
+      value = value.slice(1, -1);
+    } else {
+      value = value.replace(/\s+#.*$/, '').trim();
     }
-    vars[key] = val;
+    variables[key] = value;
   }
-  return vars;
+  return variables;
 }
 
-function resolveValue(key, fileVars) {
-  const candidates = LEGACY_MAP[key] || [key];
-  for (const candidate of candidates) {
-    if (fileVars?.[candidate]) {
-      const legacy = candidate !== key;
-      return { value: fileVars[candidate], source: legacy ? `.env.local (legacy: ${candidate})` : '.env.local' };
-    }
-    if (process.env[candidate]) {
-      const legacy = candidate !== key;
-      return { value: process.env[candidate], source: legacy ? `process.env (legacy: ${candidate})` : 'process.env' };
-    }
+function resolveExactValue(key, fileVariables) {
+  if (fileVariables && Object.hasOwn(fileVariables, key)) {
+    return { value: fileVariables[key], source: '.env.local' };
+  }
+  if (Object.hasOwn(process.env, key)) {
+    return { value: process.env[key] || '', source: 'process.env' };
   }
   return { value: '', source: 'missing' };
-}
-
-function validatePublicBaseUrl(value) {
-  if (!value) return { ok: false, detail: 'missing' };
-  const normalized = value.replace(/\/$/, '');
-  if (normalized === 'https://tra.tools' || normalized === 'http://tra.tools') {
-    return {
-      ok: false,
-      detail: 'use https://www.tra.tools — tra.tools redirects and breaks Capacitor CORS',
-    };
-  }
-  return validateUrl(value);
 }
 
 function validateUrl(value) {
   if (!value) return { ok: false, detail: 'missing' };
   try {
-    const u = new URL(value);
-    if (!['http:', 'https:'].includes(u.protocol)) {
-      return { ok: false, detail: `invalid protocol: ${u.protocol}` };
+    const parsed = new URL(value);
+    if (!['http:', 'https:'].includes(parsed.protocol)) {
+      return { ok: false, detail: `invalid protocol: ${parsed.protocol}` };
     }
-    return { ok: true, detail: u.hostname };
-  } catch (e) {
-    return { ok: false, detail: e.message };
+    return { ok: true, detail: parsed.hostname };
+  } catch (error) {
+    return { ok: false, detail: error.message };
   }
 }
 
-function validateJwt(value) {
-  if (!value) return { ok: false, detail: 'missing' };
-  const parts = value.split('.');
-  if (parts.length !== 3) return { ok: false, detail: 'not a JWT (expected 3 parts)' };
-  try {
-    const payload = JSON.parse(Buffer.from(parts[1], 'base64url').toString('utf8'));
-    const role = payload.role || 'unknown';
-    const ref = payload.ref || payload.iss || 'unknown';
-    const exp = payload.exp ? new Date(payload.exp * 1000).toISOString() : 'no exp';
-    return { ok: true, detail: `role=${role}, ref=${ref}, exp=${exp}` };
-  } catch (e) {
-    return { ok: false, detail: `JWT decode failed: ${e.message}` };
+function validatePublicBaseUrl(value) {
+  const result = validateUrl(value);
+  if (!result.ok) return result;
+
+  const normalized = value.replace(/\/$/, '');
+  if (normalized === 'https://tra.tools' || normalized === 'http://tra.tools') {
+    return {
+      ok: false,
+      detail: 'use https://www.tra.tools — the apex redirect breaks Capacitor CORS',
+    };
   }
+  return result;
+}
+
+function validateSupabasePublishableKey(value) {
+  if (!value) return { ok: false, detail: 'missing' };
+  if (/^sb_publishable_[A-Za-z0-9_-]{12,}$/.test(value)) {
+    return { ok: true, detail: 'publishable key' };
+  }
+  if (value.split('.').length === 3) {
+    return { ok: false, detail: 'legacy JWT/anon key is prohibited; use sb_publishable_*' };
+  }
+  return { ok: false, detail: 'expected sb_publishable_* key' };
+}
+
+function validateSupabaseSecretKey(value) {
+  if (!value) return { ok: false, detail: 'missing' };
+  if (/^sb_secret_[A-Za-z0-9_-]{12,}$/.test(value)) {
+    return { ok: true, detail: 'server secret key' };
+  }
+  if (value.split('.').length === 3) {
+    return { ok: false, detail: 'legacy service-role JWT is prohibited; use sb_secret_*' };
+  }
+  return { ok: false, detail: 'expected sb_secret_* key' };
 }
 
 function validateStripePriceId(value) {
   if (!value) return { ok: false, detail: 'missing' };
   if (value.startsWith('price_')) return { ok: true, detail: 'price ID' };
   if (value.startsWith('prod_')) {
-    return { ok: false, detail: 'product ID — use price_ ID for webhook mapping' };
+    return { ok: false, detail: 'product ID — use a price_ ID for webhook mapping' };
   }
   return { ok: false, detail: 'unexpected format' };
 }
 
-async function testSupabaseRest(url, apiKey, label) {
-  if (!url || !apiKey) {
-    return { ok: false, detail: `${label}: missing url or key` };
-  }
-  try {
-    const res = await fetch(`${url.replace(/\/$/, '')}/rest/v1/`, {
-      headers: { apikey: apiKey, Authorization: `Bearer ${apiKey}` },
-    });
-    if (res.status === 200 || res.status === 401) {
-      return { ok: true, detail: `${label}: REST reachable (HTTP ${res.status})` };
-    }
-    return { ok: false, detail: `${label}: HTTP ${res.status} ${res.statusText}` };
-  } catch (e) {
-    return { ok: false, detail: `${label}: ${e.message}` };
-  }
-}
-
-async function testSupabaseAuth(url, anonKey) {
-  if (!url || !anonKey) return { ok: false, detail: 'auth: missing url or anon key' };
-  try {
-    const sb = createClient(url, anonKey);
-    const { error } = await sb.auth.getSession();
-    if (error) return { ok: false, detail: `auth.getSession error: ${error.message}` };
-    return { ok: true, detail: 'auth.getSession OK' };
-  } catch (e) {
-    return { ok: false, detail: `auth client error: ${e.message}` };
-  }
-}
-
-async function testGemini(apiKey) {
-  if (!apiKey) return { ok: false, detail: 'gemini: missing GEMINI_API_KEY' };
-  try {
-    const res = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${encodeURIComponent(apiKey)}`,
-      {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ contents: [{ parts: [{ text: 'OK' }] }] }),
-      },
+function forbiddenReason(name) {
+  if (name.toUpperCase().includes('SUPABASE') && !ALLOWED_SUPABASE_VARIABLES.has(name)) {
+    return (
+      'unsupported Supabase variable; allowed names are ' +
+      [...ALLOWED_SUPABASE_VARIABLES].join(', ')
     );
-    if (res.ok) return { ok: true, detail: `gemini: HTTP ${res.status}` };
-    const body = await res.json().catch(() => ({}));
-    return { ok: false, detail: `gemini: HTTP ${res.status} — ${body.error?.message || res.statusText}` };
-  } catch (e) {
-    return { ok: false, detail: `gemini: ${e.message}` };
   }
+  if (CLIENT_SECRET_NAME_PATTERN.test(name)) {
+    return 'secret-like variable uses a client-visible VITE_ or NEXT_PUBLIC_ prefix';
+  }
+  return '';
 }
 
-function checkViteExposure(key) {
-  const vitePrefixes = ['VITE_', 'NEXT_PUBLIC_', 'STORAGE_SUPABASE_'];
-  if (vitePrefixes.some((p) => key.startsWith(p))) {
-    return { ok: true, detail: 'exposed to Vite client via envPrefix' };
+function findForbiddenVariables(fileVariables) {
+  const configured = new Map();
+
+  for (const [name, value] of Object.entries(process.env)) {
+    const reason = forbiddenReason(name);
+    if (reason) configured.set(name, { value: value || '', source: 'process.env', reason });
   }
-  return { ok: true, detail: 'server-only (OK)' };
+  for (const [name, value] of Object.entries(fileVariables || {})) {
+    const reason = forbiddenReason(name);
+    if (reason) configured.set(name, { value, source: '.env.local', reason });
+  }
+
+  return configured;
 }
 
 function printSection(title) {
@@ -241,122 +214,203 @@ function printSection(title) {
   console.log('='.repeat(72));
 }
 
-function printVar(key, fileVars, { required = false, validator = null } = {}) {
-  const { value, source } = resolveValue(key, fileVars);
+function printVariable(definition, fileVariables, { required = false } = {}) {
+  const { key, validator } = definition;
+  const { value, source } = resolveExactValue(key, fileVariables);
   const present = Boolean(value);
-  const status = present ? (required ? 'OK' : 'SET') : (required ? 'MISSING' : 'optional, empty');
+  const validation = present && validator ? validator(value) : null;
+  const valid = present && (!validation || validation.ok);
+  const status = required
+    ? valid
+      ? 'OK'
+      : present
+        ? 'INVALID'
+        : 'MISSING'
+    : present
+      ? validation && !validation.ok
+        ? 'INVALID'
+        : 'SET'
+      : 'optional, empty';
+
   console.log(`\n[${status}] ${key}`);
   console.log(`  source: ${source}`);
   if (present) console.log(`  value:  ${mask(value)}`);
-  if (validator && present) {
-    const result = validator(value);
-    console.log(`  format: ${result.ok ? 'OK' : 'FAIL'} — ${result.detail}`);
+  if (validation) {
+    console.log(`  format: ${validation.ok ? 'OK' : 'FAIL'} — ${validation.detail}`);
   }
-  const viteCheck = checkViteExposure(key);
-  if (!viteCheck.ok) console.log(`  vite:   WARN — ${viteCheck.detail}`);
-  if (source.includes('legacy')) console.log(`  note:   Using legacy env name — rename to ${key}`);
-  return { key, present, required, source };
+
+  return { key, present, valid, validation };
+}
+
+async function fetchWithTimeout(url, options = {}) {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), 10_000);
+  try {
+    return await fetch(url, { ...options, signal: controller.signal });
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+async function testSupabaseEndpoint(url, apiKey, path, label) {
+  if (!url || !apiKey) return { ok: false, detail: `${label}: missing URL or key` };
+  try {
+    const response = await fetchWithTimeout(`${url.replace(/\/$/, '')}${path}`, {
+      headers: { apikey: apiKey },
+    });
+    return response.ok
+      ? { ok: true, detail: `${label}: HTTP ${response.status}` }
+      : { ok: false, detail: `${label}: HTTP ${response.status} ${response.statusText}` };
+  } catch (error) {
+    return { ok: false, detail: `${label}: ${error.message}` };
+  }
+}
+
+async function testGemini(apiKey) {
+  if (!apiKey) return { ok: true, skipped: true, detail: 'Gemini: not configured (optional)' };
+  try {
+    const response = await fetchWithTimeout(
+      `https://generativelanguage.googleapis.com/v1beta/models?key=${encodeURIComponent(apiKey)}`,
+    );
+    return response.ok
+      ? { ok: true, detail: `Gemini models endpoint: HTTP ${response.status}` }
+      : {
+          ok: false,
+          detail: `Gemini models endpoint: HTTP ${response.status} ${response.statusText}`,
+        };
+  } catch (error) {
+    return { ok: false, detail: `Gemini models endpoint: ${error.message}` };
+  }
 }
 
 async function main() {
   console.log('Environment validation — Truck Repair Assistant v3');
   console.log(`Root: ${ROOT}`);
   console.log(`Env file: ${ENV_FILE} — ${existsSync(ENV_FILE) ? 'FOUND' : 'NOT FOUND'}`);
+  if (SKIP_CONNECTIVITY) console.log('Connectivity: SKIPPED by request');
 
-  const fileVars = parseEnvFile(ENV_FILE);
-  if (!fileVars) {
-    console.log('\nWARN: .env.local not found. Checking process.env only.');
+  const fileVariables = parseEnvFile(ENV_FILE);
+  if (!fileVariables) {
+    console.log('\nWARN: environment file not found. Checking process.env only.');
   } else {
-    console.log(`Loaded ${Object.keys(fileVars).length} variables from .env.local`);
+    console.log(`Loaded ${Object.keys(fileVariables).length} variables from the environment file`);
   }
 
-  const results = { requiredMissing: [], legacyFound: [], connectivity: [], formatFails: [] };
+  const results = {
+    requiredMissing: [],
+    invalidFormats: [],
+    forbiddenFound: [],
+    connectivity: [],
+  };
 
-  printSection('Required Supabase variables');
-  for (const key of REQUIRED_SUPABASE) {
-    const validator = key.includes('URL') ? validateUrl : validateJwt;
-    const r = printVar(key, fileVars, { required: true, validator });
-    if (!r.present) results.requiredMissing.push(key);
+  printSection('Required public Supabase variables (browser/mobile bundle)');
+  for (const definition of REQUIRED_PUBLIC_SUPABASE) {
+    const result = printVariable(definition, fileVariables, { required: true });
+    if (!result.present) results.requiredMissing.push(result.key);
+    else if (!result.valid) results.invalidFormats.push(result.key);
   }
 
-  printSection('Optional Supabase variables');
-  for (const key of OPTIONAL_SUPABASE) {
-    printVar(key, fileVars, { required: false });
+  printSection('Required server-only Supabase variable');
+  for (const definition of REQUIRED_SERVER_SUPABASE) {
+    const result = printVariable(definition, fileVariables, { required: true });
+    if (!result.present) results.requiredMissing.push(result.key);
+    else if (!result.valid) results.invalidFormats.push(result.key);
   }
 
-  printSection('Client (Vite) variables');
-  for (const key of CLIENT_VITE_VARS) {
-    const validator = key.includes('PRICE') ? validateStripePriceId : null;
-    const r = printVar(key, fileVars, { validator });
-    if (r.present && validator) {
-      const v = validator(resolveValue(key, fileVars).value);
-      if (!v.ok) results.formatFails.push(key);
-    }
-  }
-
-  printSection('Server variables');
-  for (const key of SERVER_VARS) {
+  printSection('Optional public client variables');
+  for (const key of CLIENT_PUBLIC_VARIABLES) {
     const validator = key.includes('PRICE')
       ? validateStripePriceId
       : key === 'NEXT_PUBLIC_BASE_URL'
         ? validatePublicBaseUrl
         : null;
-    const r = printVar(key, fileVars, { validator });
-    if (r.present && validator) {
-      const v = validator(resolveValue(key, fileVars).value);
-      if (!v.ok) results.formatFails.push(key);
+    const result = printVariable({ key, validator }, fileVariables);
+    if (result.present && !result.valid) results.invalidFormats.push(key);
+  }
+
+  printSection('Optional server-only variables');
+  for (const key of OPTIONAL_SERVER_VARIABLES) {
+    const validator = key.includes('PRICE') ? validateStripePriceId : null;
+    const result = printVariable({ key, validator }, fileVariables);
+    if (result.present && !result.valid) results.invalidFormats.push(key);
+  }
+
+  printSection('Forbidden legacy or client-secret variables');
+  const forbiddenVariables = findForbiddenVariables(fileVariables);
+  if (forbiddenVariables.size === 0) {
+    console.log('\n[OK] No forbidden environment variable names are configured.');
+  } else {
+    for (const [name, { value, source, reason }] of forbiddenVariables) {
+      console.log(`\n[FAIL] ${name}`);
+      console.log(`  source: ${source}`);
+      console.log(`  reason: ${reason}`);
+      console.log(`  value:  ${mask(value)}`);
+      results.forbiddenFound.push(name);
     }
   }
 
-  printSection('Legacy variables (should be removed)');
-  for (const key of LEGACY_VARS) {
-    const { value, source } = resolveValue(key, fileVars);
-    if (value) {
-      console.log(`\n[WARN] ${key} still set via ${source} — migrate to STORAGE_SUPABASE_* names`);
-      console.log(`  value: ${mask(value)}`);
-      results.legacyFound.push(key);
-    } else {
-      console.log(`\n[OK] ${key} — not set`);
+  if (!SKIP_CONNECTIVITY) {
+    printSection('Live connectivity tests');
+    const url = resolveExactValue(
+      'NEXT_PUBLIC_STORAGE_SUPABASE_SUPABASE_URL',
+      fileVariables,
+    ).value;
+    const publishableKey = resolveExactValue('VITE_SUPABASE_PUBLISHABLE_KEY', fileVariables).value;
+    const secretKey = resolveExactValue(
+      'STORAGE_SUPABASE_SUPABASE_SECRET_KEY',
+      fileVariables,
+    ).value;
+    const geminiKey = resolveExactValue('GEMINI_API_KEY', fileVariables).value;
+
+    const tests = [
+      await testSupabaseEndpoint(
+        url,
+        publishableKey,
+        '/rest/v1/truck_parking?select=id&limit=1',
+        'Supabase publishable REST',
+      ),
+      await testSupabaseEndpoint(url, publishableKey, '/auth/v1/settings', 'Supabase Auth'),
+      await testSupabaseEndpoint(url, secretKey, '/rest/v1/', 'Supabase server REST'),
+      await testGemini(geminiKey),
+    ];
+
+    for (const test of tests) {
+      const status = test.skipped ? 'SKIP' : test.ok ? 'PASS' : 'FAIL';
+      console.log(`\n[${status}] ${test.detail}`);
+      results.connectivity.push(test);
     }
-  }
-
-  printSection('Live connectivity tests');
-  const url = resolveValue('NEXT_PUBLIC_STORAGE_SUPABASE_SUPABASE_URL', fileVars).value;
-  const anonKey = resolveValue('STORAGE_SUPABASE_SUPABASE_ANON_KEY', fileVars).value;
-  const serviceKey = resolveValue('STORAGE_SUPABASE_SUPABASE_SERVICE_ROLE_KEY', fileVars).value;
-  const geminiKey = resolveValue('GEMINI_API_KEY', fileVars).value;
-
-  const tests = [
-    await testSupabaseRest(url, anonKey, 'anon key'),
-    await testSupabaseRest(url, serviceKey, 'service role key'),
-    await testSupabaseAuth(url, anonKey),
-    await testGemini(geminiKey),
-  ];
-
-  for (const t of tests) {
-    console.log(`\n[${t.ok ? 'PASS' : 'FAIL'}] ${t.detail}`);
-    results.connectivity.push(t);
   }
 
   printSection('Summary');
-  const connFails = results.connectivity.filter((t) => !t.ok);
-  console.log(`Required missing: ${results.requiredMissing.length ? results.requiredMissing.join(', ') : 'none'}`);
-  console.log(`Format warnings: ${results.formatFails.length ? results.formatFails.join(', ') : 'none'}`);
-  console.log(`Legacy vars still set: ${results.legacyFound.length ? results.legacyFound.join(', ') : 'none'}`);
-  console.log(`Connectivity failures: ${connFails.length}`);
+  const connectivityFailures = results.connectivity.filter((test) => !test.ok);
+  console.log(
+    `Required missing: ${results.requiredMissing.length ? results.requiredMissing.join(', ') : 'none'}`,
+  );
+  console.log(
+    `Invalid formats: ${results.invalidFormats.length ? results.invalidFormats.join(', ') : 'none'}`,
+  );
+  console.log(
+    `Forbidden variables: ${results.forbiddenFound.length ? results.forbiddenFound.join(', ') : 'none'}`,
+  );
+  console.log(
+    `Connectivity failures: ${SKIP_CONNECTIVITY ? 'skipped' : connectivityFailures.length}`,
+  );
 
-  if (results.requiredMissing.length || connFails.length) {
-    console.log('\nRESULT: FAILED — fix missing/invalid variables above.');
-    process.exit(1);
+  if (
+    results.requiredMissing.length ||
+    results.invalidFormats.length ||
+    results.forbiddenFound.length ||
+    connectivityFailures.length
+  ) {
+    console.log('\nRESULT: FAILED — correct the configuration above.');
+    process.exitCode = 1;
+    return;
   }
-  if (results.formatFails.length || results.legacyFound.length) {
-    console.log('\nRESULT: WARN — connectivity OK but review format/legacy warnings.');
-    process.exit(0);
-  }
-  console.log('\nRESULT: PASSED — all required variables present and connectivity OK.');
+
+  console.log('\nRESULT: PASSED — environment policy and required configuration are valid.');
 }
 
-main().catch((err) => {
-  console.error('validate-env fatal error:', err);
-  process.exit(1);
+main().catch((error) => {
+  console.error(`validate-env fatal error: ${error.message}`);
+  process.exitCode = 1;
 });
