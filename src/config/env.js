@@ -38,14 +38,33 @@ const PUBLIC_ENV_ALIASES = {
   ],
 };
 
+// Keep every access static. A computed import.meta.env[key] makes Vite materialize
+// every variable that matches envPrefix, even variables this module never uses.
+const BUILD_TIME_PUBLIC_ENV = {
+  VITE_SUPABASE_URL: import.meta.env.VITE_SUPABASE_URL,
+  NEXT_PUBLIC_SUPABASE_URL: import.meta.env.NEXT_PUBLIC_SUPABASE_URL,
+  NEXT_PUBLIC_STORAGE_SUPABASE_SUPABASE_URL:
+    import.meta.env.NEXT_PUBLIC_STORAGE_SUPABASE_SUPABASE_URL,
+  VITE_SUPABASE_PUBLISHABLE_KEY: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
+  NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY:
+    import.meta.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY,
+  NEXT_PUBLIC_STORAGE_SUPABASE_SUPABASE_PUBLISHABLE_KEY:
+    import.meta.env.NEXT_PUBLIC_STORAGE_SUPABASE_SUPABASE_PUBLISHABLE_KEY,
+  NEXT_PUBLIC_BASE_URL: import.meta.env.NEXT_PUBLIC_BASE_URL,
+  VITE_APP_URL: import.meta.env.VITE_APP_URL,
+  VITE_GOOGLE_MAPS_API_KEY: import.meta.env.VITE_GOOGLE_MAPS_API_KEY,
+  NEXT_PUBLIC_GOOGLE_MAPS_API_KEY: import.meta.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY,
+  VITE_YOUTUBE_API_KEY: import.meta.env.VITE_YOUTUBE_API_KEY,
+  NEXT_PUBLIC_YOUTUBE_API_KEY: import.meta.env.NEXT_PUBLIC_YOUTUBE_API_KEY,
+  VITE_STRIPE_PUBLISHABLE_KEY: import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY,
+  NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY: import.meta.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY,
+  VITE_PREMIUM_PRICE_MONTHLY: import.meta.env.VITE_PREMIUM_PRICE_MONTHLY,
+  NEXT_PUBLIC_PREMIUM_PRICE_MONTHLY: import.meta.env.NEXT_PUBLIC_PREMIUM_PRICE_MONTHLY,
+};
+
 function readPublicEnvValue(key) {
-  // 1. Vite only exposes variables allowed by vite.config.js envPrefix.
-  try {
-    const value = import.meta.env?.[key];
-    if (value) return value;
-  } catch {
-    // import.meta.env unavailable (SSR/test)
-  }
+  const buildTimeValue = BUILD_TIME_PUBLIC_ENV[key];
+  if (buildTimeValue) return buildTimeValue;
 
   // 2. Runtime injection is also restricted to the explicit allowlist above.
   try {
