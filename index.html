@@ -15,6 +15,20 @@
     <meta name="apple-mobile-web-app-title" content="Truck Repair" />
     <link rel="apple-touch-icon" href="/logo.svg" />
     <title>Truck Repair Assistant</title>
+    <script>
+      (function () {
+        var GA4_ID = "%VITE_GA4_MEASUREMENT_ID%";
+        if (!GA4_ID || GA4_ID.charAt(0) === '%') return;
+        var s = document.createElement('script');
+        s.async = true;
+        s.src = 'https://www.googletagmanager.com/gtag/js?id=' + GA4_ID;
+        document.head.appendChild(s);
+        window.dataLayer = window.dataLayer || [];
+        window.gtag = function () { window.dataLayer.push(arguments); };
+        gtag('js', new Date());
+        gtag('config', GA4_ID);
+      })();
+    </script>
   </head>
   <body>
     <div id="root"></div>

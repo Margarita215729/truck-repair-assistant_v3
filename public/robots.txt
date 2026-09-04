@@ -1,0 +1,7 @@
+User-agent: *
+Disallow: /Admin
+Disallow: /Profile
+Disallow: /Reports
+Allow: /
+
+Sitemap: https://www.tra.tools/sitemap.xml

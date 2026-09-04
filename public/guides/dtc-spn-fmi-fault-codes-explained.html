@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>DTC, SPN &amp; FMI Codes Explained | Truck Repair Assistant</title>
+  <meta name="description" content="What DTC, SPN, and FMI fault codes on a Class 7/8 truck dashboard actually mean, how heavy-duty J1939 codes differ from passenger-car OBD-II, and what to check next.">
+  <link rel="canonical" href="https://www.tra.tools/guides/dtc-spn-fmi-fault-codes-explained">
+  <meta name="theme-color" content="#0b1012">
+  <link rel="icon" type="image/svg+xml" href="/favicon.svg">
+  <link rel="stylesheet" href="/marketing.css">
+  <meta property="og:type" content="article">
+  <meta property="og:site_name" content="Truck Repair Assistant">
+  <meta property="og:title" content="DTC, SPN &amp; FMI Codes Explained">
+  <meta property="og:description" content="What those numbers on your dash actually mean, and how heavy-duty codes differ from passenger-car OBD-II.">
+  <meta property="og:url" content="https://www.tra.tools/guides/dtc-spn-fmi-fault-codes-explained">
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "TechArticle",
+    "headline": "DTC, SPN & FMI Codes Explained",
+    "description": "What DTC, SPN, and FMI fault codes on a Class 7/8 truck dashboard actually mean.",
+    "url": "https://www.tra.tools/guides/dtc-spn-fmi-fault-codes-explained",
+    "datePublished": "2026-09-04",
+    "dateModified": "2026-09-04",
+    "author": { "@type": "Organization", "name": "Makevia LLC" },
+    "publisher": { "@type": "Organization", "name": "Makevia LLC" }
+  }
+  </script>
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "FAQPage",
+    "mainEntity": [
+      { "@type": "Question", "name": "What's the difference between a DTC and an SPN/FMI code?",
+        "acceptedAnswer": { "@type": "Answer", "text": "DTC (Diagnostic Trouble Code) is the general term from passenger-car OBD-II systems, usually a letter and four digits. Most Class 7/8 trucks instead use the heavy-duty J1939 standard, which pairs an SPN (Suspect Parameter Number — which component or system) with an FMI (Failure Mode Identifier — what kind of failure). You may see both terms used loosely to mean the same thing: the code your truck is reporting." } },
+      { "@type": "Question", "name": "Can I keep driving with a check engine light on?",
+        "acceptedAnswer": { "@type": "Answer", "text": "It depends on what else is happening, not the light alone. A steady amber warning with no other symptoms is often manageable short-term but should be checked soon. A flashing or red warning, a derate, or any change in how the truck handles means you should get off the road safely and stop. When in doubt, treat it as something to address before continuing, not after." } },
+      { "@type": "Question", "name": "Do I need a scan tool to find my code?",
+        "acceptedAnswer": { "@type": "Answer", "text": "Not always. Many trucks display an active code directly on the dash cluster or through the odometer/menu button sequence. A scan tool gives you more detail and history, but you often don't need one just to read what's currently active." } },
+      { "@type": "Question", "name": "Does Truck Repair Assistant look up my exact code?",
+        "acceptedAnswer": { "@type": "Answer", "text": "Yes — enter the code you're seeing (DTC, or SPN/FMI pair) along with what you're noticing, and TRA gives you plain-language context on what it typically points to. It's free to try without an account." } }
+    ]
+  }
+  </script>
+</head>
+<body>
+  <header class="site-header">
+    <div class="wrap">
+      <a class="brand" href="/roadside"><img src="/logo.svg" alt="Truck Repair Assistant logo"> Truck Repair Assistant</a>
+      <a class="header-cta" href="/">Try it now</a>
+    </div>
+  </header>
+
+  <main>
+    <section class="hero" style="padding-bottom:1.2rem;">
+      <div class="wrap">
+        <span class="eyebrow">Fault codes</span>
+        <h1>What do DTC, SPN &amp; FMI codes actually mean?</h1>
+        <div class="quick-answer">A <strong>DTC</strong> is the general term for a fault code. Most heavy-duty trucks report codes in the <strong>J1939</strong> format instead: an <strong>SPN</strong> (which part or system triggered it) paired with an <strong>FMI</strong> (what kind of failure it is — too high, too low, out of range, etc.). Neither number alone tells you the urgency — that depends on the warning color and what the truck is doing.</div>
+      </div>
+    </section>
+
+    <section>
+      <div class="wrap">
+        <h2>What this usually means</h2>
+        <p class="section-intro">The SPN identifies the system or component the fault relates to (aftertreatment, engine, electrical, and so on). The FMI describes the nature of the fault the truck's computer detected — a signal reading too high, too low, missing entirely, or out of the expected range. Two trucks throwing the same SPN with different FMI values can point to very different underlying causes, which is why the pair matters more than either number alone.</p>
+        <p class="section-intro">Manufacturers also layer their own proprietary codes on top of the standard ones, so the exact same symptom can display differently across a Freightliner, a Kenworth, and a Volvo. That's normal — it's part of why reading the code is only the first step, not the answer by itself.</p>
+      </div>
+    </section>
+
+    <section>
+      <div class="wrap">
+        <h2>What to do right now</h2>
+        <div class="safety-box">
+          <span class="safety-title">The warning color matters more than the code number</span>
+          <p>A steady amber/yellow lamp with no other symptoms is usually something to get checked soon, not an emergency. A red warning lamp, a flashing lamp, a derate, or any noticeable change in how the truck handles means: get off the road safely and stop.</p>
+          <p class="fine">This is general guidance, not a diagnosis of your specific truck. Always verify anything safety-critical with a qualified technician.</p>
+        </div>
+      </div>
+    </section>
+
+    <section>
+      <div class="wrap">
+        <h2>Get a read on your code</h2>
+        <p class="section-intro">Enter the code you're seeing along with what you've noticed, and get plain-language context — free, no account needed for text or code questions.</p>
+        <a class="btn-primary" href="/">Try it now — it's free</a>
+      </div>
+    </section>
+
+    <section>
+      <div class="wrap">
+        <h2>Frequently asked questions</h2>
+        <div class="faq-item"><div class="q">What's the difference between a DTC and an SPN/FMI code?</div><div class="a">DTC (Diagnostic Trouble Code) is the general term from passenger-car OBD-II systems, usually a letter and four digits. Most Class 7/8 trucks instead use the heavy-duty J1939 standard, which pairs an SPN (Suspect Parameter Number — which component or system) with an FMI (Failure Mode Identifier — what kind of failure). You may see both terms used loosely to mean the same thing: the code your truck is reporting.</div></div>
+        <div class="faq-item"><div class="q">Can I keep driving with a check engine light on?</div><div class="a">It depends on what else is happening, not the light alone. A steady amber warning with no other symptoms is often manageable short-term but should be checked soon. A flashing or red warning, a derate, or any change in how the truck handles means you should get off the road safely and stop. When in doubt, treat it as something to address before continuing, not after.</div></div>
+        <div class="faq-item"><div class="q">Do I need a scan tool to find my code?</div><div class="a">Not always. Many trucks display an active code directly on the dash cluster or through the odometer/menu button sequence. A scan tool gives you more detail and history, but you often don't need one just to read what's currently active.</div></div>
+        <div class="faq-item"><div class="q">Does Truck Repair Assistant look up my exact code?</div><div class="a">Yes — enter the code you're seeing (DTC, or SPN/FMI pair) along with what you're noticing, and TRA gives you plain-language context on what it typically points to. It's free to try without an account.</div></div>
+      </div>
+    </section>
+
+    <section>
+      <div class="wrap">
+        <h2>Related guides</h2>
+        <div class="card-grid">
+          <a class="card-link" href="/guides/dpf-derate-warning"><span class="tag">Derate</span><h3>DPF derate warning</h3><p>When a code comes with a power or speed limit.</p></a>
+          <a class="card-link" href="/guides/engine-overheating-coolant-loss"><span class="tag">Overheating</span><h3>Engine overheating &amp; coolant loss</h3><p>What's safe to do before help arrives.</p></a>
+          <a class="card-link" href="/guides/low-air-pressure-warning"><span class="tag">Air brakes</span><h3>Low air pressure warning</h3><p>Why this one isn't optional to ignore.</p></a>
+          <a class="card-link" href="/guides"><span class="tag">All guides</span><h3>See every guide</h3><p>Browse the full list.</p></a>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer class="site-footer">
+    <div class="wrap">
+      <div class="links">
+        <a href="/">Open the app</a>
+        <a href="/roadside">Roadside overview</a>
+        <a href="/support">Support</a>
+        <a href="/privacy">Privacy Policy</a>
+        <a href="/terms">Terms of Service</a>
+      </div>
+      <p class="fine">© 2026 Makevia LLC. Truck Repair Assistant is an informational support tool and does not replace certified mechanical inspection, professional repair services, or official safety procedures.</p>
+    </div>
+  </footer>
+
+  <script>
+    (function () {
+      var params = window.location.search;
+      if (!params) return;
+      document.querySelectorAll('a[href="/"]').forEach(function (a) { a.setAttribute('href', '/' + params); });
+    })();
+  </script>
+</body>
+</html>
