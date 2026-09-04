@@ -36,7 +36,7 @@ import { getTruckStateSnapshot, connectProvider } from '@/services/telematics/te
 import TruckStatePanel from '@/components/diagnostics/TruckStatePanel';
 import ScanTruckButton from '@/components/diagnostics/ScanTruckButton';
 import CredentialConnectDialog from '@/components/diagnostics/CredentialConnectDialog';
-import { GUEST_CHAT_MESSAGE_LIMIT, canGuestUseVideo, canGuestUseTelematicsScan } from '@/lib/guestAccess';
+import { GUEST_AI_REQUEST_LIMIT, canGuestUseVideo, canGuestUseTelematicsScan } from '@/lib/guestAccess';
 import { useVoiceInput } from '@/hooks/useVoiceInput';
 import { useNavigate } from 'react-router-dom';
 import { trackEvent } from '@/services/analyticsService';
@@ -47,7 +47,7 @@ export default function Diagnostics() {
   const navigate = useNavigate();
   const isGuest = !isAuthenticated;
   const [messages, setMessages] = useState([]);
-  const { canUse, checkAndIncrement, isLimitReached, dismissLimit, usage, guestLimitReached, guestMessageLimit } = useAiLimit({ messageCount: messages.length });
+  const { canUse, checkAndIncrement, isLimitReached, dismissLimit, usage, guestLimitReached } = useAiLimit();
   const queryClient = useQueryClient();
   const { truck, setTruck, showTruckSelector, setShowTruckSelector } = useTruck();
   const [input, setInput] = useState('');
@@ -403,8 +403,9 @@ export default function Diagnostics() {
   const sendMessage = async (messageText, audioUrl = null) => {
     if (!messageText.trim() && !audioUrl) return;
 
-    // Guest mode: hard-block if message limit reached
-    if (isGuest && messages.length >= GUEST_CHAT_MESSAGE_LIMIT) {
+    // Guest mode: the server is authoritative; this avoids an unnecessary call
+    // when its latest quota response already reported no requests remaining.
+    if (isGuest && guestLimitReached) {
       toast.error(t('diagnostics.guestLimitReached'));
       return;
     }
@@ -674,7 +675,7 @@ User: ${messageText}${audioUrl ? '\n[User has attached an audio recording of eng
       const response = await invokeLLM({
         prompt: fullPrompt,
         add_context_from_internet: true,
-        model: 'openai/gpt-4o',
+        model: 'gemini-2.5-flash',
         response_json_schema: {
           type: "object",
           properties: {
@@ -1338,7 +1339,7 @@ Focus on:
                 {/* Guest mode indicator */}
                 {isGuest && (
                   <div className="flex items-center justify-center gap-2 mt-3 px-3 py-1.5 rounded-lg bg-white/5 text-white/40 text-[11px]">
-                    <span>Guest mode &middot; {GUEST_CHAT_MESSAGE_LIMIT} messages</span>
+                    <span>Guest mode &middot; {GUEST_AI_REQUEST_LIMIT} AI requests/day</span>
                     <span>&middot;</span>
                     <a href="/Login" className="text-brand-orange hover:text-brand-orange-light underline">Sign up free</a>
                   </div>
@@ -1555,7 +1556,7 @@ Focus on:
 
             {isGuest && guestLimitReached && (
               <div className="mb-3 p-4 rounded-xl bg-gradient-to-r from-brand-orange/10 to-brand-orange-light/10 border border-brand-orange/30 text-center space-y-2">
-                <p className="text-sm text-white/80">You’ve used all {GUEST_CHAT_MESSAGE_LIMIT} guest messages.</p>
+                <p className="text-sm text-white/80">You’ve used all {GUEST_AI_REQUEST_LIMIT} guest AI requests for today.</p>
                 <a
                   href="/Login"
                   className="inline-block px-5 py-2 rounded-xl bg-gradient-to-r from-brand-orange to-brand-orange-light text-white font-semibold text-sm shadow-lg shadow-brand-orange/20 hover:from-[#e8851f] hover:to-[#d67a18] transition-all"

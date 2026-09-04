@@ -49,6 +49,12 @@ export default async function handler(req, res) {
     return res.status(405).json({ error: 'Method not allowed' });
   }
 
+  // Fail closed unless infrastructure ingestion has been explicitly enabled.
+  // Re-enabling also requires a freshly rotated INGEST_API_KEY.
+  if (process.env.INGEST_ENABLED !== 'true') {
+    return res.status(503).json({ error: 'Infrastructure ingestion is disabled' });
+  }
+
   // Auth check
   const apiKey = req.headers['x-ingest-key'] || req.headers['authorization']?.replace('Bearer ', '');
   if (!apiKey || apiKey !== process.env.INGEST_API_KEY) {

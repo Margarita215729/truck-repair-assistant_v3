@@ -111,7 +111,6 @@
 - [ ] `VITE_STRIPE_PUBLISHABLE_KEY`
 - [ ] `GOOGLE_MAPS_API_KEY` (server-side only; Geocoding/Places)
 - [ ] `STRIPE_SECRET_KEY` (server-side)
-- [ ] `GITHUB_TOKEN` (server-side)
 - [ ] `GEMINI_API_KEY` (server-side)
 - [ ] Legacy Supabase anon/service-role/JWT variables удалены
 - [ ] Google/YouTube/CSE keys отсутствуют под `VITE_`/`NEXT_PUBLIC_` prefixes
