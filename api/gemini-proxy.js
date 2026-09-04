@@ -220,7 +220,7 @@ export default async function handler(req, res) {
       && ['active', 'trialing'].includes(sub.status);
 
     if (!isPro) {
-      const FREE_DAILY_LIMIT = 5;
+      const FREE_DAILY_LIMIT = 10;
       const today = new Date().toISOString().split('T')[0];
       const { data: usage } = await getSupabase()
         .from('usage_tracking')

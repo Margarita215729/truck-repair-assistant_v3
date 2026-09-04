@@ -1,17 +1,30 @@
-import { useCallback, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { useAuth } from '@/lib/AuthContext';
-import { GUEST_CHAT_MESSAGE_LIMIT } from '@/lib/guestAccess';
+import {
+  GUEST_AI_USAGE_EVENT,
+  GUEST_CHAT_MESSAGE_LIMIT,
+  getGuestAiUsage,
+} from '@/lib/guestAccess';
 
 /**
  * Hook to check AI limits before making a request.
  * Returns { canUse, checkAndIncrement, isLimitReached, usage, isGuest, guestLimitReached }
  */
-export function useAiLimit({ messageCount = 0 } = {}) {
+export function useAiLimit() {
   const { isProUser, aiUsage, refreshAiUsage, isAuthenticated } = useAuth();
   const [isLimitReached, setIsLimitReached] = useState(false);
+  const [guestUsage, setGuestUsage] = useState(getGuestAiUsage);
 
   const isGuest = !isAuthenticated;
-  const guestLimitReached = isGuest && messageCount >= GUEST_CHAT_MESSAGE_LIMIT;
+  const guestLimitReached = isGuest && guestUsage.allowed === false;
+
+  useEffect(() => {
+    const handleGuestUsage = (event) => {
+      if (event.detail) setGuestUsage(event.detail);
+    };
+    window.addEventListener(GUEST_AI_USAGE_EVENT, handleGuestUsage);
+    return () => window.removeEventListener(GUEST_AI_USAGE_EVENT, handleGuestUsage);
+  }, []);
 
   const canUse = isGuest
     ? !guestLimitReached
@@ -21,7 +34,8 @@ export function useAiLimit({ messageCount = 0 } = {}) {
    * Check limit and increment if allowed. Returns true if request can proceed.
    */
   const checkAndIncrement = useCallback(async () => {
-    // Guest mode: enforce message-count limit (no server round-trip needed)
+    // The API is authoritative; this cached value keeps an exhausted guest from
+    // making an unnecessary request after a successful 10th call.
     if (isGuest) {
       if (guestLimitReached) {
         setIsLimitReached(true);
@@ -52,7 +66,7 @@ export function useAiLimit({ messageCount = 0 } = {}) {
     checkAndIncrement,
     isLimitReached,
     dismissLimit,
-    usage: aiUsage,
+    usage: isGuest ? guestUsage : aiUsage,
     isGuest,
     guestLimitReached,
     guestMessageLimit: GUEST_CHAT_MESSAGE_LIMIT,

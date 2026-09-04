@@ -1,24 +1,61 @@
 import { createClient } from '@supabase/supabase-js';
 import { applyCors } from './lib/cors.js';
+import {
+  GUEST_DAILY_LIMIT,
+  GUEST_ID_HEADER,
+  createGuestQuotaKeys,
+  isValidGuestId,
+  releaseGuestRequest,
+  releaseUserRequest,
+  reserveGuestRequest,
+  reserveUserRequest,
+} from './lib/guestQuota.js';
 
-const GITHUB_MODELS_URL = 'https://models.github.ai/inference/chat/completions';
-const DEFAULT_MODEL = 'openai/gpt-4o-mini';
-const ALLOWED_MODELS = new Set(['openai/gpt-4o-mini', 'openai/gpt-4o']);
+const GEMINI_OPENAI_URL = 'https://generativelanguage.googleapis.com/v1beta/openai/chat/completions';
+const DEFAULT_MODEL = 'gemini-2.5-flash';
 const MAX_MESSAGES = 50;
 const MAX_TOKENS_LIMIT = 16384;
+const MAX_GUEST_TOKENS = 8192;
+const MAX_REQUEST_CHARS = 120_000;
 const FREE_DAILY_LIMIT = 10;
 
+export const config = {
+  api: { bodyParser: { sizeLimit: '1mb' } },
+};
+
 let _supabase;
+function getServerConfig() {
+  const url = process.env.NEXT_PUBLIC_STORAGE_SUPABASE_SUPABASE_URL;
+  const key = process.env.STORAGE_SUPABASE_SUPABASE_SECRET_KEY;
+  if (!url || !key) {
+    throw new Error('NEXT_PUBLIC_STORAGE_SUPABASE_SUPABASE_URL and STORAGE_SUPABASE_SUPABASE_SECRET_KEY must be set in environment variables');
+  }
+  return { url, key };
+}
+
 function getSupabase() {
   if (!_supabase) {
-    const url = process.env.NEXT_PUBLIC_STORAGE_SUPABASE_SUPABASE_URL;
-    const key = process.env.STORAGE_SUPABASE_SUPABASE_SECRET_KEY;
-    if (!url || !key) {
-      throw new Error('NEXT_PUBLIC_STORAGE_SUPABASE_SUPABASE_URL and STORAGE_SUPABASE_SUPABASE_SECRET_KEY must be set in environment variables');
-    }
+    const { url, key } = getServerConfig();
     _supabase = createClient(url, key);
   }
   return _supabase;
+}
+
+function payloadSize(messages) {
+  try { return JSON.stringify(messages).length; } catch { return Number.POSITIVE_INFINITY; }
+}
+
+async function releaseReservation(reservation) {
+  if (!reservation) return;
+  try {
+    if (reservation.kind === 'guest') {
+      await releaseGuestRequest(getSupabase(), reservation.keys);
+    } else if (reservation.kind === 'user') {
+      await releaseUserRequest(getSupabase(), reservation.userId);
+    }
+  } catch (error) {
+    console.warn('Failed to release AI quota reservation:', error?.message || error);
+  }
 }
 
 export default async function handler(req, res) {
@@ -28,151 +65,196 @@ export default async function handler(req, res) {
     return res.status(405).json({ error: 'Method not allowed' });
   }
 
+  res.setHeader('Cache-Control', 'no-store');
+  let reservation = null;
+
   try {
-    // Verify JWT
-    const token = req.headers.authorization?.replace('Bearer ', '');
-    if (!token) {
-      return res.status(401).json({ error: 'Unauthorized' });
-    }
+    const authHeader = req.headers.authorization || '';
+    const guestId = req.headers[GUEST_ID_HEADER];
+    let user = null;
+    let guestKeys = null;
 
-    const { data: { user }, error: authError } = await getSupabase().auth.getUser(token);
-    if (authError || !user) {
-      return res.status(401).json({ error: 'Invalid token' });
-    }
-
-    // Check usage limit (the server-admin client has no caller auth.uid() context)
-    const { data: sub } = await getSupabase()
-      .from('subscriptions')
-      .select('plan, status')
-      .eq('user_id', user.id)
-      .single();
-
-    const isPro = sub && ['premium', 'pro', 'lifetime', 'owner', 'fleet'].includes(sub.plan)
-      && ['active', 'trialing'].includes(sub.status);
-
-    if (!isPro) {
-      const today = new Date().toISOString().split('T')[0];
-      const { data: usage } = await getSupabase()
-        .from('usage_tracking')
-        .select('ai_requests_count')
-        .eq('user_id', user.id)
-        .eq('date', today)
-        .single();
-
-      const used = usage?.ai_requests_count || 0;
-      if (used >= FREE_DAILY_LIMIT) {
-        return res.status(429).json({
-          error: 'Daily request limit reached',
-          limit: { allowed: false, plan: sub?.plan || 'free', used, limit: FREE_DAILY_LIMIT, remaining: 0 },
-        });
+    if (authHeader) {
+      if (!authHeader.startsWith('Bearer ')) {
+        return res.status(401).json({ error: 'Invalid authorization scheme' });
       }
+      const token = authHeader.slice('Bearer '.length).trim();
+      const { data: { user: authenticatedUser }, error: authError } = await getSupabase().auth.getUser(token);
+      if (authError || !authenticatedUser) {
+        return res.status(401).json({ error: 'Invalid token' });
+      }
+      user = authenticatedUser;
+    } else if (isValidGuestId(guestId)) {
+      const { key } = getServerConfig();
+      guestKeys = createGuestQuotaKeys(req, guestId, key);
+    } else {
+      return res.status(401).json({
+        error: 'Authentication or guest identifier required',
+        code: 'GUEST_ID_REQUIRED',
+      });
     }
 
-    const { messages, model, temperature, max_tokens, response_format } = req.body;
+    const { messages, temperature, max_tokens, response_format } = req.body || {};
 
-    if (!messages || !Array.isArray(messages)) {
+    if (!Array.isArray(messages)) {
       return res.status(400).json({ error: 'Missing messages array' });
     }
-
-    // Input validation
-    if (messages.length > MAX_MESSAGES) {
-      return res.status(400).json({ error: `Too many messages (max ${MAX_MESSAGES})` });
+    if (messages.length === 0 || messages.length > MAX_MESSAGES) {
+      return res.status(400).json({ error: `Messages must contain 1-${MAX_MESSAGES} items` });
+    }
+    if (payloadSize(messages) > MAX_REQUEST_CHARS) {
+      return res.status(413).json({ error: 'Diagnostic request is too large' });
     }
 
-    // Sanitize message roles — allow 'system', 'user', and 'assistant' from client.
-    // 'system' is required so the JSON-mode system prompt built client-side survives
-    // the proxy and satisfies OpenAI's requirement that messages contain the word
-    // "json" whenever response_format: json_object is used.
-    const ALLOWED_ROLES = new Set(['system', 'user', 'assistant']);
+    const allowedRoles = new Set(['system', 'user', 'assistant']);
     const sanitizedMessages = messages
-      .filter(m => m && typeof m === 'object' && ALLOWED_ROLES.has(m.role) && m.content != null)
-      .map(m => ({ role: m.role, content: m.content }));
+      .filter(message => message && typeof message === 'object'
+        && allowedRoles.has(message.role) && message.content != null)
+      .map(message => ({ role: message.role, content: message.content }));
 
     if (sanitizedMessages.length === 0) {
       return res.status(400).json({ error: 'No valid messages after sanitization' });
     }
 
-    // Validate response_format — only allow known types
-    const ALLOWED_RESPONSE_FORMATS = new Set(['json_object', 'text']);
-    const safeResponseFormat = response_format && ALLOWED_RESPONSE_FORMATS.has(response_format?.type)
-      ? { type: response_format.type } : undefined;
+    const allowedResponseFormats = new Set(['json_object', 'text']);
+    const safeResponseFormat = response_format
+      && allowedResponseFormats.has(response_format?.type)
+      ? { type: response_format.type }
+      : undefined;
 
-    // Validate model against allowlist
-    const safeModel = (model && ALLOWED_MODELS.has(model)) ? model : DEFAULT_MODEL;
-    const safeMaxTokens = Math.min(Number(max_tokens) || 4000, MAX_TOKENS_LIMIT);
-    const safeTemperature = Math.max(0, Math.min(Number(temperature) || 0.3, 2));
+    const requestedTokens = Number(max_tokens);
+    const tokenCeiling = user ? MAX_TOKENS_LIMIT : MAX_GUEST_TOKENS;
+    const safeMaxTokens = Math.min(
+      Number.isFinite(requestedTokens) && requestedTokens > 0 ? requestedTokens : 4000,
+      tokenCeiling,
+    );
+    const requestedTemperature = Number(temperature);
+    const safeTemperature = Number.isFinite(requestedTemperature)
+      ? Math.max(0, Math.min(requestedTemperature, 2))
+      : 0.3;
 
-    const githubToken = process.env.GITHUB_TOKEN;
-    if (!githubToken) {
-      console.error('GITHUB_TOKEN environment variable is not set');
+    const geminiApiKey = process.env.GEMINI_API_KEY;
+    if (!geminiApiKey) {
+      console.error('GEMINI_API_KEY environment variable is not set');
       return res.status(500).json({ error: 'Diagnostic service not configured' });
     }
 
-    // Call GitHub Models API
-    const response = await fetch(GITHUB_MODELS_URL, {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${githubToken}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        messages: sanitizedMessages,
-        model: safeModel,
-        temperature: safeTemperature,
-        max_tokens: safeMaxTokens,
-        ...(safeResponseFormat ? { response_format: safeResponseFormat } : {}),
-      }),
-    });
+    let quota;
+    if (user) {
+      const { data: subscription, error: subscriptionError } = await getSupabase()
+        .from('subscriptions')
+        .select('plan, status')
+        .eq('user_id', user.id)
+        .maybeSingle();
+
+      if (subscriptionError) {
+        console.error('Subscription lookup failed:', subscriptionError.message);
+        return res.status(503).json({ error: 'Usage service temporarily unavailable' });
+      }
+
+      const isPro = subscription
+        && ['premium', 'pro', 'lifetime', 'owner', 'fleet'].includes(subscription.plan)
+        && ['active', 'trialing'].includes(subscription.status);
+
+      if (!isPro) {
+        try {
+          quota = await reserveUserRequest(getSupabase(), user.id);
+        } catch (error) {
+          console.error('User quota reservation failed:', error.message);
+          return res.status(503).json({ error: 'Usage service temporarily unavailable' });
+        }
+        if (!quota.allowed) {
+          return res.status(429).json({ error: 'Daily request limit reached', limit: quota });
+        }
+        reservation = { kind: 'user', userId: user.id };
+      }
+    } else {
+      try {
+        quota = await reserveGuestRequest(getSupabase(), guestKeys);
+      } catch (error) {
+        console.error('Guest quota reservation failed:', error.message);
+        return res.status(503).json({ error: 'Guest usage service temporarily unavailable' });
+      }
+      if (!quota.allowed) {
+        return res.status(429).json({ error: 'Daily request limit reached', limit: quota });
+      }
+      reservation = { kind: 'guest', keys: guestKeys };
+    }
+
+    let response;
+    try {
+      response = await fetch(GEMINI_OPENAI_URL, {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${geminiApiKey}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          messages: sanitizedMessages,
+          // Legacy clients may still send GitHub model names. The server owns
+          // provider selection so old web/mobile bundles continue to work.
+          model: process.env.GEMINI_TEXT_MODEL || DEFAULT_MODEL,
+          temperature: safeTemperature,
+          max_tokens: safeMaxTokens,
+          ...(safeResponseFormat ? { response_format: safeResponseFormat } : {}),
+        }),
+      });
+    } catch (error) {
+      await releaseReservation(reservation);
+      reservation = null;
+      console.error('Gemini request failed:', error?.message || error);
+      return res.status(502).json({ error: 'Diagnostic service temporarily unavailable' });
+    }
 
     if (!response.ok) {
-      const errorText = await response.text();
-      console.error('GitHub Models API error:', response.status, errorText);
+      await releaseReservation(reservation);
+      reservation = null;
 
-      // Parse the upstream error for an actionable detail
+      const errorText = await response.text();
+      console.error('Gemini API error:', response.status, errorText.slice(0, 500));
+
       let detail = 'Diagnostic service temporarily unavailable';
       try {
-        const errObj = JSON.parse(errorText);
-        const msg = errObj?.error?.message || errObj?.message || '';
+        const errorObject = JSON.parse(errorText);
+        const message = errorObject?.error?.message || errorObject?.message || '';
         if (response.status === 401 || response.status === 403) {
-          detail = 'GitHub token is invalid or lacks Models API access. Check GITHUB_TOKEN.';
+          detail = 'Gemini API key is invalid or lacks Generative Language API access.';
         } else if (response.status === 404) {
-          detail = `Model "${safeModel}" not found on GitHub Models. It may have been deprecated.`;
+          detail = 'Configured Gemini model is unavailable.';
         } else if (response.status === 429) {
-          detail = 'GitHub Models rate limit exceeded. Please try again in a moment.';
-        } else if (msg) {
-          detail = msg.slice(0, 200);
+          detail = 'Diagnostic service rate limit exceeded. Please try again in a moment.';
+        } else if (message) {
+          detail = message.slice(0, 200);
         }
-      } catch { /* not JSON */ }
+      } catch { /* upstream body was not JSON */ }
 
       return res.status(502).json({ error: detail, upstream_status: response.status });
     }
 
-    const data = await response.json();
-
-    // Increment usage counter (the server-admin client has no caller auth.uid() context)
+    let data;
     try {
-      const today = new Date().toISOString().split('T')[0];
-      const { data: cur } = await getSupabase()
-        .from('usage_tracking')
-        .select('ai_requests_count')
-        .eq('user_id', user.id)
-        .eq('date', today)
-        .single();
-
-      const newCount = (cur?.ai_requests_count || 0) + 1;
-      await getSupabase()
-        .from('usage_tracking')
-        .upsert(
-          { user_id: user.id, date: today, ai_requests_count: newCount },
-          { onConflict: 'user_id,date' }
-        );
-    } catch (usageErr) {
-      console.warn('Failed to increment usage:', usageErr);
+      data = await response.json();
+    } catch {
+      await releaseReservation(reservation);
+      reservation = null;
+      return res.status(502).json({ error: 'Diagnostic service returned an invalid response' });
     }
 
+    if (!data?.choices?.[0]?.message?.content) {
+      await releaseReservation(reservation);
+      reservation = null;
+      return res.status(502).json({ error: 'Diagnostic service returned an empty response' });
+    }
+
+    // The reservation becomes a consumed request only after a usable response.
+    reservation = null;
+    if (quota) data.limit = quota;
     return res.status(200).json(data);
   } catch (error) {
+    await releaseReservation(reservation);
     console.error('Diagnostic proxy error:', error);
     return res.status(500).json({ error: 'Internal server error' });
   }
 }
+
+export { FREE_DAILY_LIMIT, GUEST_DAILY_LIMIT };

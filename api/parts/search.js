@@ -3,7 +3,7 @@
  *
  * Pipeline:
  *   1. Brave Web Search — searches truck-parts vendor sites for real product pages
- *   2. GPT-4o-mini — normalises raw search results into structured VendorListing cards
+ *   2. Gemini — normalises raw search results into structured VendorListing cards
  *
  * If any step fails, the API returns an error — no degraded/synthetic data.
  *
@@ -175,11 +175,11 @@ function extractAvailability(text) {
   return 'Check Availability';
 }
 
-// ─── AI normalisation via GPT-4o-mini ───────────────────────────────
+// ─── AI normalisation via Gemini's OpenAI-compatible endpoint ──────
 async function normaliseWithAI(cseResults, query, partNumber, vinLast6, make, model, year) {
-  const GITHUB_TOKEN = process.env.GITHUB_TOKEN;
-  if (!GITHUB_TOKEN || cseResults.length === 0) {
-    throw new Error('AI normalisation is not configured (missing GITHUB_TOKEN) or no CSE results.');
+  const geminiApiKey = process.env.GEMINI_API_KEY;
+  if (!geminiApiKey || cseResults.length === 0) {
+    throw new Error('AI normalisation is not configured (missing GEMINI_API_KEY) or no search results.');
   }
 
   const systemPrompt = `You are a truck parts data normaliser. Given raw search results for truck parts, extract structured product listings.
@@ -195,7 +195,8 @@ Rules:
 Return a JSON array of objects with these exact fields:
 { "title": string, "price": number, "vendor": string, "condition": string, "availability": string, "partNumber": string, "imageUrl": string|null, "itemUrl": string, "sourceTier": number (1=OEM, 2=Specialist, 3=Aftermarket, 4=Marketplace) }
 
-Return ONLY the JSON array, no markdown, no explanation.`;
+Return ONLY a JSON object in this exact shape, with no markdown or explanation:
+{ "listings": [/* the listing objects */] }`;
 
   const userPrompt = `Search context: "${query}"${partNumber ? `, Part Number: ${partNumber}` : ''}${vinLast6 ? `, VIN last 6: ${vinLast6}` : ''}${make ? `, Truck: ${make} ${model || ''} ${year || ''}` : ''}
 
@@ -209,14 +210,14 @@ ${cseResults.map((r, i) => `[${i + 1}] Title: ${r.title}
    Image: ${r.image || 'none'}`).join('\n\n')}`;
 
   try {
-    const resp = await fetchWithTimeout('https://models.github.ai/inference/chat/completions', {
+    const resp = await fetchWithTimeout('https://generativelanguage.googleapis.com/v1beta/openai/chat/completions', {
       method: 'POST',
       headers: {
-        Authorization: `Bearer ${GITHUB_TOKEN}`,
+        Authorization: `Bearer ${geminiApiKey}`,
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        model: 'openai/gpt-4o-mini',
+        model: process.env.GEMINI_TEXT_MODEL || 'gemini-2.5-flash',
         temperature: 0.1,
         max_tokens: 1200,
         response_format: { type: 'json_object' },

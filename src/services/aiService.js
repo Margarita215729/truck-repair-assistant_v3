@@ -9,10 +9,11 @@
 import { apiUrl } from '@/config/apiBase';
 import { supabase, hasSupabaseConfig } from '@/api/supabaseClient';
 import { httpPost } from '@/utils/httpClient';
+import { getGuestAiId, setGuestAiUsage } from '@/lib/guestAccess';
 
 const AI_PROXY_URL = apiUrl('/api/ai-proxy');
-const DEFAULT_MODEL = 'openai/gpt-4o-mini';
-const VISION_MODEL  = 'openai/gpt-4o';
+const DEFAULT_MODEL = 'gemini-2.5-flash';
+const VISION_MODEL  = 'gemini-2.5-flash';
 
 /**
  * Call the LLM API via secure server proxy.
@@ -61,18 +62,16 @@ export async function invokeLLM({
   ];
 
   try {
-    // Try server-side proxy first (production path)
+    // Registered users send their Supabase JWT. Guests send a stable,
+    // pseudonymous identifier which is HMAC-hashed and rate-limited server-side.
+    let accessToken = null;
     if (hasSupabaseConfig && supabase) {
       const { data: { session } } = await supabase.auth.getSession();
-      if (session?.access_token) {
-        const data = await callViaProxy(messages, response_json_schema, session.access_token, effectiveModel);
-        return parseResponse(data, response_json_schema);
-      }
+      accessToken = session?.access_token || null;
     }
 
-    const err = new Error('Diagnostic service unavailable — no active session.');
-    err.code = 'NO_AI_SERVICE';
-    throw err;
+    const data = await callViaProxy(messages, response_json_schema, accessToken, effectiveModel);
+    return parseResponse(data, response_json_schema);
   } catch (error) {
     // If rate limited (429), throw specific error for UI to handle
     if (error.status === 429 || error.message?.includes('limit')) {
@@ -86,6 +85,11 @@ export async function invokeLLM({
 }
 
 async function callViaProxy(messages, schema, accessToken, model) {
+  const isGuest = !accessToken;
+  const headers = accessToken
+    ? { 'Authorization': `Bearer ${accessToken}` }
+    : { 'X-TRA-Guest-ID': getGuestAiId() };
+
   const response = await httpPost(
     AI_PROXY_URL,
     {
@@ -95,11 +99,12 @@ async function callViaProxy(messages, schema, accessToken, model) {
       max_tokens: 16384,
       ...(schema ? { response_format: { type: 'json_object' } } : {}),
     },
-    { 'Authorization': `Bearer ${accessToken}` }
+    headers
   );
 
   if (response.status === 429) {
     const err = await response.json().catch(() => ({}));
+    if (isGuest && err.limit) setGuestAiUsage(err.limit);
     const error = new Error(err.error || 'Daily request limit reached');
     error.status = 429;
     error.limit = err.limit;
@@ -115,7 +120,9 @@ async function callViaProxy(messages, schema, accessToken, model) {
     throw err;
   }
 
-  return response.json();
+  const data = await response.json();
+  if (isGuest && data.limit) setGuestAiUsage(data.limit);
+  return data;
 }
 
 function parseResponse(data, schema) {
