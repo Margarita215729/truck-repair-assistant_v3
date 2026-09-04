@@ -6,13 +6,9 @@ import { supabase, hasSupabaseConfig } from '@/api/supabaseClient';
 import { apiUrl } from '@/config/apiBase';
 import { httpPost } from '@/utils/httpClient';
 
-// ─── Stripe payments paused ────────────────────────────────────────────
-// Stripe serverless functions moved to api/_stripe-paused/ to stay within
-// Vercel free tier limit (12 functions). To re-enable:
-//   1. Move files from api/_stripe-paused/ back to api/
-//   2. Restore "api/stripe-webhook.js" entry in vercel.json functions
-//   3. Set STRIPE_PAUSED = false below
-// ────────────────────────────────────────────────────────────────────────
+// Legacy web checkout path. It is not the iOS monetization implementation;
+// paid iOS access must be implemented with StoreKit/In-App Purchase. Server
+// routes enforce their own configuration and currently fail closed.
 const STRIPE_PAUSED = false;
 
 export const subscriptionService = {

@@ -1,88 +1,65 @@
-# Truck Repair Assistant - Version 3.0.0
+# Truck Repair Assistant
 
-**Developer:** Makevia LLC  
-**License:** Proprietary
+Truck Repair Assistant (TRA) is roadside decision support for owner-operators.
+It helps a driver interpret symptoms, dashboard warnings, DTCs, and photos;
+understand likely causes; and decide what to do next when a truck develops a
+problem on the road.
 
-## Overview
+Production: [www.tra.tools](https://www.tra.tools)
 
-Truck Repair Assistant is a professional AI-powered mobile and web application designed to assist truck drivers and fleet managers with vehicle diagnostics, repair guidance, parts sourcing, and service location.
+## Current product scope
 
-## Core Features
+- Ten text AI requests per day are available without an account.
+- Signed-in users can save trucks, conversations, and diagnostic reports.
+- Diagnostic input supports text, DTCs, and authenticated image analysis.
+- The interface supports English, Spanish, and Russian.
+- Parts and nearby-service search are available through server-side APIs.
 
-- **AI Diagnostics**: Visual fault code analysis using advanced AI models
-- **Parts Search**: Real-time pricing and availability across multiple suppliers
-- **Service Locator**: GPS-based service center and parts supplier finder
-- **Telematics Integration**: OAuth integration with Geotab, Motive, Samsara, Verizon Connect, Omnitracs
-- **Multi-language Support**: English, Russian, Spanish
-- **Offline Capability**: Core features available without internet connection
+The following are not production capabilities and must not be marketed as such:
 
-## Technology Stack
+- Paid iOS access: StoreKit/In-App Purchase has not been implemented.
+- Web Stripe: legacy routes remain, but checkout currently fails closed and is
+  not the iOS purchase implementation.
+- Telematics: provider adapters exist, but no operating integration is validated.
+- Audio diagnosis: experimental heuristic code, not a validated diagnostic model.
+- Offline diagnosis: AI and search features require network access.
 
-- **Frontend**: React 18.3.0, Vite, TailwindCSS
-- **Mobile**: Capacitor 7.0.2 (iOS/Android)
-- **Backend**: Supabase, Vercel Serverless Functions
-- **AI**: GitHub Models, Google Gemini
-- **APIs**: Google Maps, Brave Search, YouTube Data API
-- **Payments**: Stripe
+## Technology
 
-## System Requirements
+- React 18 and Vite 6
+- Capacitor 7 for iOS and Android shells
+- Vercel Functions
+- Supabase Auth, Postgres, and Storage
+- Gemini for text and image inference
+- Google Maps and Brave Search for location and retrieval services
 
-### Web Development
-- Node.js 18.x or later
-- npm 9.x or later
+See [Architecture](docs/ARCHITECTURE.md) for the live request paths and feature
+status.
 
-### iOS Development
-- macOS 13.0 or later
-- Xcode 15.0 or later
-- CocoaPods 1.12 or later
-- Apple Developer Program membership
+## Local development
 
-### Android Development
-- Android Studio Hedgehog or later
-- Android SDK Platform 34
-- Gradle 8.x
-
-## Installation
+Requirements: Node.js 20+, npm, and Xcode for iOS work.
 
 ```bash
-git clone https://github.com/Margarita215729/truck-repair-assistant_v3.git
-cd truck-repair-assistant_v3
-npm install
+npm ci
+cp .env.example .env.local
+npm run dev
 ```
 
-## Environment Configuration
+Only client-safe values may use `VITE_` or `NEXT_PUBLIC_` prefixes. Server keys
+belong in Vercel or another server-side secret manager. Never commit `.env.local`.
 
-Copy `.env.example` to `.env.local`. Only public values may use `VITE_` or
-`NEXT_PUBLIC_`; those prefixes compile values into the browser and mobile bundles.
-
-Frontend/mobile Supabase configuration is limited to:
+## Verification
 
 ```bash
-NEXT_PUBLIC_STORAGE_SUPABASE_SUPABASE_URL=https://your-project.supabase.co
-VITE_SUPABASE_PUBLISHABLE_KEY=sb_publishable_xxx
-NEXT_PUBLIC_BASE_URL=https://www.tra.tools
-
-# Other public browser/mobile configuration
-VITE_STRIPE_PUBLISHABLE_KEY=pk_live_xxx
+npm run lint
+npm run typecheck
+npm test
+npm run build
+npm run security:scan
 ```
 
-Set backend credentials only in Vercel Environment Variables (and in a local
-server environment when developing serverless routes):
-
-```bash
-STORAGE_SUPABASE_SUPABASE_SECRET_KEY=sb_secret_xxx
-GITHUB_TOKEN=your_github_token
-GEMINI_API_KEY=your_gemini_key
-BRAVE_API_KEY=your_brave_search_key
-GOOGLE_MAPS_API_KEY=your_server_only_maps_key
-STRIPE_SECRET_KEY=sk_live_...
-STRIPE_WEBHOOK_SECRET=whsec_...
-```
-
-Do not configure Supabase anon JWTs, service-role JWTs, JWT secrets, database
-passwords, Google API keys, or any other secret under a `VITE_`/`NEXT_PUBLIC_`
-name. Maps and Places calls are routed through authenticated server endpoints.
-Validate the policy and connectivity before building:
+Before a mobile build:
 
 ```bash
 npm run validate:env
@@ -90,102 +67,30 @@ npm run mobile:prepare
 npm run security:scan
 ```
 
-Use `npm run validate:env -- --no-connectivity` for an offline policy/format
-check. See [.env.example](.env.example) and [Security](docs/SECURITY.md) for the
-complete reference.
+## Deployment
 
-## Development
+Pushing `main` creates the production Vercel deployment. Supabase schema changes
+must be committed as ordered migrations under `supabase/migrations/` and applied
+before code that depends on them is released.
 
-### Web Development
-
-```bash
-npm install          # Install dependencies
-npm run dev         # Start development server
-npm run build       # Build for production
-npm test            # Run tests
-npm run lint        # Lint code
-npm run typecheck   # TypeScript type checking
-```
-
-### Mobile Development
-
-iOS:
-```bash
-npm run mobile:prepare      # Build and sync
-cd ios/App && pod install  # Install iOS dependencies
-npm run cap:open:ios       # Open in Xcode
-```
-
-Android:
-```bash
-npm run mobile:prepare        # Build and sync
-npm run cap:open:android     # Open in Android Studio
-```
-
-## Project Structure
-
-```
-truck-repair-assistant_v3/
-├── src/                    # Application source code
-│   ├── pages/             # Route components
-│   ├── components/        # Reusable UI components
-│   ├── services/          # Business logic and API clients
-│   ├── hooks/             # Custom React hooks
-│   ├── utils/             # Utility functions
-│   ├── config/            # Configuration files
-│   └── i18n/              # Internationalization
-├── api/                   # Vercel serverless functions
-│   ├── telematics/        # Telematics OAuth integrations
-│   └── parts/             # Parts search endpoints
-├── public/                # Static assets
-├── LOGO_TRA_v1.svg        # Canonical app logo (App Store icon source)
-├── docs/                  # Technical documentation
-│   └── app-store-screenshots/  # App Store screenshots & upload-ready assets
-├── supabase/             # Database migrations and config
-├── ios/                  # iOS native project (Capacitor)
-├── android/              # Android native project (Capacitor)
-└── scripts/              # Development automation scripts
-```
-
-## Testing
-
-```bash
-npm test              # Run all tests
-npm run test:watch   # Watch mode
-```
+For iOS status and release steps, see [App Store release](docs/APP_STORE_RELEASE.md).
 
 ## Documentation
 
-- [App Store Submission](docs/APP_STORE_SUBMISSION.md) - iOS deployment guide
-- [App Store Upload (now)](docs/APP_STORE_UPLOAD_NOW.md) - Ready-to-upload paths and metadata
-- [App Store Screenshots](docs/app-store-screenshots/README.md) - Screenshot & icon folder layout (`upload/iphone-6.7`, `AppIcon-1024.png`; logo source: `LOGO_TRA_v1.svg`)
-- [iOS Development](docs/IOS_DEVELOPMENT.md) - iOS development workflow
-- [.env.example](.env.example) - Environment variables reference
-- [Security](docs/SECURITY.md) - Client/server credential policy
-- [App Store Readiness](docs/APP_STORE_READINESS.md) - Pre-launch checklist
-
-## Deployment
-
-### Web (Vercel)
-Automatic deployment on push to `main` branch. Configure environment variables in Vercel dashboard.
-
-### Mobile
-See [docs/APP_STORE_SUBMISSION.md](docs/APP_STORE_SUBMISSION.md) for App Store submission process.
-
-## Legal
-
+- [Architecture](docs/ARCHITECTURE.md)
+- [App Store release](docs/APP_STORE_RELEASE.md)
+- [Credential policy](docs/SECURITY.md)
 - [Privacy Policy](PRIVACY_POLICY.md)
 - [Terms of Service](TERMS_OF_SERVICE.md)
-- [Patent Disclosure](PATENT_DISCLOSURE.md)
 
-## Support
-
-For technical support or business inquiries:
-- Email: founder@tra.tools
-- Website: https://www.tra.tools
+`PATENT_DISCLOSURE.md` is a dated IP record, not a description of current product
+readiness.
 
 ## License
 
 Copyright © 2026 Makevia LLC. All rights reserved.
 
-This software is proprietary and confidential. Unauthorized copying, distribution, or use of this software is strictly prohibited.
+The source code is publicly viewable for portfolio, evaluation, and demonstration
+purposes. No open-source license is granted. Copying, modification,
+redistribution, or commercial use requires prior written permission from
+Makevia LLC.

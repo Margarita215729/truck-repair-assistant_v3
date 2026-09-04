@@ -1,5 +1,7 @@
 # Credential policy
 
+Last verified: September 4, 2026.
+
 Do not commit passwords, API keys, or other credentials to this repository.
 Store server credentials only in secure secret managers such as Supabase Dashboard
 and Vercel Environment Variables.
@@ -18,6 +20,11 @@ Anything under `VITE_` or `NEXT_PUBLIC_` is public and may be embedded in web,
 iOS, and Android bundles. Never use those prefixes for secrets, service-role
 keys, JWT secrets, database credentials, GitHub tokens, Gemini keys, or Stripe
 secret keys.
+
+Gemini is the active inference provider. GitHub Models is retired and the
+application must not require a GitHub personal access token. Infrastructure data
+ingest is disabled unless `INGEST_ENABLED=true`; re-enabling it requires a newly
+rotated server-only `INGEST_API_KEY`.
 
 Legacy Supabase anon JWTs, service-role JWTs, JWT secrets, Postgres connection
 variables, and alternative Supabase aliases are prohibited. They are not client
