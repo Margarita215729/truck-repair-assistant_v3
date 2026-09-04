@@ -1,8 +1,14 @@
-.vercel
-.env.local
+.vercel/
+.vscode/
+.DS_Store
+.clj-kondo/
+.lsp/
+/typescript
+*.log
+docs/app-store-screenshots/
+capacitor.config.dev.ts
 node_modules/
 dist/
 .env.prod-test
 .env.vercel-test
-.env.local
 .env*.local
