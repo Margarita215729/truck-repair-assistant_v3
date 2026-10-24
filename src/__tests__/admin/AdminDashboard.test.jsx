@@ -79,7 +79,7 @@ vi.mock('@tanstack/react-query', async () => {
 vi.mock('@/services/marketingService', () => ({
   marketingService: {
     getRecentEvents: vi.fn().mockResolvedValue([]),
-    getSubscriptionStats: vi.fn().mockResolvedValue({ paying: 0, trialing: 0, free_plan: 0, canceled: 0, past_due: 0 }),
+    getSubscriptionStats: vi.fn().mockResolvedValue({ ever_paid: 0, active_paid: 0, paid_last_30d: 0, trialing: 0, free_plan: 0, canceled: 0, past_due: 0 }),
     getUserActivitySummary: vi.fn().mockResolvedValue([]),
     getUserEvents: vi.fn().mockResolvedValue([]),
     getAllAccounts: vi.fn().mockResolvedValue([]),
@@ -94,6 +94,18 @@ vi.mock('@/services/marketingService', () => ({
     createCampaign: vi.fn().mockResolvedValue({}),
     createExperiment: vi.fn().mockResolvedValue({}),
     createAlert: vi.fn().mockResolvedValue({}),
+    updateStrategy: vi.fn().mockResolvedValue({}),
+    deleteStrategy: vi.fn().mockResolvedValue({}),
+    updateSegment: vi.fn().mockResolvedValue({}),
+    deleteSegment: vi.fn().mockResolvedValue({}),
+    updateCampaign: vi.fn().mockResolvedValue({}),
+    deleteCampaign: vi.fn().mockResolvedValue({}),
+    updateExperiment: vi.fn().mockResolvedValue({}),
+    deleteExperiment: vi.fn().mockResolvedValue({}),
+    updateAlert: vi.fn().mockResolvedValue({}),
+    deleteAlert: vi.fn().mockResolvedValue({}),
+    evaluateAlerts: vi.fn().mockResolvedValue([]),
+    refreshSegmentSizes: vi.fn().mockResolvedValue([]),
   },
 }));
 
@@ -104,7 +116,7 @@ const AdminDashboard = (await import('@/pages/AdminDashboard')).default;
 function setup(mockOverrides = {}) {
   queryMocks = {
     'marketing-events-recent': { data: [], isLoading: false },
-    'subscription-stats': { data: { paying: 10, trialing: 5, free_plan: 20, canceled: 2, past_due: 0 }, isLoading: false },
+    'subscription-stats': { data: { ever_paid: 15, active_paid: 10, paid_last_30d: 8, trialing: 5, free_plan: 20, canceled: 2, past_due: 0 }, isLoading: false },
     'user-activity-summary': {
       data: [
         { user_id: 'uid-1', email: 'alice@example.com', event_count: 42, last_active: '2025-01-15T10:00:00Z' },
@@ -190,15 +202,15 @@ describe('AdminDashboard', () => {
     it('shows subscription count cards', () => {
       setup();
       clickTab('admin.tabs.metrics');
-      expect(screen.getByText('admin.bizMetrics.payingUsers')).toBeTruthy();
+      expect(screen.getByText('admin.bizMetrics.activePaidUsers')).toBeTruthy();
       expect(screen.getByText('admin.bizMetrics.trialingUsers')).toBeTruthy();
       expect(screen.getByText('admin.bizMetrics.canceledUsers')).toBeTruthy();
     });
 
-    it('shows paying user count from subStats', () => {
+    it('shows active paid user count from subStats', () => {
       setup();
       clickTab('admin.tabs.metrics');
-      // subStats.paying = 10 → displayed somewhere as "10"
+      // subStats.active_paid = 10 → displayed somewhere as "10"
       const cells = screen.getAllByText('10');
       expect(cells.length).toBeGreaterThan(0);
     });
@@ -216,7 +228,7 @@ describe('AdminDashboard', () => {
       const inputs = screen.getAllByPlaceholderText('0');
       // second input is monthlyPrice
       fireEvent.change(inputs[1], { target: { value: '50' } });
-      // paying=10, price=50 → MRR should show $500 (may appear in multiple cards)
+      // active_paid=10, price=50 → MRR should show $500 (may appear in multiple cards)
       const mrrElements = screen.getAllByText('$500');
       expect(mrrElements.length).toBeGreaterThan(0);
     });
@@ -285,8 +297,8 @@ describe('AdminDashboard', () => {
   });
 
   describe('businessMetrics computation', () => {
-    it('computes MRR = paying * monthlyPrice', () => {
-      // paying=10, price input = 30 → MRR = $300
+    it('computes MRR = active_paid * monthlyPrice', () => {
+      // active_paid=10, price input = 30 → MRR = $300
       setup();
       clickTab('admin.tabs.metrics');
       const inputs = screen.getAllByPlaceholderText('0');
@@ -342,6 +354,127 @@ describe('AdminDashboard', () => {
       setup({ 'admin-login-sessions': { data: [], isLoading: false } });
       clickTab('admin.tabs.users');
       expect(screen.getByText('admin.loginSessions.empty')).toBeTruthy();
+    });
+  });
+
+  describe('Account search', () => {
+    it('filters accounts by email query', () => {
+      // Empty the activity list and sessions so the only place alice/bob can
+      // appear is the accounts table.
+      setup({
+        'user-activity-summary': { data: [], isLoading: false },
+        'admin-login-sessions': { data: [], isLoading: false },
+      });
+      clickTab('admin.tabs.users');
+      expect(screen.getByText('bob@example.com')).toBeTruthy();
+      expect(screen.getByText('alice@example.com')).toBeTruthy();
+
+      const search = screen.getByPlaceholderText('admin.accounts.searchPlaceholder');
+      fireEvent.change(search, { target: { value: 'bob' } });
+
+      expect(screen.getByText('bob@example.com')).toBeTruthy();
+      // alice should no longer appear in the (now filtered) accounts table
+      expect(screen.queryByText('alice@example.com')).toBeNull();
+    });
+
+    it('shows empty message when search matches nothing', () => {
+      setup();
+      clickTab('admin.tabs.users');
+      const search = screen.getByPlaceholderText('admin.accounts.searchPlaceholder');
+      fireEvent.change(search, { target: { value: 'zzz-no-match' } });
+      expect(screen.getByText('admin.accounts.empty')).toBeTruthy();
+    });
+  });
+
+  describe('Strategy lifecycle management', () => {
+    it('renders status transition action for a draft strategy', () => {
+      setup({
+        'marketing-strategies': {
+          data: [{ id: 'st-1', name: 'Launch plan', objective: 'Grow', status: 'draft' }],
+          isLoading: false,
+        },
+      });
+      clickTab('admin.tabs.strategies');
+      // draft → activate action available
+      expect(screen.getByText('admin.actions.activate')).toBeTruthy();
+      // status badge rendered
+      expect(screen.getByText('draft')).toBeTruthy();
+    });
+
+    it('renders pause and complete actions for an active strategy', () => {
+      setup({
+        'marketing-strategies': {
+          data: [{ id: 'st-2', name: 'Active plan', objective: 'Retain', status: 'active' }],
+          isLoading: false,
+        },
+      });
+      clickTab('admin.tabs.strategies');
+      expect(screen.getByText('admin.actions.pause')).toBeTruthy();
+      expect(screen.getByText('admin.actions.complete')).toBeTruthy();
+    });
+
+    it('delete button reveals a confirmation step', () => {
+      setup({
+        'marketing-strategies': {
+          data: [{ id: 'st-3', name: 'Doomed plan', objective: 'X', status: 'draft' }],
+          isLoading: false,
+        },
+      });
+      clickTab('admin.tabs.strategies');
+      const del = screen.getByText('admin.actions.delete');
+      fireEvent.click(del);
+      expect(screen.getByText('admin.actions.confirmDelete')).toBeTruthy();
+      expect(screen.getByText('admin.actions.cancel')).toBeTruthy();
+    });
+  });
+
+  describe('Segment management', () => {
+    it('shows estimated size and recalculate action', () => {
+      setup({
+        'marketing-segments': {
+          data: [{ id: 'sg-1', name: 'Power users', description: 'd', status: 'active', estimated_size: 123 }],
+          isLoading: false,
+        },
+      });
+      clickTab('admin.tabs.segments');
+      expect(screen.getByText('admin.actions.recalcSizes')).toBeTruthy();
+      // size value is rendered alongside its label inside one paragraph
+      expect(
+        screen.getByText((_content, el) => el?.textContent === 'admin.segments.sizeLabel: 123'),
+      ).toBeTruthy();
+      // active segment can be archived
+      expect(screen.getByText('admin.actions.archive')).toBeTruthy();
+    });
+  });
+
+  describe('Campaign lifecycle management', () => {
+    it('renders launch action for a draft campaign', () => {
+      setup({
+        'marketing-campaigns': {
+          data: [{ id: 'cm-1', name: 'Spring promo', channel: 'email', status: 'draft' }],
+          isLoading: false,
+        },
+      });
+      clickTab('admin.tabs.campaigns');
+      expect(screen.getByText('admin.actions.launch')).toBeTruthy();
+      expect(screen.getByText('admin.actions.schedule')).toBeTruthy();
+    });
+  });
+
+  describe('Alert evaluation', () => {
+    it('renders the run-evaluation button and metric label', () => {
+      setup({
+        'marketing-alerts': {
+          data: [{ id: 'al-1', name: 'Retention guard', metric_key: 'd7_retention', comparator: 'lt', threshold_value: 20, lookback_days: 7, status: 'active' }],
+          isLoading: false,
+        },
+      });
+      clickTab('admin.tabs.alerts');
+      expect(screen.getByText('admin.actions.evaluateAlerts')).toBeTruthy();
+      // muted/active transition action
+      expect(screen.getByText('admin.actions.mute')).toBeTruthy();
+      // metric key resolved to a human label key (appears in the form select and the list)
+      expect(screen.getAllByText(/admin\.metricKeys\.d7_retention/).length).toBeGreaterThan(0);
     });
   });
 });
